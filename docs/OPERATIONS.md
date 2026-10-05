@@ -2,19 +2,21 @@
 
 ## Daily
 
-1. Open the dashboard (`/`). Approve, edit, reject or send back for research every draft under "Emails awaiting approval".
-   Approved drafts are picked up by n8n `08_sync_to_saleshandy` within 15 minutes, or click "Sync to Saleshandy now".
-2. Work "Replies awaiting action" by priority. For a VALUE_REQUEST click "Generate teardown", then approve the teardown text.
-   Suggested replies are never sent by the system; copy them into Saleshandy or Gmail yourself.
-3. Check "Workflow failures, last 7 days" is empty.
+1. Open the app and sign in. Today shows what is waiting.
+2. Review emails: approve, edit, reject or send back for research. Approved drafts go to Saleshandy through n8n
+   `08_sync_to_saleshandy` within 15 minutes, or from "Approved, not sent".
+3. Inbox: work replies from the top. For "Asked for the two things" draft the teardown, then approve it under Teardowns.
+   Suggested answers are never sent by the system; copy them into Saleshandy or Gmail yourself.
+4. Pipeline > Need a decision maker: add the named person for each qualified company, then "Write the email".
+5. If Today shows a red line about failures, look below.
 
 ## Inspecting failures
 
 | Symptom | Where to look |
 |---|---|
-| Workflow failed | Dashboard bottom table, or `GET /api/ops/failures` (X-Api-Key). The row names the workflow, the node and the error. n8n UI > Executions shows the full run. |
+| Workflow failed | The red line on Today, then `GET /api/ops/failures` (X-Api-Key). The row names the workflow, the node and the error. n8n UI > Executions shows the full run. |
 | Agent produced invalid output | `select id, agent, error, raw_output from ai_runs where not valid order by created_at desc limit 20;` |
-| Why did this prospect get this score / observation | Dashboard > prospects > company: every research record, the score breakdown with per-criterion rationale, and the audit trail. |
+| Why did this prospect get this score / observation | Pipeline > the company: every research record, the score breakdown with per-criterion rationale, and the audit trail. |
 | Saleshandy call failed | core logs: `docker compose logs core | grep saleshandy`. Status code is logged, never the key. |
 | Health | `curl localhost:8095/health` returns db latency, provider modes, failed workflows in 24 h and pending approvals. `GET /metrics` (X-Api-Key) is Prometheus text. |
 
@@ -64,5 +66,5 @@ then run the script.
 ## Security notes
 
 - Postgres and the core bind to 127.0.0.1 only; Caddy terminates TLS. n8n webhooks are public by design (Saleshandy must reach them) but every workflow's first node checks `x-api-key` against `CORE_API_KEY` and answers 401 otherwise; the Saleshandy inbound path additionally requires `X-Webhook-Secret` at the core.
-- Rotate `CORE_API_KEY`, `SALESHANDY_WEBHOOK_SECRET` and both basic-auth passwords by editing `.env` and `docker compose up -d`.
+- Rotate `CORE_API_KEY`, `SALESHANDY_WEBHOOK_SECRET`, `SESSION_SECRET` (signs everyone out), `DASHBOARD_PASSWORD` and the n8n basic-auth password by editing `.env` and `docker compose up -d`.
 - Rate limit: 120 requests per minute per IP on the core.

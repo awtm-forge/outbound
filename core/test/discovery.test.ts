@@ -55,7 +55,7 @@ test('serper adapter posts the built query with India locale and maps organic re
 });
 test('daily quota is enforced per source', async () => {
   await D.runSearch({ industry: 'kitchen appliances', pages: 1 }, 'tester', { fetchImpl: fetchStub }); // 3rd query
-  await assert.rejects(D.runSearch({ industry: 'water purifiers', pages: 1 }, 'tester', { fetchImpl: fetchStub }), /quota/);
+  await assert.rejects(D.runSearch({ industry: 'water purifiers', pages: 1 }, 'tester', { fetchImpl: fetchStub }), /used up/); assert.equal(await D.quotaUsed('google_cse'), 3); // the refused call is not counted
   assert.equal((await db.one(`select status from discovery_searches order by created_at desc limit 1`))!.status, 'FAILED');
 });
 test('add to campaign: ingests with public email, runs chain, blocks a nameless draft, dedupes on re-add', async () => {
@@ -72,11 +72,11 @@ test('add to campaign: ingests with public email, runs chain, blocks a nameless 
   assert.equal((await db.one(`select status from discovery_candidates where id=$1`, [volt!.id]))!.status, 'ADDED');
   const viaApi = await t.api('POST', '/api/discovery/candidates/add', { candidate_ids: [], campaign_code: 'IND-WEB-B2B' }); assert.equal(viaApi.status, 400);
 });
-test('discovery UI pages render and the results page shows candidates and pipeline state', async () => {
-  const auth = { authorization: 'Basic ' + Buffer.from('tester:test-pass').toString('base64') };
-  const list = await fetch(t.url + '/ui/discovery', { headers: auth }); assert.equal(list.status, 200); const h = await list.text(); assert.match(h, /smart home devices/); assert.match(h, /of 3 queries used today/);
-  const s = await db.one(`select id from discovery_searches where status='DONE' order by created_at limit 1`);
-  const res = await fetch(t.url + `/ui/discovery/${s!.id}`, { headers: auth }); const rh = await res.text();
-  assert.match(rh, /volthome\.in/); assert.match(rh, /in pipeline/); assert.match(rh, /sales@volthome\.in/); assert.match(rh, /find founder/); assert.match(rh, /IND-WEB-ELECTRONICS/);
-  assert.equal((await t.api('GET', '/api/discovery/quota')).body.used_today, 4);
+test('discovery over the session API: searches listed, results carry candidates and pipeline state, quota', async () => {
+  const sess = await t.signIn();
+  const list = await sess.call('GET', '/api/discovery/searches'); assert.equal(list.status, 200); assert.ok(list.body.some((x: any) => x.query.industry === 'smart home devices'));
+  const s = list.body.find((x: any) => x.status === 'DONE' && x.query.industry === 'smart home devices' && !x.query.technology);
+  const res = await sess.call('GET', `/api/discovery/searches/${s.id}`); const volt = res.body.candidates.find((c: any) => c.domain === 'volthome.in');
+  assert.equal(volt.status, 'ADDED'); assert.ok(volt.prospect_status); assert.equal(volt.display_name, 'VoltHome'); assert.ok(volt.emails.includes('sales@volthome.in'));
+  assert.equal((await sess.call('GET', '/api/discovery/quota')).body.used_today, 3);
 });

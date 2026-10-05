@@ -11,7 +11,8 @@ export function snapshotFromHtml(url: string, html: string): SiteSnapshotT {
   const description = html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']*)["']/i)?.[1] ?? html.match(/<meta[^>]+content=["']([^"']*)["'][^>]+name=["']description["']/i)?.[1];
   const cta = all(html, /<(?:a|button)[^>]*(?:class=["'][^"']*(?:btn|button|cta)[^"']*["'])[^>]*>([\s\S]*?)<\/(?:a|button)>/gi).concat(all(html, /<button[^>]*>([\s\S]*?)<\/button>/gi)).filter((t) => t.length < 40);
   return {
-    fetched: true, url, title, description: description || undefined, h1: all(html, /<h1[^>]*>([\s\S]*?)<\/h1>/gi).slice(0, 5),
+    fetched: true, url, title, description: description || undefined,
+    site_name: (html.match(/<meta[^>]+property=["']og:site_name["'][^>]+content=["']([^"']+)["']/i)?.[1] ?? html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:site_name["']/i)?.[1] ?? html.match(/<meta[^>]+name=["']application-name["'][^>]+content=["']([^"']+)["']/i)?.[1])?.trim() || undefined, h1: all(html, /<h1[^>]*>([\s\S]*?)<\/h1>/gi).slice(0, 5),
     nav_links: all(html, /<nav[\s\S]*?<\/nav>/i.test(html) ? /<nav[\s\S]*?<\/nav>/gi : /(?!)/g).join(' ').split(/\s{2,}/).slice(0, 0).concat(all(html.match(/<nav[\s\S]*?<\/nav>/i)?.[0] ?? '', /<a[^>]*>([\s\S]*?)<\/a>/gi)).slice(0, 15),
     cta_texts: [...new Set(cta)].slice(0, 8), forms: (html.match(/<form\b/gi) ?? []).length, has_viewport_meta: /<meta[^>]+name=["']viewport["']/i.test(html),
     platform_signals: PLATFORMS.filter(([re]) => re.test(html)).map(([, n]) => n), script_count: (html.match(/<script\b/gi) ?? []).length, image_count: (html.match(/<img\b/gi) ?? []).length,

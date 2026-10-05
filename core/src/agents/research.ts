@@ -4,7 +4,7 @@ import { Tag, Claim, Confidence, Evidence, ProblemEnum, DomainEnum, CompanyCtx, 
 
 // ---------------- 1. Account Research Agent ----------------
 const SiteSnapshot = z.object({
-  fetched: z.boolean(), url: z.string().optional(), title: z.string().optional(), description: z.string().optional(), h1: z.array(z.string()).default([]),
+  fetched: z.boolean(), url: z.string().optional(), title: z.string().optional(), site_name: z.string().optional(), description: z.string().optional(), h1: z.array(z.string()).default([]),
   nav_links: z.array(z.string()).default([]), cta_texts: z.array(z.string()).default([]), forms: z.number().default(0), has_viewport_meta: z.boolean().default(false),
   platform_signals: z.array(z.string()).default([]), script_count: z.number().default(0), image_count: z.number().default(0), word_count: z.number().default(0),
   has_https: z.boolean().default(false), trust_signals: z.array(z.string()).default([]), text_excerpt: z.string().default(''), error: z.string().optional(),

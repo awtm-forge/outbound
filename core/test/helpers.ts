@@ -1,6 +1,7 @@
 // Shared test bootstrap: a private database per test process, migrated and seeded, server on a random port.
 process.env.AI_PROVIDER ??= 'mock'; process.env.SALESHANDY_MODE = 'mock';
-process.env.CORE_API_KEY = 'test-api-key'; process.env.DASHBOARD_USER = 'tester'; process.env.DASHBOARD_PASSWORD = 'test-pass'; process.env.SALESHANDY_WEBHOOK_SECRET = 'test-webhook-secret';
+process.env.CORE_API_KEY = 'test-api-key'; process.env.DASHBOARD_USER = 'tester'; process.env.DASHBOARD_PASSWORD = 'test-pass'; process.env.SALESHANDY_WEBHOOK_SECRET = 'test-webhook-secret'; process.env.SESSION_SECRET = 'test-session-secret';
+process.env.WEB_DIST = new URL('./fixtures/webdist', import.meta.url).pathname;
 process.env.CONFIG_DIR = new URL('../../config/', import.meta.url).pathname;
 import pg from 'pg';
 const base = process.env.TEST_DATABASE_URL ?? process.env.DATABASE_URL ?? 'postgres://awtm:awtm@127.0.0.1:55460/awtm_outbound';
@@ -24,5 +25,16 @@ export async function bootstrap() {
     const { pool } = await import('../src/lib/db.ts'); await new Promise<void>((r) => server.close(() => r())); await pool.end();
     const a = new pg.Client({ connectionString: base }); await a.connect(); await a.query(`drop database if exists ${dbName}`); await a.end();
   };
-  return { url, api, teardown };
+  // Signs in like the ops app does and returns a fetch bound to that session cookie.
+  const signIn = async (user = 'tester', password = 'test-pass') => {
+    const r = await fetch(url + '/auth/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ user, password }) });
+    const cookie = (r.headers.get('set-cookie') ?? '').split(';')[0];
+    const call = async (method: string, path: string, body?: unknown, headers: Record<string, string> = {}) => {
+      const res = await fetch(url + path, { method, headers: { cookie, 'content-type': 'application/json', ...(method === 'GET' ? {} : { 'idempotency-key': crypto.randomUUID() }), ...headers }, body: body === undefined ? undefined : JSON.stringify(body) });
+      const text = await res.text(); let json: any; try { json = JSON.parse(text); } catch { json = text; }
+      return { status: res.status, body: json, headers: res.headers };
+    };
+    return { status: r.status, cookie, setCookie: r.headers.get('set-cookie') ?? '', call };
+  };
+  return { url, api, signIn, teardown };
 }

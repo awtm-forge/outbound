@@ -24,5 +24,8 @@ export const env = {
   googleCseCx: process.env.GOOGLE_CSE_CX ?? '',
   discoveryMaxPages: Number(process.env.DISCOVERY_MAX_PAGES ?? 3),
   discoveryDailyQuota: Number(process.env.DISCOVERY_DAILY_QUOTA ?? 100),
+  sessionSecret: process.env.SESSION_SECRET ?? '',
+  cookieSecure: (process.env.CORE_PUBLIC_URL ?? '').startsWith('https://'),
+  webDist: process.env.WEB_DIST ?? new URL('../../web/dist', import.meta.url).pathname,
   nodeEnv: process.env.NODE_ENV ?? 'development',
 };

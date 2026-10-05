@@ -67,8 +67,9 @@ export function source(fetchImpl?: typeof fetch): DiscoverySource {
 }
 
 export async function takeQuota(src: string) {
-  const r = await one(`insert into source_calls(source,day,n) values($1,current_date,1) on conflict (source,day) do update set n=source_calls.n+1 returning n`, [src]);
-  if (r!.n > env.discoveryDailyQuota) throw new HttpError(429, `daily quota for ${src} exhausted (${env.discoveryDailyQuota})`);
+  // counts only calls that are allowed through, so a refused search never shows as spent
+  const r = await one(`insert into source_calls(source,day,n) select $1,current_date,1 where $2 > 0 on conflict (source,day) do update set n=source_calls.n+1 where source_calls.n < $2 returning n`, [src, env.discoveryDailyQuota]);
+  if (!r) throw new HttpError(429, `Today's ${src} searches are used up (${env.discoveryDailyQuota}). The count resets at midnight.`);
 }
 export const quotaUsed = async (src: string) => Number((await one('select n from source_calls where source=$1 and day=current_date', [src]))?.n ?? 0);
 
@@ -172,7 +173,7 @@ export async function getSearch(id: string, cached = false): Promise<Record<stri
   const s = await one('select * from discovery_searches where id=$1', [id]); if (!s) throw new HttpError(404, 'search not found');
   const candidates = await q(`select c.*, sc.rank, co.name as company_name, p.status as prospect_status, p.account_score from discovery_search_candidates sc join discovery_candidates c on c.id=sc.candidate_id
     left join companies co on co.domain=c.domain left join lateral (select status, account_score from prospects where company_id=co.id order by updated_at desc limit 1) p on true where sc.search_id=$1 order by sc.rank`, [id]);
-  return { ...(s as Record<string, any>), cached, candidates };
+  return { ...(s as Record<string, any>), cached, candidates: candidates.map((c) => ({ ...c, display_name: c.company_name ?? companyName(c.title, c.domain, c.signals?.site_snapshot?.site_name) })) };
 }
 export const listSearches = () => q('select id, query, source, status, result_count, actor, created_at from discovery_searches order by created_at desc limit 50');
 
@@ -185,7 +186,7 @@ export async function addCandidates(ids: string[], campaign_code: string, actor:
     const c = await one('select * from discovery_candidates where id=$1', [id]); if (!c) { out.push({ id, error: 'not found' }); continue; }
     const email = c.emails.find((e: string) => !/^(noreply|no-reply|unsubscribe)/.test(e)) ?? null;
     try {
-      const r = await ingest({ company: { name: c.company_name ?? titleToName(c.title, c.domain), website: c.url, domain: c.domain, country: c.country_guess === 'IN' ? 'IN' : undefined, platform: c.platform ?? undefined, vertical: campaign.vertical, company_size: c.size_estimate === 'UNKNOWN' ? undefined : c.size_estimate, metadata: { discovery_candidate_id: c.id, site_snapshot: c.signals?.site_snapshot ?? undefined, public_emails: c.emails, phones: c.phones, gstin: c.gstin, linkedin_url: c.linkedin_url, instagram_url: c.instagram_url } },
+      const r = await ingest({ company: { name: c.company_name ?? companyName(c.title, c.domain, c.signals?.site_snapshot?.site_name), website: c.url, domain: c.domain, country: c.country_guess === 'IN' ? 'IN' : undefined, platform: c.platform ?? undefined, vertical: campaign.vertical, company_size: c.size_estimate === 'UNKNOWN' ? undefined : c.size_estimate, metadata: { discovery_candidate_id: c.id, site_snapshot: c.signals?.site_snapshot ?? undefined, public_emails: c.emails, phones: c.phones, gstin: c.gstin, linkedin_url: c.linkedin_url, instagram_url: c.instagram_url } },
         contact: email ? { email, job_title: null as any } : undefined, campaign_code, source: 'discovery', owner: actor }, actor);
       await q(`update discovery_candidates set status='ADDED', company_id=$2 where id=$1`, [c.id, r.company.id]);
       let chain: any = null;
@@ -195,4 +196,16 @@ export async function addCandidates(ids: string[], campaign_code: string, actor:
   }
   return { added: out };
 }
-const titleToName = (title: string | null, domain: string) => (title ?? '').split(/[|\-–:]/)[0].trim().slice(0, 80) || domain.split('.')[0];
+// A company's name, not its page tagline: the site's declared name, else the title segment that matches the domain,
+// else the domain itself. "Buy Smart TVs & ACs Online | Shop Sansui Electronics" on sansuiworld.com gives "Sansui Electronics".
+const decode = (t: string) => t.replace(/&amp;/g, '&').replace(/&#39;|&apos;/g, "'").replace(/&quot;/g, '"').trim();
+export function companyName(title: string | null | undefined, domain: string, siteName?: string | null): string {
+  const stem = domain.replace(/^(www|shop|store|home)\./, '').split('.')[0].toLowerCase();
+  const letters = (x: string) => x.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const clean = (x: string) => decode(x).replace(/\s*(\.{3}|…)$/, '').replace(/^(shop|buy|welcome to|official( website| site| store)?( of)?)\s+/i, '').replace(/\s+(official )?(online store|website|official site)$/i, '').trim();
+  if (siteName && siteName.length <= 60 && !/^(home|shop|store)$/i.test(siteName.trim())) return clean(siteName);
+  const parts = decode(title ?? '').split(/\s[|–—:-]\s|\s?\|\s?|:\s/).map((x) => x.trim()).filter(Boolean);
+  const hit = parts.find((part) => { const l = letters(part); return l === stem || l.includes(stem) || stem.includes(l) || part.split(/\s+/).some((w) => letters(w).length >= 4 && stem.includes(letters(w))); });
+  if (hit) return clean(hit).slice(0, 80);
+  return stem.charAt(0).toUpperCase() + stem.slice(1);
+}

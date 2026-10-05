@@ -102,35 +102,81 @@ test('reply classification: value request opens opportunity, unsubscribe wording
   const c1 = await P.classifyReply(r1.reply_id!); assert.equal(c1.classification, 'VALUE_REQUEST'); assert.equal(c1.priority, 'HIGH');
   assert.ok(await db.one('select id from opportunities where prospect_id=$1', [prospect.id]));
   const td: any = await P.generateTeardown(r1.reply_id!); assert.equal(td.findings.length, 2); assert.equal((await P.generateTeardown(r1.reply_id!) as any).reused, true);
+  const m = (await P.campaignMetrics() as any[]).find((x) => x.code === 'IND-WEB-ELECTRONICS'); assert.ok(m.reply_rate === null || m.reply_rate <= 100, `reply rate ${m.reply_rate}`);
   const r2 = await P.ingestWebhook({ event: 'replied', event_id: 'r-2', email: contact.email, body: 'Please remove me from your list.' });
   const c2 = await P.classifyReply(r2.reply_id!); assert.equal(c2.classification, 'UNSUBSCRIBE'); assert.equal((await P.loadProspect(prospect.id)).suppressed, true);
 });
 test('proposal never invents price or deadline; integer paise enforced', async () => {
   const { prospect } = await P.ingest(company(7)); const m = await P.createMeeting(prospect.id);
+  await db.q(`update contacts set full_name='Asha Rao' where id=(select contact_id from prospects where id=$1)`, [prospect.id]);
+  await db.q(`insert into research(company_id,prospect_id,kind,data,input_hash) select company_id,id,'PROBLEM',$2,'x' from prospects where id=$1`, [prospect.id, JSON.stringify({ primary_problem: 'UX', tied_primary: [], secondary_problems: [], problem_angle: 'a', specific_observation: 'o', business_consequence: 'b', trigger: 'UNKNOWN', problem_score: 50, commercial_score: 50, evidence: [], confidence: 0.5 })]);
+  await db.q(`insert into research(company_id,prospect_id,kind,data,input_hash) select company_id,id,'CAPABILITY',$2,'x' from prospects where id=$1`, [prospect.id, JSON.stringify({ domain: 'WEB', capability_items: [], one_line: 'x', proof_ids: [], proof_rationale: 'x', confidence: 0.5 })]);
+  await P.generateEmail(prospect.id, { force: true });
+  assert.equal((await P.loadProspect(prospect.id)).status, 'MEETING'); // a fresh draft did not move a company in a meeting back to review
+  const d2 = await db.one(`select id from email_drafts where prospect_id=$1 and status='PENDING_APPROVAL'`, [prospect.id]);
+  await P.decideDraft(d2!.id, 'APPROVE', 'ayush'); assert.equal((await P.loadProspect(prospect.id)).status, 'MEETING'); // approving a follow-up does not either
+  await P.qualify(prospect.id); assert.equal((await P.loadProspect(prospect.id)).status, 'MEETING'); // nor does scoring again
   await assert.rejects(P.draftProposal(m.meeting_id), /post-meeting/);
   await P.postMeeting(m.meeting_id, 'Pain: slow site. Goal: faster. Scope: home page. Timeline: a month. Next step: proposal.');
   await assert.rejects(P.draftProposal(m.meeting_id, { price_paise: 1.5 }), /integer/);
   const p = await P.draftProposal(m.meeting_id, {}); assert.equal(p.draft.investment, 'TO BE CONFIRMED BY FOUNDERS'); assert.equal(p.draft.timeline, 'TO BE CONFIRMED'); assert.deepEqual(p.draft.deliverables, ['TO BE CONFIRMED']);
   const p2 = await P.draftProposal(m.meeting_id, { price_paise: 25000000, deadline: '15 Dec 2026' }); assert.match(p2.draft.investment, /2,50,000/); assert.equal(p2.draft.timeline, '15 Dec 2026');
 });
-test('HTTP: auth, idempotency replay, missing key, 404, dashboard basic auth, health, metrics', async () => {
+test('HTTP: api key, idempotency replay, missing key, 404, health, metrics, failures', async () => {
   assert.equal((await fetch(t.url + '/api/prospects')).status, 401);
   assert.equal((await t.api('POST', '/api/prospects', company(8), { 'idempotency-key': '' })).status, 400);
   const key = crypto.randomUUID(); const a = await t.api('POST', '/api/prospects', company(9), { 'idempotency-key': key }); const b = await t.api('POST', '/api/prospects', company(9), { 'idempotency-key': key });
   assert.equal(a.status, 201); assert.equal(b.status, 201); assert.equal(b.headers.get('idempotent-replay'), 'true'); assert.deepEqual(a.body, b.body);
   assert.equal((await t.api('GET', '/api/prospects/00000000-0000-0000-0000-000000000000')).status, 404);
-  assert.equal((await fetch(t.url + '/')).status, 401);
-  const dash = await fetch(t.url + '/', { headers: { authorization: 'Basic ' + Buffer.from('tester:test-pass').toString('base64') } }); assert.equal(dash.status, 200); const htmlOut = await dash.text(); assert.match(htmlOut, /Emails awaiting approval/); assert.match(htmlOut, /Replies awaiting action/); assert.match(htmlOut, /Teardowns awaiting approval/); assert.match(htmlOut, /Meeting briefs/); assert.match(htmlOut, /Campaign summary/);
+  assert.equal((await t.api('GET', '/api/nope')).status, 404);
   const h = await (await fetch(t.url + '/health')).json(); assert.equal(h.status, 'ok'); assert.equal(h.db, 'ok');
   const m = await t.api('GET', '/api/metrics/campaigns'); assert.equal(m.status, 200); assert.ok(m.body.find((c: any) => c.code === 'IND-WEB-ELECTRONICS').accounts_found >= 1);
   const wf = await t.api('POST', '/api/workflow-runs/log-error', { workflow: '03_research_account', error: 'boom' }); assert.equal(wf.status, 200);
   const f = await t.api('GET', '/api/ops/failures'); assert.equal(f.body.workflows.length, 1);
 });
-test('dashboard form approval posts work and are audited with the basic-auth user as approver', async () => {
-  const { prospect } = await P.ingest(company(10)); await P.runChain(prospect.id, { html });
-  const d = await db.one(`select id from email_drafts where prospect_id=$1`, [prospect.id]);
-  const res = await fetch(t.url + `/ui/drafts/${d!.id}/decision`, { method: 'POST', redirect: 'manual', headers: { authorization: 'Basic ' + Buffer.from('tester:test-pass').toString('base64'), 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ action: 'APPROVE', subject: 's', body: 'b' }) });
-  assert.equal(res.status, 303); assert.equal((await db.one('select approver from email_drafts where id=$1', [d!.id]))!.approver, 'tester');
+test('sign in: wrong password refused, session cookie is HttpOnly and SameSite=Strict, forged cookie refused, sign out clears it', async () => {
+  const bad = await t.signIn('tester', 'nope'); assert.equal(bad.status, 401); assert.equal(bad.cookie, '');
+  const s = await t.signIn(); assert.equal(s.status, 200); assert.match(s.setCookie, /HttpOnly/); assert.match(s.setCookie, /SameSite=Strict/);
+  const me = await s.call('GET', '/api/me'); assert.equal(me.status, 200); assert.equal(me.body.user, 'tester'); assert.equal(me.body.session, true);
+  const [name, val] = s.cookie.split('='); const [payload] = val.split('.');
+  const forged = Buffer.from(JSON.stringify({ u: 'tester', exp: Date.now() + 1e9 })).toString('base64url') + '.' + 'x'.repeat(43);
+  assert.equal((await fetch(t.url + '/api/me', { headers: { cookie: `${name}=${forged}` } })).status, 401);
+  assert.equal((await fetch(t.url + '/api/me', { headers: { cookie: `${name}=${payload}.` } })).status, 401);
+  // a mutation from the session still needs an Idempotency-Key, which is what a cross-site form cannot send
+  assert.equal((await s.call('POST', '/api/suppression', { domain: 'x.example' }, { 'idempotency-key': '' })).status, 400);
+  const out = await fetch(t.url + '/auth/logout', { method: 'POST' }); assert.match(out.headers.get('set-cookie') ?? '', /Max-Age=0/);
+});
+test('ops app: overview, review queue, add a decision maker, approve from the session, inbox, deals', async () => {
+  const s = await t.signIn();
+  const { prospect } = await P.ingest({ ...company(10), contact: undefined as any }); await P.runChain(prospect.id, { html });
+  const ov = await s.call('GET', '/api/overview'); assert.equal(ov.status, 200); assert.ok(ov.body.counts.needs_contact >= 1); assert.ok(Array.isArray(ov.body.stages));
+  const needs = await s.call('GET', '/api/prospects?view=needs_contact'); assert.ok(needs.body.some((p: any) => p.id === prospect.id && p.needs_contact));
+  assert.equal((await s.call('POST', `/api/prospects/${prospect.id}/contact`, { full_name: 'R' })).status, 400);
+  assert.equal((await s.call('POST', `/api/prospects/${prospect.id}/contact`, { full_name: 'Ravi Kumar', email: 'not-an-email' })).status, 400);
+  const add = await s.call('POST', `/api/prospects/${prospect.id}/contact`, { full_name: 'Ravi Kumar', job_title: 'Founder', email: 'ravi@acme10.example' }); assert.equal(add.status, 200);
+  const em = await s.call('POST', `/api/prospects/${prospect.id}/generate-email`, { force: true }); assert.equal(em.status, 200); assert.match(em.body.body, /Hi Ravi/);
+  const queue = await s.call('GET', '/api/queue/drafts'); const item = queue.body.items.find((i: any) => i.id === em.body.draft_id);
+  assert.ok(item); assert.equal(item.contact_name, 'Ravi Kumar'); assert.equal(queue.body.criteria.length, 8); assert.ok(item.proofs.every((p: any) => p.label === 'VERIFIED'));
+  const multi = await s.call('GET', '/api/prospects?status=PENDING_APPROVAL,QUALIFIED'); assert.ok(multi.body.some((p: any) => p.id === prospect.id));
+  const ok = await s.call('POST', `/api/drafts/${em.body.draft_id}/decision`, { action: 'EDIT', subject: 'quick one', body: 'Hi Ravi, edited.' }); assert.equal(ok.body.status, 'APPROVED');
+  assert.equal((await db.one('select approver from email_drafts where id=$1', [em.body.draft_id]))!.approver, 'tester');
+  const detail = await s.call('GET', `/api/prospects/${prospect.id}`); assert.equal(detail.body.contacts[0].full_name, 'Ravi Kumar'); assert.ok(detail.body.activity.some((a: any) => a.action === 'decision_maker_added'));
+  assert.equal(new Set(detail.body.research.map((r: any) => r.kind)).size, detail.body.research.length); // latest per kind only
+  const inbox = await s.call('GET', '/api/inbox'); assert.ok(Array.isArray(inbox.body.replies)); assert.ok(Array.isArray(inbox.body.teardowns));
+  const deals = await s.call('GET', '/api/deals'); assert.equal(deals.status, 200); const camps = await s.call('GET', '/api/campaigns'); assert.equal(camps.body.campaigns.length, 5);
+  const sup = await s.call('POST', `/api/prospects/${prospect.id}/contact`, { full_name: 'Someone Else', email: 'x@acme10.example' });
+  await db.q(`insert into suppression_list(domain,reason,source) values('blocked.example','test','test')`);
+  const { prospect: p2 } = await P.ingest({ company: { name: 'Blocked', website: 'https://blocked.example' }, campaign_code: 'IND-WEB-B2B' });
+  assert.equal((await s.call('POST', `/api/prospects/${p2.id}/contact`, { full_name: 'Bo Lock', email: 'bo@blocked.example' })).status, 409);
+  assert.equal(sup.status, 200);
+});
+test('app shell: index.html for app routes with a strict CSP, assets served, api paths never fall through to the app', async () => {
+  const home = await fetch(t.url + '/review'); assert.equal(home.status, 200); assert.match(home.headers.get('content-security-policy') ?? '', /script-src 'self'/); assert.match(await home.text(), /id="root"/);
+  const asset = await fetch(t.url + '/assets/app.js'); assert.equal(asset.status, 200); assert.match(asset.headers.get('cache-control') ?? '', /immutable/);
+  assert.equal((await fetch(t.url + '/assets/missing.js')).status, 404);
+  const pkg = await fetch(t.url + '/assets/%2e%2e%2f%2e%2e%2f%2e%2e%2fpackage.json'); assert.equal(pkg.status, 404); // encoded traversal toward core/package.json
+  const etc = await fetch(t.url + '/%2e%2e/%2e%2e/%2e%2e/%2e%2e/etc/hosts'); assert.doesNotMatch(await etc.text(), /localhost/);
+  assert.equal((await fetch(t.url + '/api/unknown')).status, 404);
 });
 test('end-to-end demo runs clean and twice (idempotent)', async () => {
   const { demo } = await import('../src/demo.ts');

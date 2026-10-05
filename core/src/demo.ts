@@ -9,7 +9,10 @@ export async function demo(quiet = false) {
   const html = readFileSync(new URL('../fixtures/demo-electronics.html', import.meta.url), 'utf8');
   const ing = await P.ingest({ company: { name: 'Demo Electronics India', website: 'https://demo-electronics.example', country: 'IN', city: 'Bengaluru', industry: 'Consumer electronics', vertical: 'DTC ecommerce: electronics', company_size: '20-50' },
     contact: { full_name: 'Priya Nair', job_title: 'Founder & CEO', email: 'priya@demo-electronics.example', is_decision_maker: true }, campaign_code: 'IND-WEB-ELECTRONICS', source: 'demo', owner: 'ayush' }, 'demo');
-  const pid = ing.prospect.id; say('1 company + prospect created', { prospect_id: pid, created: ing.created });
+  const pid = ing.prospect.id;
+  // The demo company is synthetic, so each run starts it from the beginning. Real companies only ever move forward.
+  await q(`update prospects set status='NEW', suppressed=false, suppression_reason=null where id=$1`, [pid]);
+  say('1 company + prospect created', { prospect_id: pid, created: ing.created });
   const r = await P.research(pid, { html }); say('2 research', { fetched: r.site.fetched, platform: r.site.platform_signals, summary: r.research.company_summary, confidence: r.research.confidence });
   const w = await P.analyzeWebsite(pid); say('3 website analysis', w.website.findings.map((f) => `${f.dimension}: ${f.observation}`));
   const dm = await P.identifyDecisionMaker(pid); say('4 decision maker', dm.decision_maker);

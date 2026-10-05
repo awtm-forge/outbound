@@ -59,7 +59,16 @@ const campaignCtx = (ca: any) => ca ? { code: ca.code, service_domain: ca.servic
 const requireCampaign = (p: any) => { const c = campaignCtx(p.campaign); if (!c) throw new HttpError(409, 'prospect has no campaign'); return c; };
 const proofAssets = async () => q(`select id,title,label,text,domains,problems,verticals,notes from proof_assets where label <> 'PRIVATE'`);
 const guard = (p: any) => { if (p.suppressed) throw new HttpError(409, 'prospect is suppressed'); };
-const setStatus = (id: string, status: string) => q('update prospects set status=$2 where id=$1', [id, status]);
+// Every stage change goes through here. Before any email is approved a company can move freely (research, score,
+// reject, re-draft). After that it only moves forward, so re-running research or drafting a follow-up never pulls a
+// company that has replied or is in a deal back to the start. Closing (LOST) and suppression are the exceptions.
+const EARLY = ['NEW','QUALIFYING','RESEARCHING','RESEARCH_FURTHER','QUALIFIED','EMAIL_DRAFTED','PENDING_APPROVAL','REJECTED','LOST'];
+const FORWARD = ['APPROVED','SYNCED','CONTACTED','REPLIED','MEETING','PROPOSAL','WON'];
+export const setStatus = (id: string, status: string, opts: { close?: boolean } = {}) =>
+  opts.close ? q('update prospects set status=$2 where id=$1 and status <> \'SUPPRESSED\'', [id, status])
+  : FORWARD.includes(status)
+    ? q(`update prospects set status=$2 where id=$1 and (status = any($3) or array_position($4::text[], status) < array_position($4::text[], $2))`, [id, status, EARLY, FORWARD])
+    : q(`update prospects set status=$2 where id=$1 and status = any($3)`, [id, status, EARLY]);
 
 // ---------- 03 research ----------
 export async function research(prospectId: string, opts: { workflowRunId?: string; force?: boolean; html?: string } = {}) {
@@ -121,7 +130,8 @@ export async function qualify(prospectId: string, opts: { workflowRunId?: string
   const r = await runAgent(A.qualification, { company: companyCtx(p.company), campaign: requireCampaign(p), research: await latestResearch(p.company.id, 'ACCOUNT'), website: await latestResearch(p.company.id, 'WEBSITE'),
     has_decision_maker: !!p.contact?.is_decision_maker || !!p.contact?.job_title, has_relevant_proof: (p.relevant_proof_ids ?? []).length > 0, criteria: cfg.criteria }, opts);
   const s = score(r.output.scores);
-  await q('update prospects set account_score=$2, score_breakdown=$3, status=$4 where id=$1', [p.id, s.total, { ...s.breakdown, rationale: r.output.rationale, red_flags: r.output.red_flags, thresholds: cfg.thresholds }, s.verdict]);
+  await q('update prospects set account_score=$2, score_breakdown=$3 where id=$1', [p.id, s.total, { ...s.breakdown, rationale: r.output.rationale, red_flags: r.output.red_flags, thresholds: cfg.thresholds }]);
+  await setStatus(p.id, s.verdict);
   await audit('prospect', p.id, 'qualified', 'system', { total: s.total, verdict: s.verdict, runId: r.runId });
   return { score: s.total, breakdown: s.breakdown, verdict: s.verdict, runId: r.runId };
 }
@@ -140,6 +150,7 @@ export async function generateEmail(prospectId: string, opts: { workflowRunId?: 
   const existing = await one(`select id from email_drafts where prospect_id=$1 and status='PENDING_APPROVAL' and step=1`, [p.id]);
   if (existing && !opts.force) return { draft_id: existing.id, reused: true };
   const d = (await one('insert into email_drafts(prospect_id,campaign_id,step,subject_original,body_original,ai_run_id) values($1,$2,1,$3,$4,$5) returning id', [p.id, p.campaign_id, r.output.subject, r.output.body, r.runId]))!;
+  // a new draft never moves a company backwards: one already contacted, replied or in a deal keeps its stage
   await setStatus(p.id, 'PENDING_APPROVAL');
   await audit('email_draft', d.id, 'drafted', 'system', { runId: r.runId, proof_ids_used: r.output.proof_ids_used });
   return { draft_id: d.id, subject: r.output.subject, body: r.output.body, runId: r.runId };
@@ -179,7 +190,7 @@ export async function syncToSaleshandy(draftId: string) {
   await q(`update email_drafts set status='SENT_TO_SEQUENCER' where id=$1`, [d.id]);
   await q(`update campaign_memberships set status='ACTIVE', saleshandy_prospect_id=$3, saleshandy_sequence_id=$4, synced_at=now() where prospect_id=$1 and campaign_id=$2`, [p.id, p.campaign.id, r.prospect_id, seqId]);
   await q(`update contacts set external_ref=$2 where id=$1`, [p.contact.id, r.prospect_id]);
-  await q(`update prospects set status='SYNCED', external_ref=$2 where id=$1`, [p.id, r.prospect_id]);
+  await q(`update prospects set external_ref=$2 where id=$1`, [p.id, r.prospect_id]); await setStatus(p.id, 'SYNCED');
   await audit('email_draft', d.id, 'synced', 'system', { mode: sh.mode, sequence: seqId, sh_prospect: r.prospect_id });
   return { draft_id: d.id, sequence_id: seqId, saleshandy_prospect_id: r.prospect_id, mode: sh.mode };
 }
@@ -217,7 +228,7 @@ export async function classifyReply(replyId: string, opts: { workflowRunId?: str
   if (p && ['POSITIVE', 'VALUE_REQUEST', 'PRICE', 'REFERRAL'].includes(o.classification)) {
     await q(`insert into opportunities(prospect_id,company_id,campaign_id,stage,owner) select $1,$2,$3,'REPLIED',$4 where not exists (select 1 from opportunities where prospect_id=$1)`, [p.id, p.company.id, p.campaign_id, o.owner]);
   }
-  if (p && o.classification === 'NOT_INTERESTED') await setStatus(p.id, 'LOST');
+  if (p && o.classification === 'NOT_INTERESTED') await setStatus(p.id, 'LOST', { close: true });
   await audit('reply', r.id, 'classified', 'system', { classification: o.classification, runId: res.runId });
   return { reply_id: r.id, ...o, runId: res.runId };
 }
@@ -296,11 +307,11 @@ export async function campaignMetrics() {
       (select count(*) from prospects p where p.campaign_id=c.id and p.status not in ('NEW','QUALIFYING','REJECTED','RESEARCH_FURTHER','RESEARCHING')) accounts_qualified,
       (select count(*) from prospects p where p.campaign_id=c.id and p.contact_id is not null) contacts_found,
       (select count(*) from prospects p join contacts ct on ct.id=p.contact_id where p.campaign_id=c.id and ct.email_verification_status='VALID') emails_verified,
-      coalesce((select n from ev where ev.campaign_id=c.id and event_type='SENT'),0) emails_sent,
+      (select count(distinct e.prospect_id) from email_events e where e.campaign_id=c.id and e.event_type='SENT') emails_sent,
       coalesce((select n from ev where ev.campaign_id=c.id and event_type='DELIVERED'),0) delivered,
       coalesce((select n from ev where ev.campaign_id=c.id and event_type='BOUNCED'),0) bounced,
-      (select count(*) from replies r where r.campaign_id=c.id) replies,
-      (select count(*) from replies r where r.campaign_id=c.id and r.classification in ('POSITIVE','VALUE_REQUEST','PRICE','REFERRAL')) positive_replies,
+      (select count(distinct coalesce(r.prospect_id::text, r.from_email::text)) from replies r where r.campaign_id=c.id) replies,
+      (select count(distinct coalesce(r.prospect_id::text, r.from_email::text)) from replies r where r.campaign_id=c.id and r.classification in ('POSITIVE','VALUE_REQUEST','PRICE','REFERRAL')) positive_replies,
       (select count(*) from meetings m join opportunities o on o.id=m.opportunity_id where o.campaign_id=c.id) meetings_booked,
       (select count(*) from meetings m join opportunities o on o.id=m.opportunity_id where o.campaign_id=c.id and m.held) meetings_held,
       (select count(*) from proposals pr join opportunities o on o.id=pr.opportunity_id where o.campaign_id=c.id) proposals,

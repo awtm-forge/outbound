@@ -9,7 +9,7 @@ post-meeting analysis and proposal draft. Nothing client-facing leaves without a
 | Service | Image | Port (local) | Purpose |
 |---|---|---|---|
 | postgres | postgres:16-alpine | 127.0.0.1:55460 | All data. Never exposed publicly. n8n uses schema `n8n` in the same database. |
-| core | ./core (Node 24, TypeScript, no build step) | 127.0.0.1:8095 | API, 13 AI agents, scoring engine, approval dashboard, Saleshandy adapter, webhook receiver, metrics. |
+| core | ./core (Node 24, TypeScript) | 127.0.0.1:8095 | API, 13 AI agents, scoring engine, the ops app, Saleshandy adapter, webhook receiver, metrics. |
 | n8n | n8nio/n8n:1.112.0 | 127.0.0.1:5678 | 19 workflows that call the core over HTTP. Basic auth. |
 | backup | postgres:16-alpine | none | pg_dump to ./backups on start and every 24 h, 14 day retention. |
 | caddy (prod profile) | caddy:2-alpine | 80, 443 | HTTPS for n8n.awtmforge.com and ops.awtmforge.com. |
@@ -23,7 +23,7 @@ cp .env.example .env            # then set every "change-me": openssl rand -hex 
 docker compose up -d --build
 docker compose exec -T n8n n8n import:workflow --separate --input=/workflows
 docker compose exec -T n8n n8n update:workflow --all --active=true && docker compose restart n8n
-open http://localhost:8095       # dashboard, DASHBOARD_USER / DASHBOARD_PASSWORD
+open http://localhost:8095       # the ops app: sign in with DASHBOARD_USER / DASHBOARD_PASSWORD
 open http://localhost:5678       # n8n, N8N_BASIC_AUTH_USER / N8N_BASIC_AUTH_PASSWORD
 ```
 
@@ -52,9 +52,35 @@ docker compose --profile prod up -d --build
 DNS: A records for `n8n.awtmforge.com` and `ops.awtmforge.com` to the VPS IP. Caddy obtains certificates automatically. The main
 awtmforge.com site is untouched. Firewall: allow 22, 80, 443 only.
 
+## The ops app
+
+A React app in `core/web`, built into the core image and served by the core on the same origin. Dark, in the awtm forge
+brand: the portal's tokens, Bricolage Grotesque and IBM Plex Mono, self-hosted. Seven screens, ordered by the day's work:
+
+| Screen | What it is for |
+|---|---|
+| Today | What needs you now, where every company stands, campaign numbers, recent activity |
+| Find companies | Search by what they sell, where, and platform; tick companies; add them to a campaign |
+| Review emails | One draft at a time, with the observation, score, site findings and proof beside it. Keys: A approve, M research again, R reject, E edit, J and K next and previous |
+| Inbox | Replies sorted by priority, with the suggested answer to copy, and teardowns to approve |
+| Pipeline | Every company, filtered by stage or by "needs a decision maker"; the profile adds the person to write to |
+| Meetings and deals | The brief before a call, notes into next steps after it, proposal drafts |
+| Campaigns | Results per campaign, the weekly recommendations, and the do-not-contact list |
+
+Sign-in is a form, not a browser pop-up: an HMAC-signed, HttpOnly, SameSite=Strict session cookie (12 hours,
+`SESSION_SECRET`). Login is throttled to 10 attempts per 15 minutes per IP. Every API mutation still needs an
+Idempotency-Key header, which a cross-site page cannot send, so the session cannot be used from another site.
+n8n and scripts keep using `X-Api-Key`.
+
+Develop the app with hot reload against the running core:
+
+```bash
+cd core/web && npm install && npm run dev    # http://localhost:5199, proxies /api to the core on 8095
+```
+
 ## Prospect discovery
 
-Dashboard > discovery (`/ui/discovery`), or `POST /api/discovery/searches` with `{industry, location, technology, keywords, pages}`.
+Find companies in the app, or `POST /api/discovery/searches` with `{industry, location, technology, keywords, pages}`.
 A search source returns candidate sites; the core visits each one itself, fingerprints the platform (Shopify, Wix, WooCommerce,
 WordPress, Framer, Webflow, Magento, plus Razorpay, Shiprocket, Meta Pixel, Google Tag), and pulls public contact details from the
 home and contact pages: emails, Indian phone numbers, GSTIN, LinkedIn, Instagram and Facebook links, a country guess and a rough size.
@@ -98,6 +124,8 @@ daily cap tracked in `source_calls`), `google_cse` (legacy: Google closed it to 
 
 - Every `/api` mutation needs `X-Api-Key` and an `Idempotency-Key`; replays return the stored response.
 - Drafts are created `PENDING_APPROVAL`. Only `APPROVED` drafts sync. Original and edited copy, approver and timestamp are stored.
+- A company only moves forward once an email is approved: researching again, scoring again or drafting a follow-up never pulls a company that has replied or is in a deal back to an earlier stage.
+- No draft is written to a contact without a name.
 - Proof assets carry the brief's labels. Only `VERIFIED` ids survive into emails, teardowns and briefs; the server filters regardless of what the model says. `PRIVATE` (QC Lobby app) is never even shown to the model.
 - Suppression overrides campaign membership: unsubscribe reply, unsubscribe event or hard bounce suppresses immediately, cascades to prospects, memberships and pending drafts, and a re-ingested contact lands suppressed.
 - Proposals take price, deadline, deliverables, guarantees and SLA only from `business_inputs`; otherwise "TO BE CONFIRMED".

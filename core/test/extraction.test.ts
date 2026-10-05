@@ -34,3 +34,14 @@ test('result kind: articles, agencies and platforms are not companies', () => {
   assert.equal(D.classifyHit('https://temptindia.com/', 'Temptindia: Buy Power Banks, Wireless Earbuds, Adapters ...'), 'COMPANY');
   assert.equal(D.classifyHit('https://home.hafeleindia.com/', 'Hafele India'), 'COMPANY');
 });
+
+test('company name: declared name first, then the title part matching the domain, never a sales tagline', () => {
+  assert.equal(D.companyName('Buy Smart TVs & ACs Online | Shop Sansui Electronics', 'sansuiworld.com'), 'Sansui Electronics');
+  assert.equal(D.companyName('Buy Smart TVs & ACs Online | Shop Sansui Electronics ...', 'sansuiworld.com'), 'Sansui Electronics'); // search engines truncate titles
+  assert.equal(D.companyName('Buy 200 RPM Geared Motor Online in India | The Engineer Store', 'theengineerstore.in'), 'The Engineer Store');
+  assert.equal(D.companyName('Temptindia: Buy Power Banks, Wireless Earbuds, Adapters', 'temptindia.com'), 'Temptindia');
+  assert.equal(D.companyName('GadgetLane | Electronics, Apparel, Home &amp; Kitchen Online', 'gadgetlane.co.in'), 'GadgetLane');
+  assert.equal(D.companyName('Crompton Greaves Consumer Electricals Limited: Shop Fans', 'crompton.co.in'), 'Crompton Greaves Consumer Electricals Limited');
+  assert.equal(D.companyName('Best deals on everything', 'zedlights.in'), 'Zedlights');
+  assert.equal(D.companyName('Anything', 'x.in', 'Hafele India'), 'Hafele India');
+});
