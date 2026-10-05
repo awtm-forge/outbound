@@ -65,8 +65,8 @@ function Results({ id }: { id: string }) {
     setBusy(true);
     try {
       const r = await api.post('/api/discovery/candidates/add', { candidate_ids: [...sel], campaign_code: campaign, run_chain: true });
-      const ok = r.added.filter((x: any) => x.prospect_id); const drafts = ok.filter((x: any) => x.chain?.draft).length; const qual = ok.filter((x: any) => x.chain?.verdict === 'QUALIFIED').length;
-      toast(`${ok.length} added and scored. ${qual} qualified${drafts ? `, ${drafts} drafted` : ''}.`, { action: { label: 'Open pipeline', run: () => go(`/pipeline?campaign=${campaign}`) } });
+      const ok = r.added.filter((x: any) => x.prospect_id); const queued = ok.filter((x: any) => x.chain?.queued).length;
+      toast(queued ? `${ok.length} added. Researching them one at a time, about a minute each. They move out of Researching in the pipeline as they finish.` : `${ok.length} added.`, { action: { label: 'Open pipeline', run: () => go(`/pipeline?campaign=${campaign}`) } });
       setSel(new Set()); reload(true); countsBus.dispatchEvent(new Event('changed'));
     } catch (e: any) { toast(e.message, { err: true }); } finally { setBusy(false); }
   };
@@ -105,7 +105,7 @@ function Results({ id }: { id: string }) {
       {sel.size > 0 && <div className="actionbar" role="region" aria-label="Add selected">
         <b>{sel.size} selected</b><span className="muted">Add to</span>
         <select className="input" value={campaign} onChange={(e) => setCampaign(e.target.value)} aria-label="Campaign">{active.map((c: any) => <option key={c.code} value={c.code}>{c.code} · {c.vertical}</option>)}</select>
-        <span className="faint" style={{ fontSize: 'var(--fs-0)' }}>Each one is researched and scored right away.</span>
+        <span className="faint" style={{ fontSize: 'var(--fs-0)' }}>Each one is researched and scored in the background, about a minute each.</span>
         <button className="btn ghost right" onClick={() => setSel(new Set())}>Clear</button>
         <button className="btn primary" onClick={add} disabled={busy || !campaign}>{busy ? <Spinner /> : <Icon.arrow size={16} />}{busy ? 'Adding and scoring' : 'Add to pipeline'}</button>
       </div>}

@@ -7,6 +7,8 @@ import './routes/discovery.ts';
 import { migrate } from './migrate.ts';
 import { seed } from './seed.ts';
 import { startScheduler } from './scheduler.ts';
+import { requeueStale } from './jobs.ts';
+import { runChain } from './pipeline.ts';
 if (!env.apiKey || !env.dashboardPassword || !env.sessionSecret) log.warn('CORE_API_KEY, DASHBOARD_PASSWORD or SESSION_SECRET is empty: API calls or sign-in will be refused');
 export const server = createServer(handle);
 // Started directly (node dist/server.js on Hostinger, or the container), not imported by the test runner.
@@ -16,6 +18,7 @@ if (!process.env.NODE_TEST_CONTEXT) {
     await migrate(); await seed();
     server.listen(env.port, () => log.info('core listening', { port: env.port, ai: env.aiProvider, saleshandy: env.saleshandyMode, scheduler: env.scheduler }));
     if (env.scheduler) startScheduler();
+    const n = await requeueStale((id) => runChain(id)); if (n) log.info('requeued research left unfinished by a restart', { prospects: n });
   })().catch((e) => { log.error('boot failed', { err: e.message }); process.exit(1); });
   process.on('SIGTERM', () => server.close(() => process.exit(0)));
 }

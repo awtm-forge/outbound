@@ -39,3 +39,10 @@ test('an unrecognised AI_PROVIDER runs as mock instead of calling a provider wit
   const g = await import('node:child_process').then((cp) => cp.execFileSync(process.execPath, ['-e', "import('./src/lib/env.ts').then((m) => console.log(m.env.aiProvider))"], { env: { ...process.env, AI_PROVIDER: ' Gemini ' }, cwd: new URL('..', import.meta.url).pathname, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }));
   assert.equal(g.trim(), 'gemini');
 });
+test('gemini: an answer cut off at the output limit says so instead of failing as bad JSON', async () => {
+  const { runAgent } = await import('../src/lib/ai.ts'); const { z } = await import('zod'); const real = globalThis.fetch;
+  globalThis.fetch = (async () => new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: '{"b": "half' }] }, finishReason: 'MAX_TOKENS' }], usageMetadata: { promptTokenCount: 10, candidatesTokenCount: 700, thoughtsTokenCount: 1300 } }))) as any;
+  try {
+    await assert.rejects(runAgent({ name: 'gem_cut', version: '1', input: z.object({}), output: z.object({ b: z.string() }), system: 's', user: () => 'u', mock: () => ({ b: '' }) }, {}), /output limit .*1300 of them thinking/);
+  } finally { globalThis.fetch = real; }
+});

@@ -7,6 +7,15 @@ import { env } from '../lib/env.ts';
 import { firstName } from '../lib/normalize.ts';
 import * as P from '../pipeline.ts';
 import { HttpError } from '../pipeline.ts';
+import { enqueue, getJob, queueState } from '../jobs.ts';
+import type { Ctx } from '../lib/http.ts';
+
+// AI work: a signed-in browser (or a caller sending Prefer: respond-async) gets a job id at once and polls /api/jobs/:id,
+// because Hostinger's proxy cuts requests at 60 s. n8n and scripts on the same machine keep the synchronous answer.
+const wantsAsync = (c: Ctx) => !!sessionUser(c.req) || /respond-async/i.test(String(c.req.headers.prefer ?? ''));
+const ai = (method: string, path: string, label: (c: Ctx) => string, fn: (c: Ctx) => Promise<unknown>) =>
+  route(method, path, 'api', async (c) => { if (!wantsAsync(c)) return fn(c); const j = enqueue(label(c), () => fn(c)); return { job_id: j.id, status: j.status }; });
+route('GET', '/api/jobs/:id', 'api', async (c) => { const j = getJob(c.params.id); if (!j) throw new HttpError(404, 'That job is gone. It may have finished more than an hour ago, or the app restarted.'); return { id: j.id, label: j.label, status: j.status, result: j.status === 'done' ? j.result : undefined, error: j.error, run_id: j.run_id, waited_ms: (j.started ?? Date.now()) - j.created }; });
 
 // ---------------- health, metrics ----------------
 route('GET', '/health', 'none', async () => {
@@ -34,7 +43,7 @@ route('POST', '/auth/login', 'none', async (c) => {
   return { user: env.dashboardUser };
 });
 route('POST', '/auth/logout', 'none', async (c) => { c.setCookie(clearSession()); return { ok: true }; });
-route('GET', '/api/me', 'api', async (c) => ({ user: c.actor, session: !!sessionUser(c.req), ai_provider: env.aiProvider, saleshandy: env.saleshandyMode, discovery_source: env.discoverySource }));
+route('GET', '/api/me', 'api', async (c) => ({ user: c.actor, session: !!sessionUser(c.req), ai_provider: env.aiProvider, saleshandy: env.saleshandyMode, discovery_source: env.discoverySource, queue: queueState() }));
 
 // ---------------- workflow run bookkeeping (n8n) ----------------
 route('POST', '/api/workflow-runs', 'api', async (c) => one(`insert into workflow_runs(workflow,external_execution_id,entity_type,entity_id,detail) values($1,$2,$3,$4,$5) returning id`, [c.body.workflow, c.body.execution_id ?? null, c.body.entity_type ?? null, c.body.entity_id ?? null, c.body.detail ?? {}]));
@@ -129,7 +138,7 @@ route('POST', '/api/prospects/:id/contact', 'api', async (c) => {
   await audit('prospect', p.id, 'decision_maker_added', c.actor, { name: full_name, title: c.body.job_title ?? null, has_email: !!email });
   return { contact_id: ct!.id };
 });
-const stage = (name: string, fn: (id: string, o: any) => Promise<unknown>) => route('POST', `/api/prospects/:id/${name}`, 'api', async (c) => fn(c.params.id, { workflowRunId: c.body.workflow_run_id, force: !!c.body.force, html: c.body.html }));
+const stage = (name: string, fn: (id: string, o: any) => Promise<unknown>) => ai('POST', `/api/prospects/:id/${name}`, (c) => `${name}:${c.params.id}`, async (c) => fn(c.params.id, { workflowRunId: c.body.workflow_run_id, force: !!c.body.force, html: c.body.html }));
 stage('research', P.research); stage('analyze-website', P.analyzeWebsite); stage('decision-maker', P.identifyDecisionMaker); stage('identify-problem', P.identifyProblem); stage('qualify', P.qualify); stage('generate-email', P.generateEmail); stage('run-chain', P.runChain);
 route('POST', '/api/prospects/:id/meeting', 'api', async (c) => P.createMeeting(c.params.id, c.body.scheduled_at));
 route('POST', '/api/contacts/:id/verification', 'api', async (c) => one(`update contacts set email_verification_status=$2 where id=$1 returning id,email_verification_status`, [c.params.id, c.body.status]));
@@ -144,8 +153,8 @@ route('GET', '/api/inbox', 'api', async () => ({
     left join contacts ct on ct.id=p.contact_id left join replies r on r.id=t.reply_id where t.status='PENDING_APPROVAL' order by t.created_at`),
 }));
 route('GET', '/api/replies', 'api', async (c) => q(`select r.*, co.name company from replies r left join prospects p on p.id=r.prospect_id left join companies co on co.id=p.company_id where r.status=$1 order by r.received_at`, [c.url.searchParams.get('status') ?? 'NEW']));
-route('POST', '/api/replies/:id/classify', 'api', async (c) => P.classifyReply(c.params.id, { workflowRunId: c.body.workflow_run_id }));
-route('POST', '/api/replies/:id/teardown', 'api', async (c) => P.generateTeardown(c.params.id, { workflowRunId: c.body.workflow_run_id, force: !!c.body.force }));
+ai('POST', '/api/replies/:id/classify', (c) => `classify:${c.params.id}`, async (c) => P.classifyReply(c.params.id, { workflowRunId: c.body.workflow_run_id }));
+ai('POST', '/api/replies/:id/teardown', (c) => `teardown:${c.params.id}`, async (c) => P.generateTeardown(c.params.id, { workflowRunId: c.body.workflow_run_id, force: !!c.body.force }));
 route('POST', '/api/replies/:id/handled', 'api', async (c) => { const r = await one(`update replies set status='ACTIONED' where id=$1 returning id,status`, [c.params.id]); if (!r) throw new HttpError(404, 'reply not found'); await audit('reply', r.id, 'handled', c.actor); return r; });
 route('POST', '/api/teardowns/:id/decision', 'api', async (c) => P.decideTeardown(c.params.id, c.body.action, c.actor, c.body.body));
 
@@ -156,9 +165,9 @@ route('GET', '/api/deals', 'api', async () => ({
   proposals: await q(`select pr.*, co.name company, p.id prospect_id from proposals pr join opportunities o on o.id=pr.opportunity_id join prospects p on p.id=o.prospect_id join companies co on co.id=p.company_id order by pr.created_at desc`),
   opportunities: await q(`select o.stage, count(*)::int n, coalesce(sum(o.value_paise),0)::bigint value_paise from opportunities o group by o.stage`),
 }));
-route('POST', '/api/meetings/:id/brief', 'api', async (c) => P.meetingBrief(c.params.id, { workflowRunId: c.body.workflow_run_id, force: !!c.body.force }));
-route('POST', '/api/meetings/:id/post-meeting', 'api', async (c) => P.postMeeting(c.params.id, c.body.notes, { workflowRunId: c.body.workflow_run_id }));
-route('POST', '/api/meetings/:id/proposal', 'api', async (c) => P.draftProposal(c.params.id, c.body.business_inputs ?? {}, { workflowRunId: c.body.workflow_run_id }));
+ai('POST', '/api/meetings/:id/brief', (c) => `brief:${c.params.id}`, async (c) => P.meetingBrief(c.params.id, { workflowRunId: c.body.workflow_run_id, force: !!c.body.force }));
+ai('POST', '/api/meetings/:id/post-meeting', (c) => `post_meeting:${c.params.id}`, async (c) => P.postMeeting(c.params.id, c.body.notes, { workflowRunId: c.body.workflow_run_id }));
+ai('POST', '/api/meetings/:id/proposal', (c) => `proposal:${c.params.id}`, async (c) => P.draftProposal(c.params.id, c.body.business_inputs ?? {}, { workflowRunId: c.body.workflow_run_id }));
 route('POST', '/api/proposals/:id/decision', 'api', async (c) => one(`update proposals set status=$2, approver=$3, approved_at=now() where id=$1 returning id,status`, [c.params.id, c.body.action === 'APPROVE' ? 'APPROVED' : 'DECLINED', c.actor]));
 
 // ---------------- webhook ----------------
@@ -180,7 +189,7 @@ route('GET', '/api/campaigns', 'api', async () => {
   const recs = new Map(((latest?.detail?.recommendations ?? []) as any[]).map((r) => [r.campaign_code, r]));
   return { analysed_at: latest?.created_at ?? null, campaigns: campaigns.map((c) => ({ ...c, metrics: (metrics as any[]).find((m) => m.code === c.code), recommendation: recs.get(c.code) ?? null })) };
 });
-route('POST', '/api/analytics/weekly', 'api', async (c) => P.weeklyAnalysis({ workflowRunId: c.body.workflow_run_id }));
+ai('POST', '/api/analytics/weekly', () => 'weekly_analysis', async (c) => P.weeklyAnalysis({ workflowRunId: c.body.workflow_run_id }));
 route('POST', '/api/metrics/daily-snapshot', 'api', async () => { const m = await P.campaignMetrics(); await q(`insert into activities(entity_type,entity_id,action,actor,detail) values('metrics','00000000-0000-0000-0000-000000000000','daily_snapshot','system',$1)`, [{ campaigns: m }]); return { campaigns: m.length }; });
 route('GET', '/api/ops/failures', 'api', async () => ({ workflows: await q(`select * from workflow_runs where status='FAILED' order by started_at desc limit 50`), ai_runs: await q(`select id,agent,error,created_at from ai_runs where not valid order by created_at desc limit 50`) }));
 route('GET', '/api/ops/saleshandy', 'api', async () => { const sh = saleshandy(); return { mode: sh.mode, accounts: await sh.listEmailAccounts(), sequences: await sh.listSequences() }; });

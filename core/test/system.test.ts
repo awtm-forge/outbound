@@ -154,7 +154,10 @@ test('ops app: overview, review queue, add a decision maker, approve from the se
   assert.equal((await s.call('POST', `/api/prospects/${prospect.id}/contact`, { full_name: 'R' })).status, 400);
   assert.equal((await s.call('POST', `/api/prospects/${prospect.id}/contact`, { full_name: 'Ravi Kumar', email: 'not-an-email' })).status, 400);
   const add = await s.call('POST', `/api/prospects/${prospect.id}/contact`, { full_name: 'Ravi Kumar', job_title: 'Founder', email: 'ravi@acme10.example' }); assert.equal(add.status, 200);
-  const em = await s.call('POST', `/api/prospects/${prospect.id}/generate-email`, { force: true }); assert.equal(em.status, 200); assert.match(em.body.body, /Hi Ravi/);
+  const J = await import('../src/jobs.ts');
+  const queued = await s.call('POST', `/api/prospects/${prospect.id}/generate-email`, { force: true }); assert.equal(queued.status, 200); assert.ok(queued.body.job_id);
+  await J.idle(); const job = await s.call('GET', `/api/jobs/${queued.body.job_id}`); assert.equal(job.body.status, 'done');
+  const em = { body: job.body.result }; assert.match(em.body.body, /Hi Ravi/);
   const queue = await s.call('GET', '/api/queue/drafts'); const item = queue.body.items.find((i: any) => i.id === em.body.draft_id);
   assert.ok(item); assert.equal(item.contact_name, 'Ravi Kumar'); assert.equal(queue.body.criteria.length, 8); assert.ok(item.proofs.every((p: any) => p.label === 'VERIFIED'));
   const multi = await s.call('GET', '/api/prospects?status=PENDING_APPROVAL,QUALIFIED'); assert.ok(multi.body.some((p: any) => p.id === prospect.id));

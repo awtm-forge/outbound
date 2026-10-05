@@ -47,7 +47,9 @@ async function requestModel(model: string, system: string, user: string): Promis
     const j = JSON.parse(body);
     const cand = j.candidates?.[0];
     if (!cand?.content?.parts) throw new Error(`gemini returned no content (${cand?.finishReason ?? j.promptFeedback?.blockReason ?? 'unknown'})`);
-    return { text: cand.content.parts.map((p: any) => p.text ?? '').join(''), tokensIn: j.usageMetadata?.promptTokenCount ?? 0, tokensOut: j.usageMetadata?.candidatesTokenCount ?? 0 };
+    // thinking models spend part of the output budget before answering; a cut-off answer is a budget problem, not bad JSON
+    if (cand.finishReason === 'MAX_TOKENS') throw new Error(`gemini stopped at the output limit (${env.aiMaxTokens} tokens, ${j.usageMetadata?.thoughtsTokenCount ?? 0} of them thinking). Raise AI_MAX_TOKENS.`);
+    return { text: cand.content.parts.map((p: any) => p.text ?? '').join(''), tokensIn: j.usageMetadata?.promptTokenCount ?? 0, tokensOut: (j.usageMetadata?.candidatesTokenCount ?? 0) + (j.usageMetadata?.thoughtsTokenCount ?? 0) };
   }
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST', signal: AbortSignal.timeout(120_000),

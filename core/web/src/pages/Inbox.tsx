@@ -37,10 +37,10 @@ function Replies({ items, changed, openTeardowns }: { items: any[]; changed: () 
   const act = async (what: 'teardown' | 'handled' | 'meeting' | 'classify') => {
     setBusy(what);
     try {
-      if (what === 'teardown') { await api.post(`/api/replies/${r.id}/teardown`); toast('Teardown drafted. Read it before it goes.', { action: { label: 'Open', run: openTeardowns } }); }
+      if (what === 'teardown') { await api.run(`/api/replies/${r.id}/teardown`); toast('Teardown drafted. Read it before it goes.', { action: { label: 'Open', run: openTeardowns } }); }
       if (what === 'handled') { await api.post(`/api/replies/${r.id}/handled`); toast('Marked as handled.'); }
-      if (what === 'classify') { await api.post(`/api/replies/${r.id}/classify`); toast('Reply read again.'); }
-      if (what === 'meeting') { const m = await api.post(`/api/prospects/${r.prospect_id}/meeting`, {}); await api.post(`/api/meetings/${m.meeting_id}/brief`); await api.post(`/api/replies/${r.id}/handled`); toast('Meeting created and the brief is ready.', { action: { label: 'Open', run: () => go('/deals') } }); }
+      if (what === 'classify') { await api.run(`/api/replies/${r.id}/classify`); toast('Reply read again.'); }
+      if (what === 'meeting') { const m = await api.post(`/api/prospects/${r.prospect_id}/meeting`, {}); await api.run(`/api/meetings/${m.meeting_id}/brief`); await api.post(`/api/replies/${r.id}/handled`); toast('Meeting created and the brief is ready.', { action: { label: 'Open', run: () => go('/deals') } }); }
       changed();
     } catch (e: any) { toast(e.message, { err: true }); } finally { setBusy(null); }
   };

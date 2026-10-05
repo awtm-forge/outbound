@@ -31,9 +31,9 @@ function Meeting({ m, open, toggle, reload }: { m: any; open: boolean; toggle: (
   const act = async (what: 'brief' | 'notes' | 'proposal') => {
     setBusy(what);
     try {
-      if (what === 'brief') await api.post(`/api/meetings/${m.id}/brief`, { force: true });
-      if (what === 'notes') await api.post(`/api/meetings/${m.id}/post-meeting`, { notes });
-      if (what === 'proposal') await api.post(`/api/meetings/${m.id}/proposal`, { business_inputs: {} });
+      if (what === 'brief') await api.run(`/api/meetings/${m.id}/brief`, { force: true });
+      if (what === 'notes') await api.run(`/api/meetings/${m.id}/post-meeting`, { notes });
+      if (what === 'proposal') await api.run(`/api/meetings/${m.id}/proposal`, { business_inputs: {} });
       toast(what === 'brief' ? 'Brief rewritten.' : what === 'notes' ? 'Notes read. Next steps are below.' : 'Proposal drafted. Price and dates stay blank until you set them.'); reload();
     } catch (e: any) { toast(e.message, { err: true }); } finally { setBusy(null); }
   };

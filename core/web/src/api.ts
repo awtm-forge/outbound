@@ -12,5 +12,18 @@ async function call<T>(method: string, path: string, body?: unknown): Promise<T>
 export const api = {
   get: <T = any>(p: string) => call<T>('GET', p),
   post: <T = any>(p: string, b: unknown = {}) => call<T>('POST', p, b),
+  // AI actions come back as a job id (the host cuts requests at 60 s); wait here until the work is done.
+  run: async <T = any>(p: string, b: unknown = {}, onWait?: (ms: number) => void): Promise<T> => {
+    const r: any = await call('POST', p, b);
+    if (!r || !r.job_id) return r as T;
+    const t0 = Date.now();
+    for (;;) {
+      await new Promise((ok) => setTimeout(ok, Date.now() - t0 < 10_000 ? 1200 : 2500));
+      const j: any = await call('GET', `/api/jobs/${r.job_id}`);
+      if (j.status === 'done') return j.result as T;
+      if (j.status === 'failed') throw new ApiError(500, j.error ?? 'The AI step failed.');
+      onWait?.(Date.now() - t0);
+    }
+  },
 };
-export type Me = { user: string; ai_provider: string; saleshandy: string; discovery_source: string };
+export type Me = { user: string; ai_provider: string; saleshandy: string; discovery_source: string; queue?: { waiting: number; running: string | null } };

@@ -16,8 +16,8 @@ export function Prospect({ id }: { id: string }) {
   const run = async (what: 'chain' | 'email') => {
     setBusy(what);
     try {
-      if (what === 'chain') { const r = await api.post(`/api/prospects/${id}/run-chain`, { force: true }); toast(`Researched and scored: ${r.qualify?.score ?? '?'} points.${r.email?.draft_id ? ' An email is waiting for review.' : ''}`); }
-      if (what === 'email') { await api.post(`/api/prospects/${id}/generate-email`, { force: true }); toast('Email drafted.', { action: { label: 'Review it', run: () => go('/review') } }); }
+      if (what === 'chain') { const r = await api.run(`/api/prospects/${id}/run-chain`, { force: true }); toast(`Researched and scored: ${r.qualify?.score ?? '?'} points.${r.email?.draft_id ? ' An email is waiting for review.' : ''}`); }
+      if (what === 'email') { await api.run(`/api/prospects/${id}/generate-email`, { force: true }); toast('Email drafted.', { action: { label: 'Review it', run: () => go('/review') } }); }
       countsBus.dispatchEvent(new Event('changed')); reload(true);
     } catch (e: any) { toast(e.message, { err: true }); } finally { setBusy(null); }
   };

@@ -11,7 +11,7 @@ export function Campaigns() {
   const toast = useToast();
   const { data, error, loading, reload } = useLoad(() => api.get('/api/campaigns'));
   const [busy, setBusy] = useState(false);
-  const analyse = async () => { setBusy(true); try { await api.post('/api/analytics/weekly'); toast('Read the numbers again. Recommendations are updated.'); reload(true); } catch (e: any) { toast(e.message, { err: true }); } finally { setBusy(false); } };
+  const analyse = async () => { setBusy(true); try { await api.run('/api/analytics/weekly'); toast('Read the numbers again. Recommendations are updated.'); reload(true); } catch (e: any) { toast(e.message, { err: true }); } finally { setBusy(false); } };
   if (loading && !data) return <div className="page"><Loading rows={5} /></div>;
   if (error) return <div className="page"><Failure error={error} retry={reload} /></div>;
   return (

@@ -28,7 +28,8 @@ export const env = {
   anthropicKey: process.env.ANTHROPIC_API_KEY ?? '',
   aiModel: pickModel(process.env.AI_MODEL, 'gemini-3.5-flash', 'claude-sonnet-5-5'),
   aiModelCheap: pickModel(process.env.AI_MODEL_CHEAP, 'gemini-3.5-flash-lite', 'claude-haiku-4-5-20251001'),
-  aiMaxTokens: Number(process.env.AI_MAX_TOKENS ?? 2048),
+  // room for thinking models: Gemini 3.x spends a share of this reasoning before it writes the answer
+  aiMaxTokens: Number(process.env.AI_MAX_TOKENS || 8192),
   aiTemperature: Number(process.env.AI_TEMPERATURE ?? 0.2),
   aiMaxRetries: Number(process.env.AI_MAX_RETRIES ?? 3),
   aiCacheTtlHours: Number(process.env.AI_CACHE_TTL_HOURS ?? 720),

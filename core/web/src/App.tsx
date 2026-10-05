@@ -61,6 +61,7 @@ function Shell({ me, onSignOut }: { me: Me; onSignOut: () => void }) {
         <nav className="nav" aria-label="Main">{nav.map((n) => { const I = Icon[n.icon]; return (
           <Link key={n.to} to={n.to} className={n.on(path) ? 'on' : ''} aria-current={n.on(path) ? 'page' : undefined}><I /><span>{n.label}</span>{!!n.n && <span className={`count${n.quiet ? ' quiet' : ''}`}>{n.n}</span>}</Link>); })}</nav>
         <div className="side-foot">
+          <Working />
           <div className="modes" title="What is live and what is simulated">
             <div className="mode"><span>AI</span>{mode(me.ai_provider, 'anthropic')}</div>
             <div className="mode"><span>Sending</span>{mode(me.saleshandy, 'real')}</div>
@@ -72,4 +73,17 @@ function Shell({ me, onSignOut }: { me: Me; onSignOut: () => void }) {
       <main className="main" id="main">{page}</main>
     </div>
   );
+}
+
+// What the AI queue is doing, checked every 5 s. Hidden when idle.
+function Working() {
+  const [q, setQ] = useState<{ waiting: number; running: string | null } | null>(null);
+  useEffect(() => {
+    let live = true;
+    const load = () => api.get<Me>('/api/me').then((m) => { if (live) setQ(m.queue ?? null); }).catch(() => {});
+    load(); const t = setInterval(load, 5000); return () => { live = false; clearInterval(t); };
+  }, []);
+  if (!q || (!q.running && !q.waiting)) return null;
+  const n = (q.running ? 1 : 0) + q.waiting;
+  return <div className="modes" style={{ borderColor: 'var(--accent-line)' }} aria-live="polite"><div className="mode" style={{ alignItems: 'center', gap: 8 }}><span className="spinner" style={{ width: 12, height: 12, color: 'var(--accent)' }} /><b className="live" style={{ marginRight: 'auto' }}>AI working</b><span>{n} {n === 1 ? 'task' : 'tasks'}</span></div></div>;
 }

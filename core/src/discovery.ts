@@ -7,7 +7,8 @@ import { q, one, audit } from './lib/db.ts';
 import { log } from './lib/log.ts';
 import { normalizeDomain } from './lib/normalize.ts';
 import { snapshotFromHtml } from './lib/website.ts';
-import { HttpError, ingest, runChain } from './pipeline.ts';
+import { HttpError, ingest, runChain, setStatus } from './pipeline.ts';
+import { enqueue } from './jobs.ts';
 
 export type Query = { industry?: string; location?: string; technology?: string; keywords?: string; pages?: number };
 export type Hit = { url: string; title?: string; snippet?: string };
@@ -178,7 +179,7 @@ export async function getSearch(id: string, cached = false): Promise<Record<stri
 export const listSearches = () => q('select id, query, source, status, result_count, actor, created_at from discovery_searches order by created_at desc limit 50');
 
 // ---------- hand-off to the pipeline ----------
-export async function addCandidates(ids: string[], campaign_code: string, actor: string, opts: { run_chain?: boolean; html?: string } = {}) {
+export async function addCandidates(ids: string[], campaign_code: string, actor: string, opts: { run_chain?: boolean; html?: string; background?: boolean } = {}) {
   if (!ids.length) throw new HttpError(400, 'no candidates selected');
   const campaign = await one('select vertical from campaigns where code=$1', [campaign_code]); if (!campaign) throw new HttpError(400, `unknown campaign ${campaign_code}`);
   const out = [];
@@ -190,8 +191,12 @@ export async function addCandidates(ids: string[], campaign_code: string, actor:
         contact: email ? { email, job_title: null as any } : undefined, campaign_code, source: 'discovery', owner: actor }, actor);
       await q(`update discovery_candidates set status='ADDED', company_id=$2 where id=$1`, [c.id, r.company.id]);
       let chain: any = null;
-      if (opts.run_chain) { try { chain = await runChain(r.prospect.id, { html: opts.html }); } catch (e: any) { chain = { error: e.message }; } }
-      out.push({ id, prospect_id: r.prospect.id, created: r.created, suppressed: r.prospect.suppressed, generic_email_only: !!email && /^(info|hello|contact|support|sales|care|help|admin|team|enquiry|enquiries)@/.test(email), chain: chain && { verdict: chain.qualify?.verdict, score: chain.qualify?.score, draft: chain.email?.draft_id ?? null, error: chain.error } });
+      if (opts.run_chain && opts.background && !r.prospect.suppressed) {
+        // research runs on the AI queue; the company shows as Researching in the pipeline until it is scored
+        await setStatus(r.prospect.id, 'RESEARCHING'); const pid = r.prospect.id;
+        enqueue(`batch:chain:${pid}`, () => runChain(pid, { html: opts.html }), 'batch'); chain = { queued: true };
+      } else if (opts.run_chain) { try { chain = await runChain(r.prospect.id, { html: opts.html }); } catch (e: any) { chain = { error: e.message }; } }
+      out.push({ id, prospect_id: r.prospect.id, created: r.created, suppressed: r.prospect.suppressed, generic_email_only: !!email && /^(info|hello|contact|support|sales|care|help|admin|team|enquiry|enquiries)@/.test(email), chain: chain && (chain.queued ? { queued: true } : { verdict: chain.qualify?.verdict, score: chain.qualify?.score, draft: chain.email?.draft_id ?? null, error: chain.error }) });
     } catch (e: any) { out.push({ id, error: e.message }); }
   }
   return { added: out };
