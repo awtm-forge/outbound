@@ -2,11 +2,11 @@
 import { route } from '../lib/http.ts';
 import { q, one } from '../lib/db.ts';
 import * as P from '../pipeline.ts';
-const esc = (s: unknown) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
-const page = (title: string, body: string) => `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark"><title>${esc(title)}</title>
+export const esc = (s: unknown) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
+export const page = (title: string, body: string) => `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark"><title>${esc(title)}</title>
 <style>:root{--bg:#121417;--card:#1b1f24;--line:#2b3138;--fg:#e6e8eb;--muted:#9aa3ad;--input:#0f1114;--tag:#2a3038;--ok:#2e9e5b;--no:#d04a3d;--link:#8ab4f8}
 body{font:14px/1.45 system-ui,sans-serif;margin:0;padding:16px;max-width:1100px;background:var(--bg);color:var(--fg)}a{color:var(--link)}h1{font-size:20px}h2{font-size:16px;margin-top:28px;border-bottom:1px solid var(--line);padding-bottom:4px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:12px;margin:10px 0}.meta{color:var(--muted);font-size:12px}.row{display:flex;gap:16px;flex-wrap:wrap}.row>*{flex:1;min-width:260px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:12px;margin:10px 0}.meta{color:var(--muted);font-size:12px}.row{display:flex;gap:16px;flex-wrap:wrap}.row>*{flex:1;min-width:260px}label{display:block;font-size:12px;color:var(--muted)}select{background:var(--input);color:var(--fg);border:1px solid var(--line);padding:6px;border-radius:4px}
 textarea,input[type=text]{width:100%;box-sizing:border-box;font:13px/1.4 ui-monospace,monospace;padding:6px;background:var(--input);color:var(--fg);border:1px solid var(--line);border-radius:4px}textarea{min-height:200px}
 button{padding:6px 12px;margin:4px 4px 0 0;cursor:pointer;border-radius:4px;border:1px solid var(--line);background:var(--tag);color:var(--fg)}button.ok{background:var(--ok);border-color:var(--ok);color:#fff}button.no{background:var(--no);border-color:var(--no);color:#fff}
 table{border-collapse:collapse;width:100%}td,th{text-align:left;padding:4px 8px;border-bottom:1px solid var(--line);font-size:13px}
@@ -36,7 +36,7 @@ route('GET', '/', 'dashboard', async () => {
     <input type="text" name="reason" placeholder="reason (for reject / research more)">
     ${d.status === 'PENDING_APPROVAL' ? `<button class="ok" name="action" value="APPROVE">Approve</button><button name="action" value="EDIT">Save edit &amp; approve</button><button class="no" name="action" value="REJECT">Reject</button><button name="action" value="RESEARCH_MORE">Research again</button>` : ''}
     </form></div></div></div>`;
-  const body = `<h1>awtm forge outbound ops</h1><p class="meta">${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} IST · <a href="/health">health</a> · <a href="/ui/prospects">prospects</a></p>
+  const body = `<h1>awtm forge outbound ops</h1><p class="meta">${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} IST · <a href="/health">health</a> · <a href="/ui/prospects">prospects</a> · <a href="/ui/discovery">discovery</a></p>
   <h2>Pipeline</h2><div class="card"><table><tr>${pipeline.map((r) => `<th>${esc(r.status)}</th>`).join('')}</tr><tr>${pipeline.map((r) => `<td>${r.n}</td>`).join('')}</tr></table></div>
   <h2>Emails awaiting approval (${drafts.filter((d) => d.status === 'PENDING_APPROVAL').length}) and approved, not yet synced (${drafts.filter((d) => d.status === 'APPROVED').length})</h2>${drafts.map(draftCard).join('') || '<p class="meta">Nothing waiting.</p>'}
   <h2>Replies awaiting action (${replies.length})</h2>${replies.map((r) => `<div class="card"><b>${esc(r.company ?? r.from_email)}</b> <span class="tag">${esc(r.classification ?? 'unclassified')}</span><span class="tag">${esc(r.priority ?? '')}</span><span class="tag">owner ${esc(r.owner ?? '?')}</span><span class="meta">${esc(r.from_email)} · ${new Date(r.received_at).toLocaleString('en-IN')}</span>

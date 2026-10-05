@@ -4,6 +4,7 @@ import { log } from './lib/log.ts';
 import { handle } from './lib/http.ts';
 import './routes/api.ts';
 import './routes/dashboard.ts';
+import './routes/discovery.ts';
 if (!env.apiKey || !env.dashboardPassword) log.warn('CORE_API_KEY or DASHBOARD_PASSWORD is empty: all /api and dashboard requests will be rejected');
 export const server = createServer(handle);
 if (process.argv[1] && import.meta.url.endsWith(process.argv[1].split('/').pop()!)) {

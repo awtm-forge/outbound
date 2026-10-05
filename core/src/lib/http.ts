@@ -43,7 +43,7 @@ async function readBody(req: IncomingMessage): Promise<{ body: any; form: boolea
   for await (const c of req) { size += c.length; if (size > 2_000_000) throw new HttpError(413, 'body too large'); chunks.push(c); }
   const raw = Buffer.concat(chunks).toString(); if (!raw) return { body: {}, form: false };
   const ct = String(req.headers['content-type'] ?? '');
-  if (ct.includes('application/x-www-form-urlencoded')) return { body: Object.fromEntries(new URLSearchParams(raw)), form: true };
+  if (ct.includes('application/x-www-form-urlencoded')) { const sp = new URLSearchParams(raw); const body: Record<string, any> = {}; for (const k of new Set(sp.keys())) { const all = sp.getAll(k); body[k] = all.length > 1 ? all : all[0]; } return { body, form: true }; }
   try { return { body: JSON.parse(raw), form: false }; } catch { throw new HttpError(400, 'invalid json'); }
 }
 

@@ -10,7 +10,7 @@ post-meeting analysis and proposal draft. Nothing client-facing leaves without a
 |---|---|---|---|
 | postgres | postgres:16-alpine | 127.0.0.1:55460 | All data. Never exposed publicly. n8n uses schema `n8n` in the same database. |
 | core | ./core (Node 24, TypeScript, no build step) | 127.0.0.1:8095 | API, 13 AI agents, scoring engine, approval dashboard, Saleshandy adapter, webhook receiver, metrics. |
-| n8n | n8nio/n8n:1.112.0 | 127.0.0.1:5678 | 18 workflows that call the core over HTTP. Basic auth. |
+| n8n | n8nio/n8n:1.112.0 | 127.0.0.1:5678 | 19 workflows that call the core over HTTP. Basic auth. |
 | backup | postgres:16-alpine | none | pg_dump to ./backups on start and every 24 h, 14 day retention. |
 | caddy (prod profile) | caddy:2-alpine | 80, 443 | HTTPS for n8n.awtmforge.com and ops.awtmforge.com. |
 
@@ -52,10 +52,25 @@ docker compose --profile prod up -d --build
 DNS: A records for `n8n.awtmforge.com` and `ops.awtmforge.com` to the VPS IP. Caddy obtains certificates automatically. The main
 awtmforge.com site is untouched. Firewall: allow 22, 80, 443 only.
 
+## Prospect discovery
+
+Dashboard > discovery (`/ui/discovery`), or `POST /api/discovery/searches` with `{industry, location, technology, keywords, pages}`.
+A search source returns candidate sites; the core visits each one itself, fingerprints the platform (Shopify, Wix, WooCommerce,
+WordPress, Framer, Webflow, Magento, plus Razorpay, Shiprocket, Meta Pixel, Google Tag), and pulls public contact details from the
+home and contact pages: emails, Indian phone numbers, GSTIN, LinkedIn, Instagram and Facebook links, a country guess and a rough size.
+The technology filter is applied to what we fingerprinted, never to what the search engine guessed. Marketplaces and directories are
+excluded. Candidates are unique by domain across all searches; an identical search within seven days is served from the earlier run.
+Tick candidates, choose a campaign, and they go through ingest, research, scoring and (at 70+) drafting. A company whose only public
+email is a shared inbox still needs a named decision maker before a draft is allowed; the row shows a "find founder" LinkedIn search.
+
+Sources are adapters in `core/src/discovery.ts`: `google_cse` (Google Programmable Search, 100 free queries a day, one query per page of
+10 sites, quota tracked in `source_calls`) and `mock`. Apify is the planned next adapter for volume and local-business data.
+
 ## Pipeline and where each piece lives
 
 | Stage | Core code | HTTP | n8n workflow |
 |---|---|---|---|
+| Discovery search | `core/src/discovery.ts` runSearch | POST /api/discovery/searches, /api/discovery/candidates/add | 19_discovery_search |
 | Ingest + dedupe | `core/src/pipeline.ts` ingest | POST /api/prospects, /api/prospects/bulk | 01_ingest_prospects |
 | Research (site snapshot + Account Research Agent) | research | POST /api/prospects/:id/research | 03_research_account |
 | Website Analysis Agent | analyzeWebsite | /analyze-website | 04_analyze_website |

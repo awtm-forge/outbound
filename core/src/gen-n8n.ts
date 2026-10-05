@@ -28,6 +28,7 @@ const WFS: WF[] = [
   { name: '15_daily_metrics', trigger: { cron: '30 2 * * *' }, steps: [{ name: 'Daily snapshot', path: '/api/metrics/daily-snapshot' }] },   // 08:00 IST
   { name: '16_weekly_campaign_analysis', trigger: { cron: '30 3 * * 1' }, steps: [{ name: 'Weekly analysis', path: '/api/analytics/weekly' }] },
   { name: '17_suppression_handler', trigger: { webhook: 'awtm/suppress' }, steps: [{ name: 'Suppress', path: '/api/suppression', body: '={{ { email: $json.body.email, domain: $json.body.domain, reason: $json.body.reason || "manual", source: "n8n" } }}' }] },
+  { name: '19_discovery_search', trigger: { webhook: 'awtm/discover' }, steps: [{ name: 'Discovery search', path: '/api/discovery/searches', body: '={{ $json.body }}' }] },
   { name: '18_health_monitor', trigger: { cron: '*/5 * * * *' }, steps: [{ name: 'Health', method: 'GET', path: '/health' }, { name: 'Alert if degraded', path: '/api/workflow-runs/log-error', body: '={{ { workflow: "18_health_monitor", error: "health " + $json.status + " db=" + $json.db } }}', onlyIf: { left: '={{ $json.status }}', right: 'degraded' } }] },
 ];
 

@@ -30,7 +30,7 @@ export async function ingest(i: IngestInput, actor = 'system') {
     const email = ct.email?.trim().toLowerCase() ?? null;
     contact = await one(`insert into contacts(company_id,first_name,last_name,full_name,job_title,email,linkedin_url,is_decision_maker,source) values($1,$2,$3,$4,$5,$6,$7,$8,$9)
       on conflict (company_id,email) do update set full_name=coalesce(excluded.full_name,contacts.full_name), job_title=coalesce(excluded.job_title,contacts.job_title), linkedin_url=coalesce(excluded.linkedin_url,contacts.linkedin_url), is_decision_maker=contacts.is_decision_maker or excluded.is_decision_maker returning *`,
-      [company.id, ct.first_name ?? firstName(full), ct.last_name ?? null, full, ct.job_title ?? null, email, ct.linkedin_url ?? null, ct.is_decision_maker ?? false, src]);
+      [company.id, ct.first_name ?? (full ? firstName(full) : null), ct.last_name ?? null, full, ct.job_title ?? null, email, ct.linkedin_url ?? null, ct.is_decision_maker ?? false, src]);
   }
   const campaign = i.campaign_code ? await one('select * from campaigns where code=$1', [i.campaign_code]) : null;
   if (i.campaign_code && !campaign) throw new HttpError(400, `unknown campaign ${i.campaign_code}`);
@@ -65,7 +65,8 @@ const setStatus = (id: string, status: string) => q('update prospects set status
 export async function research(prospectId: string, opts: { workflowRunId?: string; force?: boolean; html?: string } = {}) {
   const p = await loadProspect(prospectId); guard(p);
   await setStatus(p.id, 'RESEARCHING');
-  const site: SiteSnapshotT = opts.html ? snapshotFromHtml(p.company.website ?? p.company.domain, opts.html) : await fetchSnapshot(p.company.website ?? p.company.domain);
+  // reuse a snapshot discovery already took (same page, minutes ago) unless forced; otherwise fetch
+  const site: SiteSnapshotT = opts.html ? snapshotFromHtml(p.company.website ?? p.company.domain, opts.html) : p.company.metadata?.site_snapshot?.fetched && !opts.force ? p.company.metadata.site_snapshot : await fetchSnapshot(p.company.website ?? p.company.domain);
   await q(`update companies set metadata = metadata || $2 where id=$1`, [p.company.id, { site_snapshot: site, platform_detected: site.platform_signals?.[0] ?? null }]);
   if (!p.company.platform && site.platform_signals?.[0]) await q('update companies set platform=$2 where id=$1', [p.company.id, site.platform_signals[0]]);
   const r = await runAgent(A.accountResearch, { company: companyCtx(p.company), site }, opts);
@@ -128,6 +129,7 @@ export async function qualify(prospectId: string, opts: { workflowRunId?: string
 export async function generateEmail(prospectId: string, opts: { workflowRunId?: string; force?: boolean } = {}) {
   const p = await loadProspect(prospectId); guard(p);
   if (!p.contact) throw new HttpError(409, 'prospect has no contact');
+  if (!p.contact.full_name && !p.contact.first_name) throw new HttpError(409, 'contact has no name; identify the decision maker before drafting');
   if (!['QUALIFIED', 'EMAIL_DRAFTED', 'PENDING_APPROVAL', 'RESEARCH_FURTHER'].includes(p.status) && !opts.force) throw new HttpError(409, `prospect status ${p.status} is not QUALIFIED`);
   const problem = await latestResearch(p.company.id, 'PROBLEM'), capability = await latestResearch(p.company.id, 'CAPABILITY');
   if (!problem || !capability) throw new HttpError(409, 'run identify-problem first');
@@ -328,6 +330,6 @@ export async function runChain(prospectId: string, opts: { html?: string; workfl
   out.research = await research(prospectId, opts); out.website = await analyzeWebsite(prospectId, opts);
   try { out.decision_maker = await identifyDecisionMaker(prospectId, opts); } catch (e: any) { out.decision_maker = { skipped: e.message }; }
   out.problem = await identifyProblem(prospectId, opts); out.qualify = await qualify(prospectId, opts);
-  if (out.qualify.verdict === 'QUALIFIED') out.email = await generateEmail(prospectId, opts);
+  if (out.qualify.verdict === 'QUALIFIED') { try { out.email = await generateEmail(prospectId, opts); } catch (e: any) { if (e instanceof HttpError && e.status === 409) out.email = { skipped: e.message }; else throw e; } }
   return out;
 }

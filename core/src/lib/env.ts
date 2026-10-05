@@ -18,5 +18,10 @@ export const env = {
   saleshandyBaseUrl: process.env.SALESHANDY_BASE_URL ?? 'https://open-api.saleshandy.com/v1',
   saleshandyWebhookSecret: process.env.SALESHANDY_WEBHOOK_SECRET ?? '',
   configDir: process.env.CONFIG_DIR ?? new URL('../../../config/', import.meta.url).pathname,
+  discoverySource: (process.env.DISCOVERY_SOURCE ?? 'mock') as 'mock' | 'google_cse',
+  googleCseKey: process.env.GOOGLE_CSE_KEY ?? '',
+  googleCseCx: process.env.GOOGLE_CSE_CX ?? '',
+  discoveryMaxPages: Number(process.env.DISCOVERY_MAX_PAGES ?? 3),
+  discoveryDailyQuota: Number(process.env.DISCOVERY_DAILY_QUOTA ?? 100),
   nodeEnv: process.env.NODE_ENV ?? 'development',
 };
