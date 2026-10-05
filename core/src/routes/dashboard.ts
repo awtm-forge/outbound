@@ -3,12 +3,14 @@ import { route } from '../lib/http.ts';
 import { q, one } from '../lib/db.ts';
 import * as P from '../pipeline.ts';
 const esc = (s: unknown) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
-const page = (title: string, body: string) => `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title>
-<style>body{font:14px/1.45 system-ui,sans-serif;margin:0;padding:16px;max-width:1100px;background:#fafafa;color:#222}h1{font-size:20px}h2{font-size:16px;margin-top:28px;border-bottom:1px solid #ddd;padding-bottom:4px}
-.card{background:#fff;border:1px solid #e3e3e3;border-radius:6px;padding:12px;margin:10px 0}.meta{color:#666;font-size:12px}.row{display:flex;gap:16px;flex-wrap:wrap}.row>*{flex:1;min-width:260px}
-textarea,input[type=text]{width:100%;box-sizing:border-box;font:13px/1.4 ui-monospace,monospace;padding:6px}textarea{min-height:200px}button{padding:6px 12px;margin:4px 4px 0 0;cursor:pointer;border-radius:4px;border:1px solid #999;background:#fff}
-button.ok{background:#1b7f3b;color:#fff;border-color:#1b7f3b}button.no{background:#b3261e;color:#fff;border-color:#b3261e}table{border-collapse:collapse;width:100%}td,th{text-align:left;padding:4px 8px;border-bottom:1px solid #eee;font-size:13px}
-.tag{display:inline-block;padding:1px 6px;border-radius:3px;background:#eee;font-size:11px;margin-right:4px}.tag.v{background:#d8f3dc}.tag.s{background:#ffe8cc}pre{white-space:pre-wrap;background:#f4f4f4;padding:8px;border-radius:4px;font-size:12px}</style></head><body>${body}</body></html>`;
+const page = (title: string, body: string) => `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark"><title>${esc(title)}</title>
+<style>:root{--bg:#121417;--card:#1b1f24;--line:#2b3138;--fg:#e6e8eb;--muted:#9aa3ad;--input:#0f1114;--tag:#2a3038;--ok:#2e9e5b;--no:#d04a3d;--link:#8ab4f8}
+body{font:14px/1.45 system-ui,sans-serif;margin:0;padding:16px;max-width:1100px;background:var(--bg);color:var(--fg)}a{color:var(--link)}h1{font-size:20px}h2{font-size:16px;margin-top:28px;border-bottom:1px solid var(--line);padding-bottom:4px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:12px;margin:10px 0}.meta{color:var(--muted);font-size:12px}.row{display:flex;gap:16px;flex-wrap:wrap}.row>*{flex:1;min-width:260px}
+textarea,input[type=text]{width:100%;box-sizing:border-box;font:13px/1.4 ui-monospace,monospace;padding:6px;background:var(--input);color:var(--fg);border:1px solid var(--line);border-radius:4px}textarea{min-height:200px}
+button{padding:6px 12px;margin:4px 4px 0 0;cursor:pointer;border-radius:4px;border:1px solid var(--line);background:var(--tag);color:var(--fg)}button.ok{background:var(--ok);border-color:var(--ok);color:#fff}button.no{background:var(--no);border-color:var(--no);color:#fff}
+table{border-collapse:collapse;width:100%}td,th{text-align:left;padding:4px 8px;border-bottom:1px solid var(--line);font-size:13px}
+.tag{display:inline-block;padding:1px 6px;border-radius:3px;background:var(--tag);font-size:11px;margin-right:4px}.tag.v{background:#1f4d33}.tag.s{background:#5a3d14}pre{white-space:pre-wrap;background:var(--input);padding:8px;border-radius:4px;font-size:12px;border:1px solid var(--line)}</style></head><body>${body}</body></html>`;
 
 route('GET', '/', 'dashboard', async () => {
   const [drafts, replies, teardowns, briefs, proposals, metrics, failures] = await Promise.all([
