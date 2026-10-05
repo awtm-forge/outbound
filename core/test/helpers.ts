@@ -1,6 +1,6 @@
 // Shared test bootstrap: a private database per test process, migrated and seeded, server on a random port.
 process.env.AI_PROVIDER ??= 'mock'; process.env.SALESHANDY_MODE = 'mock';
-process.env.CORE_API_KEY = 'test-api-key'; process.env.DASHBOARD_USER = 'tester'; process.env.DASHBOARD_PASSWORD = 'test-pass'; process.env.SALESHANDY_WEBHOOK_SECRET = 'test-webhook-secret'; process.env.SESSION_SECRET = 'test-session-secret';
+process.env.CORE_API_KEY = 'test-api-key'; process.env.DASHBOARD_USER = 'tester'; process.env.DASHBOARD_PASSWORD = 'test-pass'; process.env.SALESHANDY_WEBHOOK_SECRET = 'test-webhook-secret'; process.env.SESSION_SECRET = 'test-session-secret'; process.env.AI_RETRY_BASE_MS = '5';
 process.env.WEB_DIST = new URL('./fixtures/webdist', import.meta.url).pathname;
 process.env.CONFIG_DIR = new URL('../config/', import.meta.url).pathname; process.env.SCHEDULER = 'off';
 import pg from 'pg';

@@ -61,7 +61,8 @@ async function requestModel(model: string, system: string, user: string): Promis
   const j: any = await res.json();
   return { text: j.content?.map((c: any) => c.text ?? '').join('') ?? '', tokensIn: j.usage?.input_tokens ?? 0, tokensOut: j.usage?.output_tokens ?? 0 };
 }
-// Retries rate limits and outages: the provider's own wait hint when it gives one, else exponential backoff. Capped at 65 s a wait.
+// Retries rate limits and outages: the provider's own wait hint when it gives one, else 5, 15, 45 s (a Google 503 lasts
+// tens of seconds, not milliseconds). Capped at 65 s a wait.
 async function callModel(model: string, system: string, user: string): Promise<ModelReply> {
   let lastErr: any;
   for (let attempt = 0; attempt <= env.aiMaxRetries; attempt++) {
@@ -70,7 +71,7 @@ async function callModel(model: string, system: string, user: string): Promise<M
       lastErr = e;
       const retryable = e instanceof Retryable || e?.name === 'TimeoutError' || e?.cause?.code === 'ECONNRESET';
       if (!retryable || attempt === env.aiMaxRetries) break;
-      const wait = Math.min(65_000, e.waitMs ?? 1000 * 2 ** attempt);
+      const wait = Math.min(65_000, e.waitMs ?? env.aiRetryBaseMs * 3 ** attempt);
       log.warn('model retry', { provider: env.aiProvider, attempt: attempt + 1, waitMs: wait, reason: e.message });
       await sleep(wait);
     }

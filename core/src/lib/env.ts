@@ -32,6 +32,7 @@ export const env = {
   aiMaxTokens: Number(process.env.AI_MAX_TOKENS || 8192),
   aiTemperature: Number(process.env.AI_TEMPERATURE ?? 0.2),
   aiMaxRetries: Number(process.env.AI_MAX_RETRIES ?? 3),
+  aiRetryBaseMs: Number(process.env.AI_RETRY_BASE_MS ?? 5000),
   aiCacheTtlHours: Number(process.env.AI_CACHE_TTL_HOURS ?? 720),
   saleshandyMode: (process.env.SALESHANDY_MODE ?? 'mock') as 'real' | 'mock',
   saleshandyKey: process.env.SALESHANDY_API_KEY ?? '',

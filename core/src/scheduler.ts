@@ -3,6 +3,7 @@
 import { tx, q } from './lib/db.ts';
 import { log } from './lib/log.ts';
 import * as P from './pipeline.ts';
+import { requeueStale } from './jobs.ts';
 
 type Job = { name: string; due: (t: Ist) => boolean; run: () => Promise<unknown> };
 type Ist = { minute: number; hour: number; weekday: number; slot: string };
@@ -25,7 +26,9 @@ export const JOBS: Job[] = [
   { name: 'core:sync_to_saleshandy', due: (t) => t.minute % 15 === 0, run: async () => {
     const rows = await q(`select id from email_drafts where status='APPROVED' order by approved_at limit 50`);
     const out = []; for (const r of rows) { try { out.push(await P.syncToSaleshandy(r.id)); } catch (e: any) { out.push({ draft_id: r.id, error: e.message }); } }
-    return { synced: out.filter((x: any) => !x.error).length, failed: out.filter((x: any) => x.error).length };
+    // research a provider outage interrupted goes back on the queue; it runs after this, in the background
+    const requeued = await requeueStale((id) => P.runChain(id));
+    return { synced: out.filter((x: any) => !x.error).length, failed: out.filter((x: any) => x.error).length, requeued };
   } },
   { name: 'core:daily_metrics', due: (t) => t.hour === 8 && t.minute === 0, run: async () => {
     const m = await P.campaignMetrics();

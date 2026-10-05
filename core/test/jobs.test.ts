@@ -42,3 +42,13 @@ test('adding from discovery in the browser queues research and marks the company
   const n = await J.requeueStale((id) => P.runChain(id, { html })); assert.equal(n, 1); await J.idle();
   assert.notEqual((await P.loadProspect(a.prospect_id)).status, 'RESEARCHING');
 });
+
+test('a failed research job is written to the company history; the retry sweep does not queue the same company twice', async () => {
+  const J = await import('../src/jobs.ts'); const P = await import('../src/pipeline.ts'); const { q, one } = await import('../src/lib/db.ts');
+  const { prospect } = await P.ingest({ company: { name: 'Flaky', website: 'https://flaky.example' }, campaign_code: 'IND-WEB-B2B' });
+  J.enqueue(`batch:chain:${prospect.id}`, async () => { throw new Error('gemini 503'); }, 'batch'); await J.idle();
+  const ev = await one(`select detail from activities where entity_id=$1 and action='research_failed'`, [prospect.id]); assert.equal(ev!.detail.error, 'gemini 503');
+  let runs = 0; const gate = new Promise((r) => setTimeout(r, 60));
+  const a = J.enqueue(`batch:chain:${prospect.id}`, async () => { runs++; await gate; }, 'batch'); const b = J.enqueue(`batch:chain:${prospect.id}`, async () => { runs++; }, 'batch');
+  assert.equal(a.id, b.id); await J.idle(); assert.equal(runs, 1);
+});
