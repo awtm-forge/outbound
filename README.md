@@ -67,6 +67,8 @@ brand: the portal's tokens, Bricolage Grotesque and IBM Plex Mono, self-hosted. 
 | Meetings and deals | The brief before a call, notes into next steps after it, proposal drafts |
 | Campaigns | Results per campaign, the weekly recommendations, and the do-not-contact list |
 
+The five seed campaigns in `config/campaigns.json` were approved by the founders on 5 Oct 2026.
+
 Sign-in is a form, not a browser pop-up: an HMAC-signed, HttpOnly, SameSite=Strict session cookie (12 hours,
 `SESSION_SECRET`). Login is throttled to 10 attempts per 15 minutes per IP. Every API mutation still needs an
 Idempotency-Key header, which a cross-site page cannot send, so the session cannot be used from another site.
@@ -135,8 +137,9 @@ daily cap tracked in `source_calls`), `google_cse` (legacy: Google closed it to 
 
 ## Configuration
 
-See `.env.example`. `AI_PROVIDER=anthropic` with `ANTHROPIC_API_KEY` switches all agents to Claude (`AI_MODEL` for reasoning agents,
-`AI_MODEL_CHEAP` for classification and qualification). `SALESHANDY_MODE=real` with `SALESHANDY_API_KEY` switches the adapter.
+See `.env.example`. `AI_PROVIDER=gemini` with `GEMINI_API_KEY` (the free tier, chosen 5 Oct 2026) or `AI_PROVIDER=anthropic` with
+`ANTHROPIC_API_KEY` switches every agent at once. `AI_MODEL` drives the reasoning agents and `AI_MODEL_CHEAP` classification and
+qualification; left empty, each provider's default is used. Rate limits are retried using the provider's own wait hint. `SALESHANDY_MODE=real` with `SALESHANDY_API_KEY` switches the adapter.
 
 ## More
 

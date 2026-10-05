@@ -24,22 +24,53 @@ Rules that override everything else:
 - Never strengthen client wording. Never convert STATED or TO CONFIRM proof into VERIFIED. Never use proof labelled PRIVATE.
 - Do not use em dashes.`;
 
-async function callAnthropic(model: string, system: string, user: string): Promise<{ text: string; tokensIn: number; tokensOut: number }> {
+type ModelReply = { text: string; tokensIn: number; tokensOut: number };
+class Retryable extends Error { waitMs?: number; constructor(m: string, waitMs?: number) { super(m); this.waitMs = waitMs; } }
+
+// One request to the configured provider. Throws Retryable on rate limits and outages, a plain Error otherwise.
+async function requestModel(model: string, system: string, user: string): Promise<ModelReply> {
+  if (env.aiProvider === 'gemini') {
+    // Native Gemini API with JSON output enforced by the provider, not just asked for in the prompt.
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
+      method: 'POST', signal: AbortSignal.timeout(120_000),
+      headers: { 'content-type': 'application/json', 'x-goog-api-key': env.geminiKey },
+      body: JSON.stringify({ systemInstruction: { parts: [{ text: system }] }, contents: [{ role: 'user', parts: [{ text: user }] }],
+        generationConfig: { temperature: env.aiTemperature, maxOutputTokens: env.aiMaxTokens, responseMimeType: 'application/json' } }),
+    });
+    const body = await res.text();
+    if (res.status === 429 || res.status >= 500) {
+      // free-tier limits are per minute; Google says how long to wait, either as a header or as RetryInfo in the body
+      const hinted = Number(res.headers.get('retry-after')) * 1000 || Number(body.match(/"retryDelay":\s*"(\d+(?:\.\d+)?)s"/)?.[1]) * 1000 || undefined;
+      throw new Retryable(`gemini ${res.status}`, hinted);
+    }
+    if (!res.ok) throw new Error(`gemini ${res.status}: ${body.slice(0, 300)}`);
+    const j = JSON.parse(body);
+    const cand = j.candidates?.[0];
+    if (!cand?.content?.parts) throw new Error(`gemini returned no content (${cand?.finishReason ?? j.promptFeedback?.blockReason ?? 'unknown'})`);
+    return { text: cand.content.parts.map((p: any) => p.text ?? '').join(''), tokensIn: j.usageMetadata?.promptTokenCount ?? 0, tokensOut: j.usageMetadata?.candidatesTokenCount ?? 0 };
+  }
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST', signal: AbortSignal.timeout(120_000),
+    headers: { 'content-type': 'application/json', 'x-api-key': env.anthropicKey, 'anthropic-version': '2023-06-01' },
+    body: JSON.stringify({ model, max_tokens: env.aiMaxTokens, temperature: env.aiTemperature, system, messages: [{ role: 'user', content: user }] }),
+  });
+  if (res.status === 429 || res.status >= 500) throw new Retryable(`anthropic ${res.status}`, Number(res.headers.get('retry-after')) * 1000 || undefined);
+  if (!res.ok) throw new Error(`anthropic ${res.status}: ${(await res.text()).slice(0, 300)}`);
+  const j: any = await res.json();
+  return { text: j.content?.map((c: any) => c.text ?? '').join('') ?? '', tokensIn: j.usage?.input_tokens ?? 0, tokensOut: j.usage?.output_tokens ?? 0 };
+}
+// Retries rate limits and outages: the provider's own wait hint when it gives one, else exponential backoff. Capped at 65 s a wait.
+async function callModel(model: string, system: string, user: string): Promise<ModelReply> {
   let lastErr: any;
   for (let attempt = 0; attempt <= env.aiMaxRetries; attempt++) {
-    try {
-      const res = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json', 'x-api-key': env.anthropicKey, 'anthropic-version': '2023-06-01' },
-        body: JSON.stringify({ model, max_tokens: env.aiMaxTokens, temperature: env.aiTemperature, system, messages: [{ role: 'user', content: user }] }),
-      });
-      if (res.status === 429 || res.status >= 500) throw new Error(`anthropic ${res.status}`);
-      if (!res.ok) throw Object.assign(new Error(`anthropic ${res.status}: ${(await res.text()).slice(0, 300)}`), { fatal: true });
-      const j: any = await res.json();
-      return { text: j.content?.map((c: any) => c.text ?? '').join('') ?? '', tokensIn: j.usage?.input_tokens ?? 0, tokensOut: j.usage?.output_tokens ?? 0 };
-    } catch (e: any) {
-      lastErr = e; if (e.fatal) break;
-      await sleep(500 * 2 ** attempt);
+    try { return await requestModel(model, system, user); }
+    catch (e: any) {
+      lastErr = e;
+      const retryable = e instanceof Retryable || e?.name === 'TimeoutError' || e?.cause?.code === 'ECONNRESET';
+      if (!retryable || attempt === env.aiMaxRetries) break;
+      const wait = Math.min(65_000, e.waitMs ?? 1000 * 2 ** attempt);
+      log.warn('model retry', { provider: env.aiProvider, attempt: attempt + 1, waitMs: wait, reason: e.message });
+      await sleep(wait);
     }
   }
   throw lastErr;
@@ -75,7 +106,7 @@ export async function runAgent<I, O, IIn>(def: AgentDef<I, O, IIn>, rawInput: II
       const system = def.system + GUARDRAILS;
       let user = def.user(input);
       for (let pass = 0; pass < 2; pass++) {
-        const r = await callAnthropic(model, system, user); raw = r.text; tokensIn += r.tokensIn; tokensOut += r.tokensOut;
+        const r = await callModel(model, system, user); raw = r.text; tokensIn += r.tokensIn; tokensOut += r.tokensOut;
         try { parsed = parseJson(raw); const v = def.output.safeParse(parsed); if (v.success) { parsed = v.data; error = undefined; break; } error = v.error.message; }
         catch (e: any) { error = 'invalid json: ' + e.message; }
         user = def.user(input) + `\n\nYour previous answer failed validation: ${error.slice(0, 800)}\nReturn corrected JSON only.`;

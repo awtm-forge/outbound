@@ -1,3 +1,13 @@
+// AI_MODEL / AI_MODEL_CHEAP override the per-provider default, but a model named for the other provider is ignored
+// (with a warning), so switching AI_PROVIDER alone never sends a Claude model name to Google or the reverse.
+function pickModel(configured: string | undefined, gemini: string, claude: string): string {
+  const provider = process.env.AI_PROVIDER ?? 'mock';
+  const fallback = provider === 'gemini' ? gemini : claude;
+  if (!configured) return fallback;
+  const mismatch = (provider === 'gemini' && /^claude/i.test(configured)) || (provider === 'anthropic' && /^gemini/i.test(configured));
+  if (mismatch) { console.warn(JSON.stringify({ level: 'warn', msg: 'AI model does not match AI_PROVIDER; using the provider default', configured, used: fallback })); return fallback; }
+  return configured;
+}
 export const env = {
   databaseUrl: process.env.DATABASE_URL ?? 'postgres://awtm:awtm@127.0.0.1:55460/awtm_outbound',
   port: Number(process.env.PORT ?? 8080),
@@ -5,10 +15,11 @@ export const env = {
   dashboardUser: process.env.DASHBOARD_USER ?? '',
   dashboardPassword: process.env.DASHBOARD_PASSWORD ?? '',
   publicUrl: process.env.CORE_PUBLIC_URL ?? 'http://localhost:8080',
-  aiProvider: (process.env.AI_PROVIDER ?? 'mock') as 'anthropic' | 'mock',
+  aiProvider: (process.env.AI_PROVIDER ?? 'mock') as 'anthropic' | 'gemini' | 'mock',
+  geminiKey: process.env.GEMINI_API_KEY ?? '',
   anthropicKey: process.env.ANTHROPIC_API_KEY ?? '',
-  aiModel: process.env.AI_MODEL ?? 'claude-sonnet-5-5',
-  aiModelCheap: process.env.AI_MODEL_CHEAP ?? 'claude-haiku-4-5-20251001',
+  aiModel: pickModel(process.env.AI_MODEL, 'gemini-3.5-flash', 'claude-sonnet-5-5'),
+  aiModelCheap: pickModel(process.env.AI_MODEL_CHEAP, 'gemini-3.5-flash-lite', 'claude-haiku-4-5-20251001'),
   aiMaxTokens: Number(process.env.AI_MAX_TOKENS ?? 2048),
   aiTemperature: Number(process.env.AI_TEMPERATURE ?? 0.2),
   aiMaxRetries: Number(process.env.AI_MAX_RETRIES ?? 3),
