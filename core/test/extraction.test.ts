@@ -45,3 +45,11 @@ test('company name: declared name first, then the title part matching the domain
   assert.equal(D.companyName('Best deals on everything', 'zedlights.in'), 'Zedlights');
   assert.equal(D.companyName('Anything', 'x.in', 'Hafele India'), 'Hafele India');
 });
+
+test('evidence tags never reach the email sentence', async () => {
+  const P = await import('../src/pipeline.ts');
+  assert.equal(P.untag('OBSERVED: Your homepage loads 211 images.'), 'Your homepage loads 211 images.');
+  assert.equal(P.untag('INFERRED - This likely slows phones.'), 'This likely slows phones.');
+  assert.equal(P.untag('UNKNOWN'), 'UNKNOWN');
+  assert.equal(P.untag('Observed traffic dips are common.'), 'Observed traffic dips are common.');
+});

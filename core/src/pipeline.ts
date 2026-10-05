@@ -10,6 +10,7 @@ import { saleshandy } from './adapters/saleshandy.ts';
 import * as A from './agents/index.ts';
 import type { SiteSnapshotT } from './agents/research.ts';
 
+export const untag = (t: string) => t.replace(/^\s*(OBSERVED|INFERRED)\s*[:\-–]\s*/i, '').trim() || t;
 export class HttpError extends Error { status: number; constructor(status: number, msg: string) { super(msg); this.status = status; } }
 const SENDER = { name: 'Ayush', title: 'Co-founder' };
 
@@ -111,6 +112,8 @@ export async function identifyProblem(prospectId: string, opts: { workflowRunId?
   const website = await latestResearch(p.company.id, 'WEBSITE');
   const campaign = requireCampaign(p);
   const pr = await runAgent(A.problemDetection, { company: companyCtx(p.company), research: researchData, website, campaign }, opts);
+  // The evidence tags are for us, not for the email: a model sometimes writes them into the sentence itself.
+  for (const k of ['specific_observation', 'business_consequence', 'problem_angle', 'trigger'] as const) pr.output[k] = untag(pr.output[k]);
   await saveResearch(p.company.id, p.id, 'PROBLEM', pr.output, pr.runId, pr.output.confidence);
   const cap = await runAgent(A.capabilityMatching, { problem: pr.output, campaign, capabilities: capabilities(), proof_assets: await proofAssets() }, opts);
   // Server-side proof guard: only VERIFIED ids survive regardless of what the model said.
