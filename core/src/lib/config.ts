@@ -10,7 +10,8 @@ export const scoringConfig = (): ScoringConfig => read('scoring.json');
 export const capabilities = (): Capabilities => read('capabilities.json');
 export const campaignsConfig = (): any[] => read('campaigns.json');
 export const proofAssetsConfig = (): any[] => read('proof_assets.json');
-export const PROBLEMS = ['WEBSITE','CONVERSION','UX','SEO','ANALYTICS','PRODUCT','MVP','ENGINEERING','AUTOMATION','AI','BRAND','OTHER'] as const;
+export const PROBLEMS: readonly string[] = [...new Set(Object.values(capabilities()).flatMap((c) => c.problems)), 'OTHER'];
+export const DOMAINS: readonly string[] = [...Object.keys(capabilities()), 'UNKNOWN'];
 export function capabilityForProblem(problem: string): string {
   for (const [k, v] of Object.entries(capabilities())) if (v.problems.includes(problem)) return k;
   return 'UNKNOWN';

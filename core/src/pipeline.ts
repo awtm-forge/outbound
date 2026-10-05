@@ -181,6 +181,7 @@ export async function syncToSaleshandy(draftId: string) {
   if (d.status === 'SENT_TO_SEQUENCER') return { already: true, draft_id: d.id };
   if (d.status !== 'APPROVED') throw new HttpError(409, `only APPROVED drafts sync (draft is ${d.status})`);
   const p = await loadProspect(d.prospect_id); if (!p.contact?.email) throw new HttpError(409, 'contact has no email');
+  if (p.campaign?.config?.delivery === 'manual') throw new HttpError(409, 'campaign delivery is manual: copy the approved draft and send it from your own account');
   const sup = await isSuppressed(p.contact.email, p.company.domain); if (p.suppressed || sup.suppressed) throw new HttpError(409, 'suppressed; refusing to sync');
   if (!['VALID', 'CATCH_ALL', 'UNVERIFIED'].includes(p.contact.email_verification_status)) throw new HttpError(409, `email verification is ${p.contact.email_verification_status}`);
   const sh = saleshandy();

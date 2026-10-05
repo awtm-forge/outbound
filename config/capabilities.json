@@ -1,8 +1,66 @@
 {
-  "WEB": { "name": "Web & Digital Experience", "items": ["Websites", "Landing pages", "Ecommerce", "UX/UI", "SEO", "Analytics"],
-           "problems": ["WEBSITE", "CONVERSION", "UX", "SEO", "ANALYTICS"] },
-  "PRODUCT": { "name": "Product & Technology", "items": ["SaaS", "Web applications", "Mobile applications", "Admin portals", "Custom software", "Automations", "AI integrations"],
-               "problems": ["PRODUCT", "MVP", "ENGINEERING", "AUTOMATION", "AI"] },
-  "BRAND": { "name": "Brand & Growth", "items": ["Brand identity", "UI/UX", "Marketing", "AI-generated product/brand content"],
-             "problems": ["BRAND"] }
+  "WEB": {
+    "name": "Web & Digital Experience",
+    "items": [
+      "Websites",
+      "Landing pages",
+      "Ecommerce",
+      "UX/UI",
+      "SEO",
+      "Analytics"
+    ],
+    "problems": [
+      "WEBSITE",
+      "CONVERSION",
+      "UX",
+      "SEO",
+      "ANALYTICS"
+    ]
+  },
+  "PRODUCT": {
+    "name": "Product & Technology",
+    "items": [
+      "SaaS",
+      "Web applications",
+      "Mobile applications",
+      "Admin portals",
+      "Custom software",
+      "Automations",
+      "AI integrations"
+    ],
+    "problems": [
+      "PRODUCT",
+      "MVP",
+      "ENGINEERING",
+      "AUTOMATION",
+      "AI"
+    ]
+  },
+  "BRAND": {
+    "name": "Brand & Growth",
+    "items": [
+      "Brand identity",
+      "UI/UX",
+      "Marketing",
+      "AI-generated product/brand content"
+    ],
+    "problems": [
+      "BRAND"
+    ]
+  },
+  "OPS": {
+    "name": "Operations & Reconciliation",
+    "items": [
+      "Session versus settlement reconciliation",
+      "Uptime and fault visibility",
+      "Refund dispute resolution",
+      "Payment gateway integration (Razorpay)",
+      "OCPP and CSMS integration"
+    ],
+    "problems": [
+      "RECONCILIATION",
+      "UPTIME",
+      "REFUNDS"
+    ]
+  }
 }

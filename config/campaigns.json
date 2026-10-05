@@ -1,18 +1,151 @@
 [
-  { "code": "IND-WEB-ELECTRONICS", "name": "India / Web / DTC electronics", "country": "IN", "service_domain": "WEB", "vertical": "DTC ecommerce: electronics",
-    "problem": "CONVERSION", "offer": "Two-point teardown of the store's buying journey", "buyer_titles": ["Founder", "CEO", "Head of Ecommerce", "Marketing Head"],
-    "sender": "ayush@awtmforge.com", "compliance": { "country": "IN", "law_note": "No India-specific CAN-SPAM equivalent; follow DPDP Act 2023 principles: business context only, honour opt-out immediately, keep suppression permanent.", "unsubscribe_text": "Reply 'no' and I will not write again." },
-    "config": { "cta": "Worth sending them over?", "max_words": 110 } },
-  { "code": "IND-WEB-BATHROOM", "name": "India / Web / washroom and bathware brands", "country": "IN", "service_domain": "WEB", "vertical": "DTC ecommerce: bathroom and sanitaryware",
-    "problem": "CONVERSION", "offer": "Two-point teardown of product discovery and enquiry flow", "buyer_titles": ["Founder", "Director", "Head of Ecommerce"],
-    "sender": "ayush@awtmforge.com", "compliance": { "country": "IN", "unsubscribe_text": "Reply 'no' and I will not write again." }, "config": { "cta": "Worth sending them over?", "max_words": 110 } },
-  { "code": "IND-WEB-B2B", "name": "India / Web / B2B services sites", "country": "IN", "service_domain": "WEB", "vertical": "B2B services",
-    "problem": "WEBSITE", "offer": "Two-point teardown of the site's enquiry path", "buyer_titles": ["Founder", "Managing Director", "Head of Marketing"],
-    "sender": "ayush@awtmforge.com", "compliance": { "country": "IN", "unsubscribe_text": "Reply 'no' and I will not write again." }, "config": { "cta": "Worth sending them over?", "max_words": 110 } },
-  { "code": "IND-PROD-SAAS", "name": "India / Product / SaaS", "country": "IN", "service_domain": "PRODUCT", "vertical": "SaaS",
-    "problem": "PRODUCT", "offer": "Short product and onboarding review", "buyer_titles": ["Founder", "CTO", "Head of Product"],
-    "sender": "ayush@awtmforge.com", "compliance": { "country": "IN", "unsubscribe_text": "Reply 'no' and I will not write again." }, "config": { "cta": "Worth a short note on what we saw?", "max_words": 110 } },
-  { "code": "IND-AI-SME", "name": "India / Automation / operationally complex SMEs", "country": "IN", "service_domain": "PRODUCT", "vertical": "SME operations",
-    "problem": "AUTOMATION", "offer": "Map one manual workflow and show what an automation would remove", "buyer_titles": ["Founder", "COO", "Head of Operations"],
-    "sender": "ayush@awtmforge.com", "compliance": { "country": "IN", "unsubscribe_text": "Reply 'no' and I will not write again." }, "config": { "cta": "Worth a short note on what we saw?", "max_words": 110 } }
+  {
+    "code": "IND-WEB-ELECTRONICS",
+    "name": "India / Web / DTC electronics",
+    "country": "IN",
+    "service_domain": "WEB",
+    "vertical": "DTC ecommerce: electronics",
+    "problem": "CONVERSION",
+    "offer": "Two-point teardown of the store's buying journey",
+    "buyer_titles": [
+      "Founder",
+      "CEO",
+      "Head of Ecommerce",
+      "Marketing Head"
+    ],
+    "sender": "ayush@awtmforge.com",
+    "compliance": {
+      "country": "IN",
+      "law_note": "No India-specific CAN-SPAM equivalent; follow DPDP Act 2023 principles: business context only, honour opt-out immediately, keep suppression permanent.",
+      "unsubscribe_text": "Reply 'no' and I will not write again."
+    },
+    "config": {
+      "cta": "Worth sending them over?",
+      "max_words": 110
+    }
+  },
+  {
+    "code": "IND-WEB-BATHROOM",
+    "name": "India / Web / washroom and bathware brands",
+    "country": "IN",
+    "service_domain": "WEB",
+    "vertical": "DTC ecommerce: bathroom and sanitaryware",
+    "problem": "CONVERSION",
+    "offer": "Two-point teardown of product discovery and enquiry flow",
+    "buyer_titles": [
+      "Founder",
+      "Director",
+      "Head of Ecommerce"
+    ],
+    "sender": "ayush@awtmforge.com",
+    "compliance": {
+      "country": "IN",
+      "unsubscribe_text": "Reply 'no' and I will not write again."
+    },
+    "config": {
+      "cta": "Worth sending them over?",
+      "max_words": 110
+    }
+  },
+  {
+    "code": "IND-WEB-B2B",
+    "name": "India / Web / B2B services sites",
+    "country": "IN",
+    "service_domain": "WEB",
+    "vertical": "B2B services",
+    "problem": "WEBSITE",
+    "offer": "Two-point teardown of the site's enquiry path",
+    "buyer_titles": [
+      "Founder",
+      "Managing Director",
+      "Head of Marketing"
+    ],
+    "sender": "ayush@awtmforge.com",
+    "compliance": {
+      "country": "IN",
+      "unsubscribe_text": "Reply 'no' and I will not write again."
+    },
+    "config": {
+      "cta": "Worth sending them over?",
+      "max_words": 110
+    }
+  },
+  {
+    "code": "IND-PROD-SAAS",
+    "name": "India / Product / SaaS",
+    "country": "IN",
+    "service_domain": "PRODUCT",
+    "vertical": "SaaS",
+    "problem": "PRODUCT",
+    "offer": "Short product and onboarding review",
+    "buyer_titles": [
+      "Founder",
+      "CTO",
+      "Head of Product"
+    ],
+    "sender": "ayush@awtmforge.com",
+    "compliance": {
+      "country": "IN",
+      "unsubscribe_text": "Reply 'no' and I will not write again."
+    },
+    "config": {
+      "cta": "Worth a short note on what we saw?",
+      "max_words": 110
+    }
+  },
+  {
+    "code": "IND-AI-SME",
+    "name": "India / Automation / operationally complex SMEs",
+    "country": "IN",
+    "service_domain": "PRODUCT",
+    "vertical": "SME operations",
+    "problem": "AUTOMATION",
+    "offer": "Map one manual workflow and show what an automation would remove",
+    "buyer_titles": [
+      "Founder",
+      "COO",
+      "Head of Operations"
+    ],
+    "sender": "ayush@awtmforge.com",
+    "compliance": {
+      "country": "IN",
+      "unsubscribe_text": "Reply 'no' and I will not write again."
+    },
+    "config": {
+      "cta": "Worth a short note on what we saw?",
+      "max_words": 110
+    }
+  },
+  {
+    "code": "IND-OPS-CPO",
+    "name": "India / Operations / charge point operators",
+    "country": "IN",
+    "service_domain": "OPS",
+    "vertical": "EV charging: charge point operators",
+    "problem": "RECONCILIATION",
+    "offer": "25 minutes on how you learn a charger is down and how sessions get matched to settlements. Research, not a pitch. A free one-site diagnostic only if the conversation earns it.",
+    "buyer_titles": [
+      "Founder",
+      "MD",
+      "COO",
+      "Head of Charging Operations",
+      "Head of Network Operations"
+    ],
+    "sender": "ayush@awtmforge.com",
+    "compliance": {
+      "country": "IN",
+      "unsubscribe_text": "Reply 'no' and I will not write again."
+    },
+    "config": {
+      "delivery": "manual",
+      "cta": "Would you give us 25 minutes this week or next?",
+      "max_words": 90,
+      "never_say": [
+        "98 percent",
+        "uptime mandate",
+        "PM E-DRIVE compliance"
+      ],
+      "note": "Founder-signed from LinkedIn or WhatsApp per the 2 Oct 2026 outreach guide. Approved drafts are copied by hand, never synced to Saleshandy."
+    }
+  }
 ]

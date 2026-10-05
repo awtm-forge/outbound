@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import type { AgentDef } from '../lib/ai.ts';
-import { Tag, Claim, Confidence, Evidence, ProblemEnum, DomainEnum, CompanyCtx, ProofAsset, CampaignCtx, j } from './common.ts';
+import { Tag, Claim, Confidence, Evidence, ProblemEnum, DomainEnum, CompanyCtx, ProofAsset, CampaignCtx, PROBLEMS_TEXT, DOMAINS_TEXT, j } from './common.ts';
 
 // ---------------- 1. Account Research Agent ----------------
 const SiteSnapshot = z.object({
@@ -19,7 +19,7 @@ const ResearchOut = z.object({
 export type ResearchOutT = z.infer<typeof ResearchOut>;
 export const accountResearch: AgentDef<z.infer<typeof ResearchIn>, ResearchOutT> = {
   name: 'account_research', version: '1.0.0', input: ResearchIn, output: ResearchOut,
-  system: `You are the Account Research Agent for awtm forge, a Bengaluru design, engineering and growth studio. You summarise a prospect company strictly from the supplied metadata and website snapshot. Schema: {company_summary, what_they_sell{value,tag}, target_customer{value,tag}, business_model{value,tag}, vertical{value,tag}, market{value,tag}, company_size_estimate{value,tag}, technology_signals[{value,tag}], growth_signals[{value,tag}], recent_triggers[{value,tag}], potential_problems[{problem: one of WEBSITE CONVERSION UX SEO ANALYTICS PRODUCT MVP ENGINEERING AUTOMATION AI BRAND OTHER, note, tag}], evidence[strings quoting what you saw], confidence 0..1}.`,
+  system: `You are the Account Research Agent for awtm forge, a Bengaluru design, engineering and growth studio. You summarise a prospect company strictly from the supplied metadata and website snapshot. Schema: {company_summary, what_they_sell{value,tag}, target_customer{value,tag}, business_model{value,tag}, vertical{value,tag}, market{value,tag}, company_size_estimate{value,tag}, technology_signals[{value,tag}], growth_signals[{value,tag}], recent_triggers[{value,tag}], potential_problems[{problem: one of ${PROBLEMS_TEXT}, note, tag}], evidence[strings quoting what you saw], confidence 0..1}.`,
   user: (i) => `COMPANY METADATA:\n${j(i.company)}\n\nWEBSITE SNAPSHOT:\n${j(i.site)}`,
   mock: (i) => {
     const seen = i.site.fetched;
@@ -96,7 +96,7 @@ const ProbOut = z.object({
 export type ProbOutT = z.infer<typeof ProbOut>;
 export const problemDetection: AgentDef<z.infer<typeof ProbIn>, ProbOutT> = {
   name: 'problem_detection', version: '1.0.0', input: ProbIn, output: ProbOut,
-  system: `You are the Problem Detection Agent. From account research and website findings, assign exactly ONE primary problem from WEBSITE CONVERSION UX SEO ANALYTICS PRODUCT MVP ENGINEERING AUTOMATION AI BRAND OTHER. Only list tied_primary when confidence is genuinely tied. specific_observation must be one concrete, verifiable thing (OBSERVED), written so the founder recognises their own site. business_consequence is the commercial implication. trigger is "UNKNOWN" if there is no real trigger. problem_score = how visible and real the problem is; commercial_score = how much money plausibly rides on it. Schema: {primary_problem, tied_primary[], secondary_problems[], problem_angle, specific_observation, business_consequence, trigger, problem_score, commercial_score, evidence[], confidence}.`,
+  system: `You are the Problem Detection Agent. From account research and website findings, assign exactly ONE primary problem from ${PROBLEMS_TEXT}. Only list tied_primary when confidence is genuinely tied. specific_observation must be one concrete, verifiable thing (OBSERVED), written so the founder recognises their own site. business_consequence is the commercial implication. trigger is "UNKNOWN" if there is no real trigger. problem_score = how visible and real the problem is; commercial_score = how much money plausibly rides on it. Schema: {primary_problem, tied_primary[], secondary_problems[], problem_angle, specific_observation, business_consequence, trigger, problem_score, commercial_score, evidence[], confidence}.`,
   user: (i) => `COMPANY:\n${j(i.company)}\nCAMPAIGN:\n${j(i.campaign)}\nACCOUNT RESEARCH:\n${j(i.research)}\nWEBSITE FINDINGS:\n${j(i.website)}`,
   mock: (i) => {
     const top = i.website?.findings[i.website.strongest_finding_index ?? 0];
@@ -117,7 +117,7 @@ const CapOut = z.object({ domain: DomainEnum, capability_items: z.array(z.string
 export type CapOutT = z.infer<typeof CapOut>;
 export const capabilityMatching: AgentDef<z.infer<typeof CapIn>, CapOutT> = {
   name: 'capability_matching', version: '1.0.0', tier: 'cheap', input: CapIn, output: CapOut,
-  system: `You are the Capability Matching Agent. Map the primary problem to the SMALLEST relevant awtm forge capability (one domain, at most three items), never the whole catalogue. Choose at most two proof assets from the supplied list whose label is VERIFIED and whose problems or verticals overlap; never choose STATED, TO_CONFIRM, PRIVATE or SHOWCASE. If none fit, proof_ids is empty. Schema: {domain WEB|PRODUCT|BRAND|UNKNOWN, capability_items[], one_line (how we help, no hype), proof_ids[], proof_rationale, confidence}.`,
+  system: `You are the Capability Matching Agent. Map the primary problem to the SMALLEST relevant awtm forge capability (one domain, at most three items), never the whole catalogue. Choose at most two proof assets from the supplied list whose label is VERIFIED and whose problems or verticals overlap; never choose STATED, TO_CONFIRM, PRIVATE or SHOWCASE. If none fit, proof_ids is empty. Schema: {domain ${DOMAINS_TEXT}, capability_items[], one_line (how we help, no hype), proof_ids[], proof_rationale, confidence}.`,
   user: (i) => `PROBLEM:\n${j(i.problem)}\nCAMPAIGN:\n${j(i.campaign)}\nCAPABILITIES:\n${j(i.capabilities)}\nPROOF ASSETS:\n${j(i.proof_assets)}`,
   mock: (i) => {
     const p = i.problem.primary_problem;

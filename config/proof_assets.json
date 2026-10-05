@@ -1,45 +1,292 @@
 [
-  { "id": "ratiovisuals-impressions", "title": "Ratio Visuals: 0 to 26.4K Google impressions in 6 months", "kind": "RESULT", "label": "VERIFIED", "public_ok": false,
-    "domains": ["WEB"], "verticals": ["B2B services", "studios"], "problems": ["SEO", "WEBSITE"],
+  {
+    "id": "ratiovisuals-impressions",
+    "title": "Ratio Visuals: 0 to 26.4K Google impressions in 6 months",
+    "kind": "RESULT",
+    "label": "VERIFIED",
+    "public_ok": false,
+    "domains": [
+      "WEB"
+    ],
+    "verticals": [
+      "B2B services",
+      "studios"
+    ],
+    "problems": [
+      "SEO",
+      "WEBSITE"
+    ],
     "text": "After rebuilding and running SEO for a 3D rendering studio, Google impressions went from near zero to 26.4K in six months (235 clicks, Dec 2024 to May 2025, Search Console).",
-    "source": "Growth Partner Brief s07, Search Console screenshot", "notes": "Client naming needs written permission before public use (brief gap 8). Delivered under the founders' freelance practice." },
-  { "id": "func-store", "title": "FUNC (drinkfunc.shop): DTC store on Wix with ongoing support", "kind": "PORTFOLIO", "label": "VERIFIED", "public_ok": false,
-    "domains": ["WEB"], "verticals": ["DTC ecommerce", "consumer brands", "food and beverage"], "problems": ["WEBSITE", "CONVERSION"],
+    "source": "Growth Partner Brief s07, Search Console screenshot",
+    "notes": "Client naming needs written permission before public use (brief gap 8). Delivered under the founders' freelance practice."
+  },
+  {
+    "id": "func-store",
+    "title": "FUNC (drinkfunc.shop): DTC store on Wix with ongoing support",
+    "kind": "PORTFOLIO",
+    "label": "VERIFIED",
+    "public_ok": false,
+    "domains": [
+      "WEB"
+    ],
+    "verticals": [
+      "DTC ecommerce",
+      "consumer brands",
+      "food and beverage"
+    ],
+    "problems": [
+      "WEBSITE",
+      "CONVERSION"
+    ],
     "text": "We built and support the DTC store for FUNC, a Bengaluru functional soft drink brand; Google now shows sitelinks for the brand.",
-    "source": "Growth Partner Brief s05, client messages", "notes": "Client permission to be named: to confirm." },
-  { "id": "michael-anthony-vanities", "title": "Michael Anthony Custom Designs: bathroom vanities ecommerce", "kind": "PORTFOLIO", "label": "VERIFIED", "public_ok": false,
-    "domains": ["WEB"], "verticals": ["DTC ecommerce: bathroom and sanitaryware", "furniture"], "problems": ["WEBSITE", "CONVERSION", "UX"],
-    "text": "We built an ecommerce store for a custom bathroom vanities and furniture brand.", "source": "Growth Partner Brief s06, screenshot", "notes": "Freelance-era work. Naming needs permission." },
-  { "id": "three-brand-client", "title": "One repeat client, three sites (Suite004, EditLobby, QC Lobby landing)", "kind": "PORTFOLIO", "label": "VERIFIED", "public_ok": false,
-    "domains": ["WEB"], "verticals": ["SaaS", "creative services"], "problems": ["CONVERSION", "WEBSITE"],
+    "source": "Growth Partner Brief s05, client messages",
+    "notes": "Client permission to be named: to confirm."
+  },
+  {
+    "id": "michael-anthony-vanities",
+    "title": "Michael Anthony Custom Designs: bathroom vanities ecommerce",
+    "kind": "PORTFOLIO",
+    "label": "VERIFIED",
+    "public_ok": false,
+    "domains": [
+      "WEB"
+    ],
+    "verticals": [
+      "DTC ecommerce: bathroom and sanitaryware",
+      "furniture"
+    ],
+    "problems": [
+      "WEBSITE",
+      "CONVERSION",
+      "UX"
+    ],
+    "text": "We built an ecommerce store for a custom bathroom vanities and furniture brand.",
+    "source": "Growth Partner Brief s06, screenshot",
+    "notes": "Freelance-era work. Naming needs permission."
+  },
+  {
+    "id": "three-brand-client",
+    "title": "One repeat client, three sites (Suite004, EditLobby, QC Lobby landing)",
+    "kind": "PORTFOLIO",
+    "label": "VERIFIED",
+    "public_ok": false,
+    "domains": [
+      "WEB"
+    ],
+    "verticals": [
+      "SaaS",
+      "creative services"
+    ],
+    "problems": [
+      "CONVERSION",
+      "WEBSITE"
+    ],
     "text": "One client came back three times for three brand sites, including a SaaS landing page the client said is already performing beyond expectations.",
-    "source": "Growth Partner Brief s05/s08, video testimonial and WhatsApp 7 Feb 2026", "notes": "Quote must stay exact. The 40% conversion lift is STATED and may not be used." },
-  { "id": "suite004-editlobby-40pct", "title": "~40% conversion lift on Suite004 and EditLobby", "kind": "RESULT", "label": "STATED", "public_ok": false,
-    "domains": ["WEB"], "verticals": ["creative services"], "problems": ["CONVERSION"],
-    "text": "DO NOT USE until analytics screenshot and date range are attached.", "source": "Growth Partner Brief s07", "notes": "Brief gap 1." },
-  { "id": "upwork-5000-launch", "title": "$5,000 launch week ecommerce site", "kind": "RESULT", "label": "STATED", "public_ok": false,
-    "domains": ["WEB"], "verticals": ["DTC ecommerce"], "problems": ["CONVERSION"],
-    "text": "DO NOT USE until the Upwork case study write-up is pasted in.", "source": "Growth Partner Brief s06/s07", "notes": "Brief gap 5." },
-  { "id": "vrgev-platform", "title": "VRG EV: landing page live, full product in progress (customer app, driver app, ops portal)", "kind": "PORTFOLIO", "label": "VERIFIED", "public_ok": false,
-    "domains": ["PRODUCT", "WEB", "BRAND"], "verticals": ["mobility", "startups", "SaaS"], "problems": ["PRODUCT", "MVP", "ENGINEERING", "AUTOMATION"],
+    "source": "Growth Partner Brief s05/s08, video testimonial and WhatsApp 7 Feb 2026",
+    "notes": "Quote must stay exact. The 40% conversion lift is STATED and may not be used."
+  },
+  {
+    "id": "suite004-editlobby-40pct",
+    "title": "~40% conversion lift on Suite004 and EditLobby",
+    "kind": "RESULT",
+    "label": "STATED",
+    "public_ok": false,
+    "domains": [
+      "WEB"
+    ],
+    "verticals": [
+      "creative services"
+    ],
+    "problems": [
+      "CONVERSION"
+    ],
+    "text": "DO NOT USE until analytics screenshot and date range are attached.",
+    "source": "Growth Partner Brief s07",
+    "notes": "Brief gap 1."
+  },
+  {
+    "id": "upwork-5000-launch",
+    "title": "$5,000 launch week ecommerce site",
+    "kind": "RESULT",
+    "label": "STATED",
+    "public_ok": false,
+    "domains": [
+      "WEB"
+    ],
+    "verticals": [
+      "DTC ecommerce"
+    ],
+    "problems": [
+      "CONVERSION"
+    ],
+    "text": "DO NOT USE until the Upwork case study write-up is pasted in.",
+    "source": "Growth Partner Brief s06/s07",
+    "notes": "Brief gap 5."
+  },
+  {
+    "id": "vrgev-platform",
+    "title": "VRG EV: landing page live, full product in progress (customer app, driver app, ops portal)",
+    "kind": "PORTFOLIO",
+    "label": "VERIFIED",
+    "public_ok": false,
+    "domains": [
+      "PRODUCT",
+      "WEB",
+      "BRAND"
+    ],
+    "verticals": [
+      "mobility",
+      "startups",
+      "SaaS"
+    ],
+    "problems": [
+      "PRODUCT",
+      "MVP",
+      "ENGINEERING",
+      "AUTOMATION"
+    ],
     "text": "We are building the full product for VRG EV, an intercity electric mobility and charging platform: customer apps, driver app and the operations portal, after shipping its landing page and identity.",
-    "source": "Growth Partner Brief s05, live page", "notes": "Build in progress; do not claim launch outcomes." },
-  { "id": "ayush-amazon", "title": "Ayush Maurya: former SDE at Amazon Pay, Bengaluru", "kind": "CREDENTIAL", "label": "VERIFIED", "public_ok": true,
-    "domains": ["PRODUCT"], "verticals": [], "problems": ["PRODUCT", "ENGINEERING", "AUTOMATION", "AI", "MVP"],
-    "text": "Co-founder Ayush Maurya was a software development engineer at Amazon Pay in Bengaluru.", "source": "Growth Partner Brief s02, LinkedIn", "notes": "Founder credibility only; never 'ex-Amazon team'." },
-  { "id": "rahul-upwork", "title": "Rahul: 100% Job Success Score, 5.0, Rising Talent on Upwork", "kind": "CREDENTIAL", "label": "VERIFIED", "public_ok": true,
-    "domains": ["WEB", "BRAND"], "verticals": [], "problems": [],
-    "text": "Rahul, co-founder of awtm forge, holds a 100% Job Success Score on Upwork.", "source": "Growth Partner Brief s07/s14", "notes": "Belongs to Rahul, never to the company." },
-  { "id": "guneet-brand-identity", "title": "Logo and brand identity for Guneet", "kind": "PORTFOLIO", "label": "VERIFIED", "public_ok": false,
-    "domains": ["BRAND"], "verticals": ["consumer brands", "food and beverage"], "problems": ["BRAND"],
-    "text": "We delivered a full logo system (files, SVG, menu and business card) for a food brand.", "source": "Growth Partner Brief s06/s10", "notes": "Naming needs permission." },
-  { "id": "eves-beauty-salon", "title": "Eve's Beauty Salon and Spa: site with shop and booking", "kind": "PORTFOLIO", "label": "VERIFIED", "public_ok": false,
-    "domains": ["WEB"], "verticals": ["services", "beauty"], "problems": ["WEBSITE", "CONVERSION"],
-    "text": "We built a services, shop and consultation booking site for an award-winning makeup artist's salon.", "source": "Growth Partner Brief s06", "notes": "Written review exists; naming needs permission." },
-  { "id": "qclobby-app", "title": "app.qclobby.com SaaS product (white label)", "kind": "PORTFOLIO", "label": "PRIVATE", "public_ok": false,
-    "domains": ["PRODUCT"], "verticals": ["SaaS"], "problems": ["PRODUCT"],
-    "text": "NEVER USE IN OUTREACH. Private conversations only.", "source": "Growth Partner Brief s05/s14", "notes": "White label." },
-  { "id": "webflow-gym", "title": "Gym and membership site on Webflow", "kind": "PORTFOLIO", "label": "SHOWCASE", "public_ok": false,
-    "domains": ["WEB"], "verticals": ["fitness"], "problems": ["WEBSITE"],
-    "text": "Webflow capability sample only; not client work.", "source": "Growth Partner Brief s05", "notes": "Showcase build." }
+    "source": "Growth Partner Brief s05, live page",
+    "notes": "Build in progress; do not claim launch outcomes."
+  },
+  {
+    "id": "ayush-amazon",
+    "title": "Ayush Maurya: former SDE at Amazon Pay, Bengaluru",
+    "kind": "CREDENTIAL",
+    "label": "VERIFIED",
+    "public_ok": true,
+    "domains": [
+      "PRODUCT"
+    ],
+    "verticals": [],
+    "problems": [
+      "PRODUCT",
+      "ENGINEERING",
+      "AUTOMATION",
+      "AI",
+      "MVP"
+    ],
+    "text": "Co-founder Ayush Maurya was a software development engineer at Amazon Pay in Bengaluru.",
+    "source": "Growth Partner Brief s02, LinkedIn",
+    "notes": "Founder credibility only; never 'ex-Amazon team'."
+  },
+  {
+    "id": "rahul-upwork",
+    "title": "Rahul: 100% Job Success Score, 5.0, Rising Talent on Upwork",
+    "kind": "CREDENTIAL",
+    "label": "VERIFIED",
+    "public_ok": true,
+    "domains": [
+      "WEB",
+      "BRAND"
+    ],
+    "verticals": [],
+    "problems": [],
+    "text": "Rahul, co-founder of awtm forge, holds a 100% Job Success Score on Upwork.",
+    "source": "Growth Partner Brief s07/s14",
+    "notes": "Belongs to Rahul, never to the company."
+  },
+  {
+    "id": "guneet-brand-identity",
+    "title": "Logo and brand identity for Guneet",
+    "kind": "PORTFOLIO",
+    "label": "VERIFIED",
+    "public_ok": false,
+    "domains": [
+      "BRAND"
+    ],
+    "verticals": [
+      "consumer brands",
+      "food and beverage"
+    ],
+    "problems": [
+      "BRAND"
+    ],
+    "text": "We delivered a full logo system (files, SVG, menu and business card) for a food brand.",
+    "source": "Growth Partner Brief s06/s10",
+    "notes": "Naming needs permission."
+  },
+  {
+    "id": "eves-beauty-salon",
+    "title": "Eve's Beauty Salon and Spa: site with shop and booking",
+    "kind": "PORTFOLIO",
+    "label": "VERIFIED",
+    "public_ok": false,
+    "domains": [
+      "WEB"
+    ],
+    "verticals": [
+      "services",
+      "beauty"
+    ],
+    "problems": [
+      "WEBSITE",
+      "CONVERSION"
+    ],
+    "text": "We built a services, shop and consultation booking site for an award-winning makeup artist's salon.",
+    "source": "Growth Partner Brief s06",
+    "notes": "Written review exists; naming needs permission."
+  },
+  {
+    "id": "qclobby-app",
+    "title": "app.qclobby.com SaaS product (white label)",
+    "kind": "PORTFOLIO",
+    "label": "PRIVATE",
+    "public_ok": false,
+    "domains": [
+      "PRODUCT"
+    ],
+    "verticals": [
+      "SaaS"
+    ],
+    "problems": [
+      "PRODUCT"
+    ],
+    "text": "NEVER USE IN OUTREACH. Private conversations only.",
+    "source": "Growth Partner Brief s05/s14",
+    "notes": "White label."
+  },
+  {
+    "id": "webflow-gym",
+    "title": "Gym and membership site on Webflow",
+    "kind": "PORTFOLIO",
+    "label": "SHOWCASE",
+    "public_ok": false,
+    "domains": [
+      "WEB"
+    ],
+    "verticals": [
+      "fitness"
+    ],
+    "problems": [
+      "WEBSITE"
+    ],
+    "text": "Webflow capability sample only; not client work.",
+    "source": "Growth Partner Brief s05",
+    "notes": "Showcase build."
+  },
+  {
+    "id": "vrgev-ocpp-payments",
+    "title": "VRG EV: OCPP charging and Razorpay payments stack",
+    "kind": "PORTFOLIO",
+    "label": "VERIFIED",
+    "public_ok": true,
+    "domains": [
+      "OPS",
+      "PRODUCT"
+    ],
+    "verticals": [
+      "EV charging: charge point operators",
+      "mobility"
+    ],
+    "problems": [
+      "RECONCILIATION",
+      "UPTIME",
+      "REFUNDS",
+      "ENGINEERING"
+    ],
+    "text": "We built the booking, OCPP and payments stack for VRG EV, an intercity EV taxi and public charging operator.",
+    "source": "awtm-forge-india-outreach.md, 2 Oct 2026; VRG EV agreed to be named as a reference",
+    "notes": "Never share VRG EV operating numbers. Launch 31 Oct 2026; do not claim launch outcomes."
+  }
 ]

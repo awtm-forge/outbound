@@ -1,10 +1,14 @@
 import { z } from 'zod';
+import { PROBLEMS, DOMAINS } from '../lib/config.ts';
 export const Tag = z.enum(['OBSERVED', 'INFERRED', 'UNKNOWN']);
 export const Claim = z.object({ value: z.string(), tag: Tag });
 export const Confidence = z.number().min(0).max(1);
 export const Evidence = z.array(z.string()).default([]);
-export const ProblemEnum = z.enum(['WEBSITE','CONVERSION','UX','SEO','ANALYTICS','PRODUCT','MVP','ENGINEERING','AUTOMATION','AI','BRAND','OTHER']);
-export const DomainEnum = z.enum(['WEB', 'PRODUCT', 'BRAND', 'UNKNOWN']);
+// Problem and domain taxonomies come from config/capabilities.json, so a new market is a config edit, not a code change.
+export const ProblemEnum = z.enum(PROBLEMS as [string, ...string[]]);
+export const DomainEnum = z.enum(DOMAINS as [string, ...string[]]);
+export const PROBLEMS_TEXT = PROBLEMS.join(' ');
+export const DOMAINS_TEXT = DOMAINS.join('|');
 export const CompanyCtx = z.object({
   name: z.string(), domain: z.string(), website: z.string().optional(), country: z.string().optional(), city: z.string().optional(),
   industry: z.string().optional(), vertical: z.string().optional(), company_size: z.string().optional(), platform: z.string().optional(),
