@@ -1,0 +1,334 @@
+{
+ "name": "09_receive_saleshandy_webhook",
+ "nodes": [
+  {
+   "position": [
+    220,
+    300
+   ],
+   "name": "Webhook",
+   "type": "n8n-nodes-base.webhook",
+   "typeVersion": 2,
+   "parameters": {
+    "httpMethod": "POST",
+    "path": "awtm/saleshandy",
+    "responseMode": "responseNode",
+    "options": {}
+   },
+   "webhookId": "09_receive_saleshandy_webhook"
+  },
+  {
+   "name": "Log error",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    400,
+    600
+   ],
+   "parameters": {
+    "method": "POST",
+    "url": "={{ $env.CORE_URL }}/api/workflow-runs/log-error",
+    "sendHeaders": true,
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "X-Api-Key",
+       "value": "={{ $env.CORE_API_KEY }}"
+      },
+      {
+       "name": "Idempotency-Key",
+       "value": "={{ $execution.id }}-log-error-{{ $itemIndex }}"
+      }
+     ]
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ { workflow: \"09_receive_saleshandy_webhook\", execution_id: $execution.id, error: JSON.stringify($json.error || $json), detail: { node: $prevNode.name } } }}",
+    "options": {
+     "timeout": 20000
+    }
+   }
+  },
+  {
+   "position": [
+    440,
+    300
+   ],
+   "name": "Guard",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2,
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "leftValue": "",
+      "typeValidation": "loose"
+     },
+     "conditions": [
+      {
+       "id": "g1",
+       "leftValue": "={{ $json.headers[\"x-api-key\"] }}",
+       "rightValue": "={{ $env.CORE_API_KEY }}",
+       "operator": {
+        "type": "string",
+        "operation": "equals"
+       }
+      }
+     ],
+     "combinator": "and"
+    },
+    "options": {}
+   }
+  },
+  {
+   "name": "Respond 401",
+   "type": "n8n-nodes-base.respondToWebhook",
+   "typeVersion": 1.1,
+   "position": [
+    440,
+    500
+   ],
+   "parameters": {
+    "respondWith": "json",
+    "responseBody": "={{ { error: \"unauthorized\" } }}",
+    "options": {
+     "responseCode": 401
+    }
+   }
+  },
+  {
+   "position": [
+    660,
+    300
+   ],
+   "name": "Forward to core",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "onError": "continueErrorOutput",
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 3000,
+   "parameters": {
+    "method": "POST",
+    "url": "={{ $env.CORE_URL }}/webhooks/saleshandy",
+    "sendHeaders": true,
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "X-Api-Key",
+       "value": "={{ $env.CORE_API_KEY }}"
+      },
+      {
+       "name": "Idempotency-Key",
+       "value": "={{ $execution.id }}-forward-to-core-{{ $itemIndex }}"
+      },
+      {
+       "name": "X-Actor",
+       "value": "n8n"
+      }
+     ]
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ $json.body }}",
+    "options": {
+     "timeout": 180000
+    }
+   }
+  },
+  {
+   "position": [
+    880,
+    300
+   ],
+   "name": "Split processed",
+   "type": "n8n-nodes-base.splitOut",
+   "typeVersion": 1,
+   "parameters": {
+    "fieldToSplitOut": "processed",
+    "options": {}
+   }
+  },
+  {
+   "position": [
+    1100,
+    300
+   ],
+   "name": "If Classify reply",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2,
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "leftValue": "",
+      "typeValidation": "loose"
+     },
+     "conditions": [
+      {
+       "id": "c1",
+       "leftValue": "={{ !!$json.reply_id }}",
+       "rightValue": "true",
+       "operator": {
+        "type": "string",
+        "operation": "equals"
+       }
+      }
+     ],
+     "combinator": "and"
+    },
+    "options": {}
+   }
+  },
+  {
+   "position": [
+    1320,
+    300
+   ],
+   "name": "Classify reply",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "onError": "continueErrorOutput",
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 3000,
+   "parameters": {
+    "method": "POST",
+    "url": "={{ $env.CORE_URL }}/api/replies/{{ $json.reply_id }}/classify",
+    "sendHeaders": true,
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "X-Api-Key",
+       "value": "={{ $env.CORE_API_KEY }}"
+      },
+      {
+       "name": "Idempotency-Key",
+       "value": "={{ $execution.id }}-classify-reply-{{ $itemIndex }}"
+      },
+      {
+       "name": "X-Actor",
+       "value": "n8n"
+      }
+     ]
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ {} }}",
+    "options": {
+     "timeout": 180000
+    }
+   }
+  },
+  {
+   "position": [
+    1540,
+    300
+   ],
+   "name": "Respond",
+   "type": "n8n-nodes-base.respondToWebhook",
+   "typeVersion": 1.1,
+   "parameters": {
+    "respondWith": "allIncomingItems",
+    "options": {}
+   }
+  }
+ ],
+ "connections": {
+  "Webhook": {
+   "main": [
+    [
+     {
+      "node": "Guard",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Guard": {
+   "main": [
+    [
+     {
+      "node": "Forward to core",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Respond 401",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Forward to core": {
+   "main": [
+    [
+     {
+      "node": "Split processed",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Log error",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Split processed": {
+   "main": [
+    [
+     {
+      "node": "If Classify reply",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "If Classify reply": {
+   "main": [
+    [
+     {
+      "node": "Classify reply",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Classify reply": {
+   "main": [
+    [
+     {
+      "node": "Respond",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Log error",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "executionOrder": "v1",
+  "saveExecutionProgress": true,
+  "saveManualExecutions": true,
+  "timezone": "Asia/Kolkata"
+ },
+ "active": false,
+ "tags": []
+}

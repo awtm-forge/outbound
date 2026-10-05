@@ -1,0 +1,16 @@
+{
+  email {$ACME_EMAIL}
+}
+{$N8N_HOST} {
+  reverse_proxy n8n:5678
+  encode gzip
+}
+{$OPS_HOST} {
+  reverse_proxy core:8080
+  encode gzip
+  header {
+    Strict-Transport-Security "max-age=31536000"
+    X-Content-Type-Options nosniff
+    X-Frame-Options DENY
+  }
+}

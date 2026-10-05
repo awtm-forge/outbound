@@ -1,0 +1,226 @@
+{
+ "name": "18_health_monitor",
+ "nodes": [
+  {
+   "position": [
+    220,
+    300
+   ],
+   "name": "Schedule",
+   "type": "n8n-nodes-base.scheduleTrigger",
+   "typeVersion": 1.2,
+   "parameters": {
+    "rule": {
+     "interval": [
+      {
+       "field": "cronExpression",
+       "expression": "*/5 * * * *"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "name": "Log error",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    400,
+    600
+   ],
+   "parameters": {
+    "method": "POST",
+    "url": "={{ $env.CORE_URL }}/api/workflow-runs/log-error",
+    "sendHeaders": true,
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "X-Api-Key",
+       "value": "={{ $env.CORE_API_KEY }}"
+      },
+      {
+       "name": "Idempotency-Key",
+       "value": "={{ $execution.id }}-log-error-{{ $itemIndex }}"
+      }
+     ]
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ { workflow: \"18_health_monitor\", execution_id: $execution.id, error: JSON.stringify($json.error || $json), detail: { node: $prevNode.name } } }}",
+    "options": {
+     "timeout": 20000
+    }
+   }
+  },
+  {
+   "position": [
+    440,
+    300
+   ],
+   "name": "Health",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "onError": "continueErrorOutput",
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 3000,
+   "parameters": {
+    "method": "GET",
+    "url": "={{ $env.CORE_URL }}/health",
+    "sendHeaders": true,
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "X-Api-Key",
+       "value": "={{ $env.CORE_API_KEY }}"
+      },
+      {
+       "name": "Idempotency-Key",
+       "value": "={{ $execution.id }}-health-{{ $itemIndex }}"
+      },
+      {
+       "name": "X-Actor",
+       "value": "n8n"
+      }
+     ]
+    },
+    "options": {
+     "timeout": 180000
+    }
+   }
+  },
+  {
+   "position": [
+    660,
+    300
+   ],
+   "name": "If Alert if degraded",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2,
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "leftValue": "",
+      "typeValidation": "loose"
+     },
+     "conditions": [
+      {
+       "id": "c1",
+       "leftValue": "={{ $json.status }}",
+       "rightValue": "degraded",
+       "operator": {
+        "type": "string",
+        "operation": "equals"
+       }
+      }
+     ],
+     "combinator": "and"
+    },
+    "options": {}
+   }
+  },
+  {
+   "position": [
+    880,
+    300
+   ],
+   "name": "Alert if degraded",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "onError": "continueErrorOutput",
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 3000,
+   "parameters": {
+    "method": "POST",
+    "url": "={{ $env.CORE_URL }}/api/workflow-runs/log-error",
+    "sendHeaders": true,
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "X-Api-Key",
+       "value": "={{ $env.CORE_API_KEY }}"
+      },
+      {
+       "name": "Idempotency-Key",
+       "value": "={{ $execution.id }}-alert-if-degraded-{{ $itemIndex }}"
+      },
+      {
+       "name": "X-Actor",
+       "value": "n8n"
+      }
+     ]
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ { workflow: \"18_health_monitor\", error: \"health \" + $json.status + \" db=\" + $json.db } }}",
+    "options": {
+     "timeout": 180000
+    }
+   }
+  }
+ ],
+ "connections": {
+  "Schedule": {
+   "main": [
+    [
+     {
+      "node": "Health",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Health": {
+   "main": [
+    [
+     {
+      "node": "If Alert if degraded",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Log error",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "If Alert if degraded": {
+   "main": [
+    [
+     {
+      "node": "Alert if degraded",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Alert if degraded": {
+   "main": [
+    null,
+    [
+     {
+      "node": "Log error",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "executionOrder": "v1",
+  "saveExecutionProgress": true,
+  "saveManualExecutions": true,
+  "timezone": "Asia/Kolkata"
+ },
+ "active": false,
+ "tags": []
+}

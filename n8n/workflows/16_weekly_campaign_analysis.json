@@ -1,0 +1,129 @@
+{
+ "name": "16_weekly_campaign_analysis",
+ "nodes": [
+  {
+   "position": [
+    220,
+    300
+   ],
+   "name": "Schedule",
+   "type": "n8n-nodes-base.scheduleTrigger",
+   "typeVersion": 1.2,
+   "parameters": {
+    "rule": {
+     "interval": [
+      {
+       "field": "cronExpression",
+       "expression": "30 3 * * 1"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "name": "Log error",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    400,
+    600
+   ],
+   "parameters": {
+    "method": "POST",
+    "url": "={{ $env.CORE_URL }}/api/workflow-runs/log-error",
+    "sendHeaders": true,
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "X-Api-Key",
+       "value": "={{ $env.CORE_API_KEY }}"
+      },
+      {
+       "name": "Idempotency-Key",
+       "value": "={{ $execution.id }}-log-error-{{ $itemIndex }}"
+      }
+     ]
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ { workflow: \"16_weekly_campaign_analysis\", execution_id: $execution.id, error: JSON.stringify($json.error || $json), detail: { node: $prevNode.name } } }}",
+    "options": {
+     "timeout": 20000
+    }
+   }
+  },
+  {
+   "position": [
+    440,
+    300
+   ],
+   "name": "Weekly analysis",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "onError": "continueErrorOutput",
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 3000,
+   "parameters": {
+    "method": "POST",
+    "url": "={{ $env.CORE_URL }}/api/analytics/weekly",
+    "sendHeaders": true,
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "X-Api-Key",
+       "value": "={{ $env.CORE_API_KEY }}"
+      },
+      {
+       "name": "Idempotency-Key",
+       "value": "={{ $execution.id }}-weekly-analysis-{{ $itemIndex }}"
+      },
+      {
+       "name": "X-Actor",
+       "value": "n8n"
+      }
+     ]
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ {} }}",
+    "options": {
+     "timeout": 180000
+    }
+   }
+  }
+ ],
+ "connections": {
+  "Schedule": {
+   "main": [
+    [
+     {
+      "node": "Weekly analysis",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Weekly analysis": {
+   "main": [
+    null,
+    [
+     {
+      "node": "Log error",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "executionOrder": "v1",
+  "saveExecutionProgress": true,
+  "saveManualExecutions": true,
+  "timezone": "Asia/Kolkata"
+ },
+ "active": false,
+ "tags": []
+}

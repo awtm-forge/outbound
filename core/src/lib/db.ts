@@ -1,0 +1,15 @@
+import pg from 'pg';
+import { env } from './env.ts';
+export const pool = new pg.Pool({ connectionString: env.databaseUrl, max: 10 });
+pool.on('error', (e) => console.error('pg pool error', e.message));
+export type Row = Record<string, any>;
+export const q = async <T extends Row = Row>(text: string, params: unknown[] = []): Promise<T[]> => (await pool.query(text, params)).rows as T[];
+export const one = async <T extends Row = Row>(text: string, params: unknown[] = []): Promise<T | undefined> => (await q<T>(text, params))[0];
+export async function tx<T>(fn: (c: pg.PoolClient) => Promise<T>): Promise<T> {
+  const c = await pool.connect();
+  try { await c.query('begin'); const r = await fn(c); await c.query('commit'); return r; }
+  catch (e) { await c.query('rollback'); throw e; } finally { c.release(); }
+}
+export async function audit(entity_type: string, entity_id: string, action: string, actor = 'system', detail: Row = {}) {
+  await q('insert into activities(entity_type,entity_id,action,actor,detail) values($1,$2,$3,$4,$5)', [entity_type, entity_id, action, actor, detail]);
+}

@@ -1,0 +1,13 @@
+{
+  "criteria": [
+    { "key": "target_vertical_fit", "label": "Target vertical fit", "max": 20 },
+    { "key": "business_maturity", "label": "Business maturity", "max": 15 },
+    { "key": "digital_importance", "label": "Digital importance", "max": 15 },
+    { "key": "visible_problem", "label": "Visible problem / opportunity", "max": 15 },
+    { "key": "commercial_fit", "label": "Commercial fit", "max": 15 },
+    { "key": "proof_relevance", "label": "AWTM proof relevance", "max": 10 },
+    { "key": "decision_maker_accessibility", "label": "Decision-maker accessibility", "max": 5 },
+    { "key": "timing_trigger", "label": "Timing / trigger", "max": 5 }
+  ],
+  "thresholds": { "campaign_ready": 70, "research_further": 55 }
+}
