@@ -6,7 +6,7 @@ import { bootstrap } from './helpers.ts';
 let t: Awaited<ReturnType<typeof bootstrap>>; let D: typeof import('../src/discovery.ts'); let db: typeof import('../src/lib/db.ts');
 const fixture = readFileSync(new URL('../fixtures/demo-electronics.html', import.meta.url), 'utf8');
 const site = (name: string, extra = '') => `<html><head><title>${name} | Smart Home Devices India</title><meta name="viewport" content="width=device-width"></head><body><h1>${name}</h1><a href="/pages/contact">Contact</a><a class="btn" href="/collections/all">Shop now</a>
-  <footer>Reach us: hello@${name.toLowerCase()}.in or +91 98765 43210. ${name} Pvt Ltd, Bengaluru. GSTIN 29ABCDE1234F1Z5 <a href="https://www.linkedin.com/company/${name.toLowerCase()}">LinkedIn</a>${extra}</footer><script src="//cdn.shopify.com/s/x.js"></script></body></html>`;
+  <footer>Reach us: hello@${name.toLowerCase()}.in or +91 98451 20376. ${name} Pvt Ltd, Bengaluru. GSTIN 29ABCDE1234F1Z5 <a href="https://www.linkedin.com/company/${name.toLowerCase()}">LinkedIn</a>${extra}</footer><script src="//cdn.shopify.com/s/x.js"></script></body></html>`;
 // Stubbed network: Google returns three sites, each site serves HTML; one is Wix, one unreachable.
 const googleHits = [{ link: 'https://www.volthome.in/', title: 'VoltHome | Smart Home Devices India', snippet: 'Smart plugs' }, { link: 'https://brightwix.in/shop', title: 'BrightWix', snippet: 'wix store' }, { link: 'https://dead.example.net/', title: 'Dead', snippet: '' }, { link: 'https://www.amazon.in/s?k=plugs', title: 'Amazon', snippet: '' }];
 const calls: string[] = [];
@@ -25,7 +25,7 @@ test('query builder adds tech footprint and excludes marketplaces', () => {
 test('enrichment pulls platform, public emails, phone, GSTIN and links from the site and its contact page', async () => {
   const e = await D.enrichSite('https://www.volthome.in/', fetchStub);
   assert.equal(e.fetched, true); assert.equal(e.platform, 'Shopify'); assert.deepEqual(e.emails.sort(), ['hello@volthome.in', 'sales@volthome.in']);
-  assert.deepEqual(e.phones, ['+919876543210']); assert.equal(e.gstin, '29ABCDE1234F1Z5'); assert.equal(e.country_guess, 'IN'); assert.match(e.linkedin_url!, /linkedin\.com\/company\/volthome/);
+  assert.deepEqual(e.phones, ['+919845120376']); assert.equal(e.gstin, '29ABCDE1234F1Z5'); assert.equal(e.country_guess, 'IN'); assert.match(e.linkedin_url!, /linkedin\.com\/company\/volthome/);
   const d = await D.enrichSite('https://dead.example.net/', fetchStub); assert.equal(d.fetched, false);
   const f = await D.enrichSite('https://demo-electronics.example/', fetchStub); assert.equal(f.platform, 'Shopify'); assert.equal(f.gstin, null);
   assert.ok(fixture.includes('Shopify'));

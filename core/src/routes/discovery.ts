@@ -27,11 +27,13 @@ route('GET', '/ui/discovery', 'dashboard', async () => {
 });
 route('POST', '/ui/discovery', 'dashboard', async (c) => { const s = await D.runSearch({ industry: c.body.industry, location: c.body.location, technology: c.body.technology, keywords: c.body.keywords, pages: Number(c.body.pages) || undefined }, c.actor); redirect(c, `/ui/discovery/${s.id}`); });
 route('GET', '/ui/discovery/:id', 'dashboard', async (c) => {
-  const s = await D.getSearch(c.params.id); const campaigns = await q(`select code,name from campaigns where status='ACTIVE' order by code`);
-  const row = (x: any) => `<tr><td><input type="checkbox" name="candidate_ids" value="${x.id}" ${x.status === 'NEW' && x.country_guess !== 'UNKNOWN' ? 'checked' : ''}></td>
-    <td><a href="${esc(x.url)}" target="_blank" rel="noopener">${esc(x.domain)}</a><br><span class="meta">${esc(x.title ?? '')}</span></td>
+  const s = await D.getSearch(c.params.id); const campaigns = await q(`select code,name,vertical from campaigns where status='ACTIVE' order by code`);
+  const words = String(s.query.industry ?? '').toLowerCase().split(/\W+/).filter((w: string) => w.length > 3);
+  campaigns.sort((a, b) => Number(words.some((w: string) => b.vertical.toLowerCase().includes(w))) - Number(words.some((w: string) => a.vertical.toLowerCase().includes(w))));
+  const row = (x: any) => `<tr><td><input type="checkbox" name="candidate_ids" value="${x.id}" ${x.status === 'NEW' && x.country_guess !== 'UNKNOWN' && (x.signals?.kind ?? 'COMPANY') === 'COMPANY' && x.enriched_at ? 'checked' : ''}></td>
+    <td><a href="${esc(x.url)}" target="_blank" rel="noopener">${esc(x.domain)}</a>${x.signals?.kind && x.signals.kind !== 'COMPANY' ? ` <span class="tag s">${esc(x.signals.kind.toLowerCase())}</span>` : ''}${x.enriched_at ? '' : ' <span class="tag s">site not reachable</span>'}<br><span class="meta">${esc(x.title ?? '')}</span></td>
     <td>${x.platform ? `<span class="tag">${esc(x.platform)}</span>` : '<span class="meta">not detected</span>'}<br><span class="meta">${esc(x.platform_signals.filter((p: string) => p !== x.platform).join(', '))}</span></td>
-    <td>${x.emails.map((e: string) => `<div>${esc(e)}</div>`).join('') || '<span class="meta">none public</span>'}${x.phones.length ? `<div class="meta">${esc(x.phones.join(', '))}</div>` : ''}</td>
+    <td>${x.emails.map((e: string) => `<div>${esc(e)}</div>`).join('') || '<span class="meta">no email on site</span>'}${x.phones.length ? `<div class="meta">${esc(x.phones.join(', '))}</div>` : ''}</td>
     <td>${x.country_guess}<br><span class="meta">${esc(x.size_estimate)}</span>${x.gstin ? `<br><span class="meta">GST ${esc(x.gstin)}</span>` : ''}</td>
     <td>${[['LinkedIn', x.linkedin_url], ['Instagram', x.instagram_url], ['Facebook', x.facebook_url]].filter(([, u]) => u).map(([n, u]) => `<a href="${esc(u)}" target="_blank" rel="noopener">${n}</a>`).join(' ')}
       <a href="https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent((x.company_name ?? x.title ?? x.domain).split(/[|\-–:]/)[0] + ' founder')}" target="_blank" rel="noopener">find founder</a></td>

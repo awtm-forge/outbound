@@ -74,8 +74,26 @@ export const quotaUsed = async (src: string) => Number((await one('select n from
 
 // ---------- enrichment: fingerprint + public contact details, from the site itself ----------
 const EMAIL_RE = /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/gi;
-const PHONE_RE = /(?:\+91[\s-]?|0)?[6-9]\d{4}[\s-]?\d{5}\b/g;
+const PHONE_RE = /(?<!\d|\d\.)(?:\+91[\s-]?|0091[\s-]?|0)?[6-9]\d{4}[\s-]?\d{5}(?!\d|\.\d)|1800[\s-]?\d{3}[\s-]?\d{3,4}/g;
 const GSTIN_RE = /\b\d{2}[A-Z]{5}\d{4}[A-Z][A-Z\d]Z[A-Z\d]\b/;
+const FREE_MAIL = /@(gmail|yahoo|outlook|hotmail|rediffmail|icloud|proton(mail)?)\./;
+export const isRealEmail = (e: string) => /^[a-z0-9._%+-]+@[a-z0-9-]+(\.[a-z0-9-]+)*\.[a-z]{2,}$/.test(e) && !/\.(png|jpe?g|gif|svg|webp|css|js|avif)$/.test(e)
+  && !/^(x+|test|user|name|email|your(name|email)?|someone|abc)@/.test(e) && !/@(x+\.x+|example\.|domain\.|email\.com|sentry|wixpress|schema\.org|w3\.org|.*\.sentry\.io)/.test(e);
+// same-company addresses first, then free-mail (small Indian brands often run on gmail), then anything else
+const registrable = (d: string) => d.split('.').slice(-3).join('.').replace(/^(www|shop|store|home)\./, '');
+export function rankEmails(emails: string[], domain: string) {
+  const base = registrable(domain).split('.')[0];
+  const score = (e: string) => { const ed = e.split('@')[1]; return ed === domain || ed.endsWith('.' + registrable(domain)) || registrable(domain).endsWith(ed) || ed.split('.')[0] === base ? 0 : FREE_MAIL.test(e) ? 1 : 2; };
+  return [...emails].sort((a, b) => score(a) - score(b));
+}
+// Indian numbers only, normalised to +91XXXXXXXXXX; rejects runs of one digit and obvious sequences
+export function normPhone(raw: string): string | null {
+  let d = raw.replace(/[^\d+]/g, '');
+  if (d.startsWith('+91')) d = d.slice(3); else if (d.startsWith('0091')) d = d.slice(4); else if (d.length === 12 && d.startsWith('91')) d = d.slice(2); else if (d.length === 11 && d.startsWith('0')) d = d.slice(1);
+  if (!/^[6-9]\d{9}$/.test(d) && !/^(1800\d{6,7})$/.test(d)) return null;
+  if (/^(\d)\1{5,}/.test(d) || /(\d)\1{6,}/.test(d) || /0123456|1234567|9876543/.test(d)) return null;
+  return d.startsWith('1800') ? d : '+91' + d;
+}
 const linkOf = (html: string, host: string) => html.match(new RegExp(`https?://(?:www\\.)?${host}/[A-Za-z0-9_./-]+`, 'i'))?.[0];
 export type Enriched = { platform: string | null; platform_signals: string[]; emails: string[]; phones: string[]; gstin: string | null; linkedin_url?: string; instagram_url?: string; facebook_url?: string; country_guess: string; size_estimate: string; signals: Record<string, unknown>; fetched: boolean };
 export async function enrichSite(url: string, fetchImpl: typeof fetch = fetch): Promise<Enriched> {
@@ -90,10 +108,13 @@ export async function enrichSite(url: string, fetchImpl: typeof fetch = fetch): 
   const snap = snapshotFromHtml(url, home);
   const contactPaths = [...new Set([...home.matchAll(/href=["']([^"']*(?:contact|about|reach-us|support)[^"']*)["']/gi)].map((m) => m[1]).filter((h) => !/^(mailto|tel|#|javascript)/i.test(h)).slice(0, 2))];
   const extra = (await Promise.all(contactPaths.map((p) => { try { return get(new URL(p, `https://${domain}/`).href); } catch { return ''; } }))).join('\n');
-  const all = home + '\n' + extra;
-  const emails = [...new Set((all.match(EMAIL_RE) ?? []).map((e) => e.toLowerCase()).filter((e) => !/\.(png|jpg|jpeg|gif|svg|webp|css|js)$/.test(e) && !/sentry|wixpress|example\.com|schema\.org|w3\.org/.test(e)))].slice(0, 10);
-  const phones = [...new Set((all.replace(/<[^>]+>/g, ' ').match(PHONE_RE) ?? []).map((p) => p.replace(/[\s-]/g, '')))].filter((p) => p.length >= 10).slice(0, 5);
-  const text = all.replace(/<[^>]+>/g, ' ');
+  const all = (home + '\n' + extra).replace(/\\u003[ce]/gi, ' ').replace(/\\\//g, '/');
+  // visible text only: script and style bodies are full of ids and json that look like phones and emails
+  const text = all.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>|<noscript[\s\S]*?<\/noscript>/gi, ' ').replace(/<[^>]+>/g, ' ').replace(/&nbsp;|&#160;/g, ' ');
+  const mailtos = [...all.matchAll(/mailto:([^"'?\s>]+)/gi)].map((m) => decodeURIComponent(m[1]));
+  const emails = rankEmails([...new Set([...mailtos, ...(text.match(EMAIL_RE) ?? [])].map((e) => e.toLowerCase().replace(/^[^a-z0-9]+/, '')))].filter(isRealEmail), domain).slice(0, 6);
+  const tels = [...all.matchAll(/href=["']tel:([^"']+)["']/gi)].map((m) => m[1]);
+  const phones = [...new Set([...tels, ...(text.match(PHONE_RE) ?? [])].map(normPhone).filter((p): p is string => !!p))].slice(0, 4);
   const country_guess = domain.endsWith('.in') || /\+91|india|gstin|pvt\.? ltd/i.test(text) ? 'IN' : 'UNKNOWN';
   const size_estimate = snap.word_count > 2500 && snap.image_count > 40 ? 'LARGE_CATALOGUE' : snap.word_count > 800 ? 'MID' : 'SMALL';
   return { platform: snap.platform_signals.find((s) => !/Google Tag|Meta Pixel|Razorpay|Shiprocket/.test(s)) ?? null, platform_signals: snap.platform_signals, emails, phones, gstin: text.match(GSTIN_RE)?.[0] ?? null,
@@ -103,6 +124,16 @@ export async function enrichSite(url: string, fetchImpl: typeof fetch = fetch): 
 
 // ---------- the search itself ----------
 const hash = (o: unknown) => createHash('sha256').update(JSON.stringify(o)).digest('hex');
+const PLATFORM_HOSTS = /(^|\.)(shopify|wix|wordpress|webflow|squarespace|bigcommerce|framer|godaddy|hostinger|medium|quora|reddit|blogspot|substack|zoho|hubspot)\.(com|in|co|io|org)$/;
+// what kind of result this is; only COMPANY rows are pre-ticked for the pipeline
+export function classifyHit(url: string, title = '', snippet = ''): 'COMPANY' | 'ARTICLE' | 'AGENCY' | 'PLATFORM' {
+  const u = new URL(/^https?:/.test(url) ? url : 'https://' + url); const host = u.hostname.replace(/^www\./, '');
+  if (PLATFORM_HOSTS.test(host)) return 'PLATFORM';
+  const t = `${title} ${snippet}`;
+  if (/\b(agency|agencies|shopify (plus )?partners?|web design (company|studio)|digital marketing (company|agency)|development company|we build (websites|stores))\b/i.test(t)) return 'AGENCY';
+  if (/\/(blog|blogs|news|article|articles|post|posts|guides?|insights|resources)\//i.test(u.pathname) || /^(top|best|\d+ best|how to|why|what is|\d+ (ways|tips|reasons))\b|\bvs\.? /i.test(title.trim())) return 'ARTICLE';
+  return 'COMPANY';
+}
 const SKIP_HOSTS = /amazon|flipkart|indiamart|justdial|linkedin|facebook|instagram|youtube|wikipedia|myntra|meesho|nykaa|snapdeal|tradeindia|exportersindia|glassdoor|crunchbase|zaubacorp|tofler/i;
 export async function runSearch(qry: Query, actor: string, opts: { src?: DiscoverySource; fetchImpl?: typeof fetch; force?: boolean } = {}) {
   if (!qry.industry && !qry.keywords) throw new HttpError(400, 'industry or keywords required');
@@ -114,10 +145,9 @@ export async function runSearch(qry: Query, actor: string, opts: { src?: Discove
   try {
     const hits: Hit[] = [];
     for (let p = 0; p < pages; p++) { const h = await src.search(qry, p); hits.push(...h); if (h.length < 10) break; }
-    const seen = new Set<string>(); const unique = hits.map((h) => ({ ...h, domain: normalizeDomain(h.url) })).filter((h) => h.domain.includes('.') && !SKIP_HOSTS.test(h.domain) && !seen.has(h.domain) && seen.add(h.domain));
-    let rank = 0;
+    const seen = new Set<string>(); const unique = hits.map((h) => ({ ...h, domain: normalizeDomain(h.url), kind: classifyHit(h.url, h.title, h.snippet) })).filter((h) => h.domain.includes('.') && !SKIP_HOSTS.test(h.domain) && h.kind !== 'PLATFORM' && !seen.has(h.domain) && seen.add(h.domain));
     // ponytail: 5 concurrent site fetches; raise if searches feel slow, lower if sites start blocking us
-    for (let i = 0; i < unique.length; i += 5) await Promise.all(unique.slice(i, i + 5).map(async (h) => {
+    for (let i = 0; i < unique.length; i += 5) await Promise.all(unique.slice(i, i + 5).map(async (h, j) => {
       const existing = await one('select id, enriched_at from discovery_candidates where domain=$1', [h.domain]);
       let id = existing?.id;
       if (!existing || !existing.enriched_at || opts.force) {
@@ -125,9 +155,10 @@ export async function runSearch(qry: Query, actor: string, opts: { src?: Discove
         id = (await one(`insert into discovery_candidates(domain,url,title,snippet,platform,platform_signals,emails,phones,gstin,linkedin_url,instagram_url,facebook_url,country_guess,size_estimate,signals,enriched_at)
           values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,case when $16 then now() else null end)
           on conflict (domain) do update set title=coalesce(excluded.title,discovery_candidates.title), snippet=coalesce(excluded.snippet,discovery_candidates.snippet), platform=coalesce(excluded.platform,discovery_candidates.platform), platform_signals=excluded.platform_signals, emails=excluded.emails, phones=excluded.phones, gstin=coalesce(excluded.gstin,discovery_candidates.gstin), linkedin_url=coalesce(excluded.linkedin_url,discovery_candidates.linkedin_url), instagram_url=coalesce(excluded.instagram_url,discovery_candidates.instagram_url), facebook_url=coalesce(excluded.facebook_url,discovery_candidates.facebook_url), country_guess=excluded.country_guess, size_estimate=excluded.size_estimate, signals=excluded.signals, enriched_at=excluded.enriched_at returning id`,
-          [h.domain, h.url, h.title ?? null, h.snippet ?? null, e.platform, e.platform_signals, e.emails, e.phones, e.gstin, e.linkedin_url ?? null, e.instagram_url ?? null, e.facebook_url ?? null, e.country_guess, e.size_estimate, JSON.stringify(e.signals), e.fetched]))!.id;
+          [h.domain, h.url, h.title ?? null, h.snippet ?? null, e.platform, e.platform_signals, e.emails, e.phones, e.gstin, e.linkedin_url ?? null, e.instagram_url ?? null, e.facebook_url ?? null, e.country_guess, e.size_estimate, JSON.stringify({ ...e.signals, kind: h.kind }), e.fetched]))!.id;
       }
-      await q('insert into discovery_search_candidates(search_id,candidate_id,rank) values($1,$2,$3) on conflict do nothing', [s.id, id, ++rank]);
+      if (existing && existing.enriched_at && !opts.force) await q(`update discovery_candidates set signals = signals || $2 where id=$1`, [id, JSON.stringify({ kind: h.kind })]);
+      await q('insert into discovery_search_candidates(search_id,candidate_id,rank) values($1,$2,$3) on conflict do nothing', [s.id, id, i + j + 1]); // search position, not fetch-completion order
     }));
     // technology filter is applied on what we fingerprinted, not on what the search engine guessed
     if (qry.technology) await q(`delete from discovery_search_candidates sc using discovery_candidates c where sc.search_id=$1 and c.id=sc.candidate_id and c.enriched_at is not null and c.platform_signals::text not ilike $2`, [s.id, `%${qry.technology}%`]);
