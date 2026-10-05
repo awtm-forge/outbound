@@ -1,7 +1,15 @@
 // AI_MODEL / AI_MODEL_CHEAP override the per-provider default, but a model named for the other provider is ignored
 // (with a warning), so switching AI_PROVIDER alone never sends a Claude model name to Google or the reverse.
+// Only three values mean anything. Anything else (a typo, a note pasted into the value) runs as mock, loudly, rather than
+// sending every agent call to a provider with no key.
+function aiProvider(raw: string | undefined): 'anthropic' | 'gemini' | 'mock' {
+  const v = (raw ?? 'mock').trim().toLowerCase();
+  if (v === 'anthropic' || v === 'gemini' || v === 'mock') return v;
+  console.warn(JSON.stringify({ level: 'warn', msg: 'AI_PROVIDER is not anthropic, gemini or mock; running as mock', configured: raw }));
+  return 'mock';
+}
 function pickModel(configured: string | undefined, gemini: string, claude: string): string {
-  const provider = process.env.AI_PROVIDER ?? 'mock';
+  const provider = aiProvider(process.env.AI_PROVIDER);
   const fallback = provider === 'gemini' ? gemini : claude;
   if (!configured) return fallback;
   const mismatch = (provider === 'gemini' && /^claude/i.test(configured)) || (provider === 'anthropic' && /^gemini/i.test(configured));
@@ -15,7 +23,7 @@ export const env = {
   dashboardUser: process.env.DASHBOARD_USER ?? '',
   dashboardPassword: process.env.DASHBOARD_PASSWORD ?? '',
   publicUrl: process.env.CORE_PUBLIC_URL ?? 'http://localhost:8080',
-  aiProvider: (process.env.AI_PROVIDER ?? 'mock') as 'anthropic' | 'gemini' | 'mock',
+  aiProvider: aiProvider(process.env.AI_PROVIDER),
   geminiKey: process.env.GEMINI_API_KEY ?? '',
   anthropicKey: process.env.ANTHROPIC_API_KEY ?? '',
   aiModel: pickModel(process.env.AI_MODEL, 'gemini-3.5-flash', 'claude-sonnet-5-5'),
