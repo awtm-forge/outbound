@@ -22,7 +22,7 @@ export async function ingest(i: IngestInput, actor = 'system') {
   const c = i.company; const src = i.source ?? 'manual';
   const company = (await one(`insert into companies(name,domain,website,country,city,industry,vertical,company_size,platform,source,metadata) values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
     on conflict (domain) do update set name=coalesce(excluded.name,companies.name), website=coalesce(excluded.website,companies.website), country=coalesce(excluded.country,companies.country), city=coalesce(excluded.city,companies.city),
-    industry=coalesce(excluded.industry,companies.industry), vertical=coalesce(excluded.vertical,companies.vertical), company_size=coalesce(excluded.company_size,companies.company_size), platform=coalesce(excluded.platform,companies.platform), metadata=companies.metadata||excluded.metadata
+    industry=coalesce(excluded.industry,companies.industry), vertical=coalesce(companies.vertical,excluded.vertical), company_size=coalesce(excluded.company_size,companies.company_size), platform=coalesce(excluded.platform,companies.platform), metadata=companies.metadata||excluded.metadata
     returning *`, [c.name, domain, c.website ?? `https://${domain}`, c.country ?? null, c.city ?? null, c.industry ?? null, c.vertical ?? null, c.company_size ?? null, c.platform ?? null, src, c.metadata ?? {}]))!;
   let contact: any = null;
   if (i.contact?.email || i.contact?.full_name) {

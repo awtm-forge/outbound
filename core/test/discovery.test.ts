@@ -63,7 +63,8 @@ test('add to campaign: ingests with public email, runs chain, blocks a nameless 
   const r = await D.addCandidates([volt!.id], 'IND-WEB-ELECTRONICS', 'tester', { run_chain: true });
   const a = r.added[0] as any; assert.ok(a.prospect_id); assert.equal(a.created, true); assert.equal(a.generic_email_only, true); // hello@ is a shared inbox, flagged for the operator
   assert.ok(['QUALIFIED', 'RESEARCH_FURTHER'].includes(a.chain.verdict)); assert.equal(a.chain.draft, null); // a clean stub site scores lower; no named contact so no draft either way
-  const P = await import('../src/pipeline.ts'); const p = await P.loadProspect(a.prospect_id); assert.equal(p.status, a.chain.verdict); assert.equal(p.company.platform, 'Shopify'); assert.equal(p.contact.email, 'hello@volthome.in');
+  const P = await import('../src/pipeline.ts'); const p = await P.loadProspect(a.prospect_id); assert.equal(p.status, a.chain.verdict); assert.equal(p.company.platform, 'Shopify'); assert.equal(p.company.vertical, 'DTC ecommerce: electronics'); // operator chose the campaign, so the company inherits its vertical
+  assert.equal(p.score_breakdown.target_vertical_fit, 18); assert.equal(p.contact.email, 'hello@volthome.in');
   await assert.rejects(P.generateEmail(a.prospect_id, { force: true }), /no name/);
   await db.q(`update contacts set full_name='Meera Iyer', first_name='Meera', job_title='Founder' where id=$1`, [p.contact.id]);
   const em: any = await P.generateEmail(a.prospect_id, { force: true }); assert.match(em.body, /Hi Meera/);
