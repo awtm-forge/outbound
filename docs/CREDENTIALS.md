@@ -6,7 +6,7 @@ Nothing below exists on this machine or in this repository. The system runs full
 |---|---|---|---|
 | Hostinger VPS SSH access (host, user, key) or a KVM VPS purchase approval (about INR 500 to 800 per month for 2 vCPU / 8 GB) | Production deployment at /opt/awtm-outbound-os | Your SSH config; repo cloned on the VPS | Rahul or Ayush |
 | DNS control for awtmforge.com | n8n.awtmforge.com and ops.awtmforge.com A records | Registrar / Cloudflare | Rahul |
-| Google Programmable Search key and engine id (free tier, 100 queries a day) | Real prospect discovery (`DISCOVERY_SOURCE=google_cse`) | `.env`: GOOGLE_CSE_KEY, GOOGLE_CSE_CX | programmablesearchengine.google.com (engine set to search the entire web) and console.cloud.google.com for the key |
+| Serper.dev API key (2,500 free queries, no card) | Real prospect discovery (`DISCOVERY_SOURCE=serper`) | `.env`: SERPER_API_KEY | serper.dev sign up, then the API key page |
 | Apify (already connected to this Claude session, usage is paid per run) | Volume discovery and Google Maps local-business data, later | `.env` once the adapter is built | approval to spend credits |
 | Anthropic API key | Real agents instead of the deterministic mock (`AI_PROVIDER=anthropic`) | `.env` on the VPS only | console.anthropic.com, pay as you go |
 | Saleshandy API key (Outreach Pro or above exposes the API) | Real sequences, prospects, DNC, stats (`SALESHANDY_MODE=real`) | `.env` on the VPS only | Saleshandy > Settings > API |

@@ -43,6 +43,16 @@ test('google search: hits enriched, marketplaces skipped, unreachable kept but u
   assert.deepEqual(wix.candidates.map((c: any) => c.domain), ['brightwix.in', 'dead.example.net']); // unknown platform is not excluded
   assert.equal((await db.one(`select count(*) n from discovery_candidates where domain='volthome.in'`))!.n, '1');
 });
+test('serper adapter posts the built query with India locale and maps organic results', async () => {
+  process.env.SERPER_API_KEY = 'sk-test'; const { env } = await import('../src/lib/env.ts'); (env as any).serperKey = 'sk-test';
+  const seen: any[] = [];
+  const stub = (async (u: any, init: any) => { seen.push({ u: String(u), init }); return new Response(JSON.stringify({ organic: [{ link: 'https://www.volthome.in/', title: 'VoltHome', snippet: 's' }] })); }) as typeof fetch;
+  const hits = await new D.Serper(stub).search({ industry: 'smart plugs', location: 'India', technology: 'shopify' }, 1);
+  assert.deepEqual(hits, [{ url: 'https://www.volthome.in/', title: 'VoltHome', snippet: 's' }]);
+  assert.equal(seen[0].u, 'https://google.serper.dev/search'); assert.equal(seen[0].init.headers['X-API-KEY'], 'sk-test');
+  const body = JSON.parse(seen[0].init.body); assert.equal(body.page, 2); assert.equal(body.gl, 'in'); assert.match(body.q, /powered by shopify/);
+  assert.equal(await D.quotaUsed('serper'), 1);
+});
 test('daily quota is enforced per source', async () => {
   await D.runSearch({ industry: 'kitchen appliances', pages: 1 }, 'tester', { fetchImpl: fetchStub }); // 3rd query
   await assert.rejects(D.runSearch({ industry: 'water purifiers', pages: 1 }, 'tester', { fetchImpl: fetchStub }), /quota/);

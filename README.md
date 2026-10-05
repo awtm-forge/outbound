@@ -63,8 +63,9 @@ excluded. Candidates are unique by domain across all searches; an identical sear
 Tick candidates, choose a campaign, and they go through ingest, research, scoring and (at 70+) drafting. A company whose only public
 email is a shared inbox still needs a named decision maker before a draft is allowed; the row shows a "find founder" LinkedIn search.
 
-Sources are adapters in `core/src/discovery.ts`: `google_cse` (Google Programmable Search, 100 free queries a day, one query per page of
-10 sites, quota tracked in `source_calls`) and `mock`. Apify is the planned next adapter for volume and local-business data.
+Sources are adapters in `core/src/discovery.ts`: `serper` (Google results via serper.dev, 2,500 free queries, one query per page of 10 sites,
+daily cap tracked in `source_calls`), `google_cse` (legacy: Google closed it to new customers and shuts it down on 1 January 2027) and
+`mock`. Brave Search and Apify are the next candidates.
 
 ## Pipeline and where each piece lives
 

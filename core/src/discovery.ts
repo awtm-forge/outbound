@@ -1,5 +1,5 @@
 // Prospect discovery: a search source finds candidate sites, we fingerprint each site ourselves and pull public contact details,
-// then selected candidates are handed to the pipeline (ingest -> run-chain). Sources are adapters: google_cse today, apify next.
+// then selected candidates are handed to the pipeline (ingest -> run-chain). Sources are adapters: serper (default real source), google_cse (legacy), apify next.
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { env } from './lib/env.ts';
@@ -36,6 +36,22 @@ export class GoogleCse implements DiscoverySource {
     return (j.items ?? []).map((i: any) => ({ url: i.link, title: i.title, snippet: i.snippet }));
   }
 }
+// Serper.dev: Google results over a simple POST. Key in SERPER_API_KEY. One query = one page of up to 10 organic results.
+export class Serper implements DiscoverySource {
+  readonly name = 'serper';
+  private fetchImpl: typeof fetch;
+  constructor(fetchImpl: typeof fetch = fetch) { this.fetchImpl = fetchImpl; }
+  async search(qry: Query, page: number): Promise<Hit[]> {
+    if (!env.serperKey) throw new HttpError(503, 'SERPER_API_KEY not set');
+    await takeQuota(this.name);
+    const india = /(india|^in$)/i.test(qry.location ?? '');
+    const res = await this.fetchImpl('https://google.serper.dev/search', { method: 'POST', signal: AbortSignal.timeout(15000), headers: { 'content-type': 'application/json', 'X-API-KEY': env.serperKey },
+      body: JSON.stringify({ q: buildQuery(qry), num: 10, page: page + 1, ...(india ? { gl: 'in', hl: 'en' } : {}) }) });
+    if (!res.ok) { log.error('serper error', { status: res.status }); throw new HttpError(502, `serper ${res.status}: ${(await res.text()).slice(0, 200)}`); }
+    const j: any = await res.json();
+    return (j.organic ?? []).map((i: any) => ({ url: i.link, title: i.title, snippet: i.snippet }));
+  }
+}
 export class MockSource implements DiscoverySource {
   readonly name = 'mock';
   async search(qry: Query, page: number): Promise<Hit[]> {
@@ -44,7 +60,11 @@ export class MockSource implements DiscoverySource {
     return [1, 2, 3].map((n) => ({ url: `https://${stem}-${n}.example/`, title: `${qry.industry ?? 'Demo'} store ${n}`, snippet: `Mock result ${n} for ${buildQuery(qry)}` }));
   }
 }
-export function source(fetchImpl?: typeof fetch): DiscoverySource { return env.discoverySource === 'google_cse' ? new GoogleCse(fetchImpl) : new MockSource(); }
+export function source(fetchImpl?: typeof fetch): DiscoverySource {
+  if (env.discoverySource === 'serper') return new Serper(fetchImpl);
+  if (env.discoverySource === 'google_cse') return new GoogleCse(fetchImpl); // closed to new customers, shut down 1 Jan 2027
+  return new MockSource();
+}
 
 export async function takeQuota(src: string) {
   const r = await one(`insert into source_calls(source,day,n) values($1,current_date,1) on conflict (source,day) do update set n=source_calls.n+1 returning n`, [src]);
