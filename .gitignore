@@ -5,3 +5,4 @@ backups/*.dump
 *.log
 .DS_Store
 core/web/dist/
+dist/

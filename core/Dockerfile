@@ -14,8 +14,9 @@ RUN npm ci --omit=dev
 COPY src ./src
 COPY migrations ./migrations
 COPY fixtures ./fixtures
+COPY config ./config
 COPY --from=web /web/dist ./web/dist
 ENV WEB_DIST=/app/web/dist
 USER node
 EXPOSE 8080
-CMD ["sh", "-c", "node src/migrate.ts && node src/seed.ts && node src/server.ts"]
+CMD ["node", "src/server.ts"]

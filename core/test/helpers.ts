@@ -2,7 +2,7 @@
 process.env.AI_PROVIDER ??= 'mock'; process.env.SALESHANDY_MODE = 'mock';
 process.env.CORE_API_KEY = 'test-api-key'; process.env.DASHBOARD_USER = 'tester'; process.env.DASHBOARD_PASSWORD = 'test-pass'; process.env.SALESHANDY_WEBHOOK_SECRET = 'test-webhook-secret'; process.env.SESSION_SECRET = 'test-session-secret';
 process.env.WEB_DIST = new URL('./fixtures/webdist', import.meta.url).pathname;
-process.env.CONFIG_DIR = new URL('../../config/', import.meta.url).pathname;
+process.env.CONFIG_DIR = new URL('../config/', import.meta.url).pathname; process.env.SCHEDULER = 'off';
 import pg from 'pg';
 const base = process.env.TEST_DATABASE_URL ?? process.env.DATABASE_URL ?? 'postgres://awtm:awtm@127.0.0.1:55460/awtm_outbound';
 const dbName = 'awtm_test_' + process.pid;

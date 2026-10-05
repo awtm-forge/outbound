@@ -11,4 +11,4 @@ export async function migrate() {
     catch (e) { await c.query('rollback'); throw e; } finally { c.release(); }
   }
 }
-if (process.argv[1]?.endsWith('migrate.ts')) migrate().then(() => pool.end()).catch((e) => { console.error(e); process.exit(1); });
+if (/migrate\.[jt]s$/.test(process.argv[1] ?? '')) migrate().then(() => pool.end()).catch((e) => { console.error(e); process.exit(1); });

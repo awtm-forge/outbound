@@ -30,7 +30,7 @@ export function Campaigns() {
             <div className="row" style={{ marginTop: 'auto' }}><Link className="btn sm ghost" to={`/pipeline?campaign=${c.code}&view=active`}>Companies <Icon.arrow size={14} /></Link><span className="faint mono right" style={{ fontSize: 11 }}>{c.country} · {c.sender ?? 'no sender'}</span></div>
           </div>; })}
       </div>
-      <p className="faint" style={{ fontSize: 'var(--fs-0)' }}>Campaigns are defined in config/campaigns.json. Add one there and restart the core; no code changes.</p>
+      <p className="faint" style={{ fontSize: 'var(--fs-0)' }}>Campaigns are defined in core/config/campaigns.json. Add one there and restart the core; no code changes.</p>
       <Suppression />
     </div>
   );

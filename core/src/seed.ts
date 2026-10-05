@@ -10,4 +10,4 @@ export async function seed() {
     [p.id, p.title, p.kind, p.label, !!p.public_ok, p.domains ?? [], p.verticals ?? [], p.problems ?? [], p.text, p.source ?? null, p.notes ?? null]);
   console.log('seeded', campaignsConfig().length, 'campaigns,', proofAssetsConfig().length, 'proof assets');
 }
-if (process.argv[1]?.endsWith('seed.ts')) seed().then(() => pool.end()).catch((e) => { console.error(e); process.exit(1); });
+if (/seed\.[jt]s$/.test(process.argv[1] ?? '')) seed().then(() => pool.end()).catch((e) => { console.error(e); process.exit(1); });

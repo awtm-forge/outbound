@@ -1,6 +1,7 @@
 import pg from 'pg';
 import { env } from './env.ts';
-export const pool = new pg.Pool({ connectionString: env.databaseUrl, max: 10 });
+// Small pool: Neon's free tier and its pooler are shared, and this app never needs more than a handful at once.
+export const pool = new pg.Pool({ connectionString: env.databaseUrl, max: env.dbPoolMax, idleTimeoutMillis: 30_000, connectionTimeoutMillis: 15_000 });
 pool.on('error', (e) => console.error('pg pool error', e.message));
 export type Row = Record<string, any>;
 export const q = async <T extends Row = Row>(text: string, params: unknown[] = []): Promise<T[]> => (await pool.query(text, params)).rows as T[];

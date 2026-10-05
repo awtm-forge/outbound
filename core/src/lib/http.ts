@@ -49,7 +49,11 @@ export function sessionUser(req: IncomingMessage): string | null {
 function authenticate(req: IncomingMessage, kind: Route['auth']): string | null {
   if (kind === 'none') return 'anonymous';
   const h = req.headers;
-  if (kind === 'webhook') { const s = String(h['x-webhook-secret'] ?? ''); return env.saleshandyWebhookSecret && safeEq(s, env.saleshandyWebhookSecret) ? 'saleshandy' : null; }
+  if (kind === 'webhook') {
+    // header first; a ?token= in the URL for senders that cannot set headers. The query string is never logged.
+    const s = String(h['x-webhook-secret'] ?? '') || (new URL(req.url ?? '/', 'http://x').searchParams.get('token') ?? '');
+    return env.saleshandyWebhookSecret && safeEq(s, env.saleshandyWebhookSecret) ? 'saleshandy' : null;
+  }
   const key = String(h['x-api-key'] ?? '');
   if (env.apiKey && key && safeEq(key, env.apiKey)) return String(h['x-actor'] ?? 'n8n');
   return sessionUser(req);

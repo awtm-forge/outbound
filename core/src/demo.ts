@@ -40,4 +40,4 @@ export async function demo(quiet = false) {
   say('DONE', { mock_sends_recorded: sent, ai_runs: ai[0] });
   return { prospect_id: pid, draft_id: em.draft_id, reply_id: wh.reply_id, teardown_id: td.teardown_id, meeting_id: mt.meeting_id, proposal_id: prop.proposal_id };
 }
-if (process.argv[1]?.endsWith('demo.ts')) demo().then(() => pool.end()).catch((e) => { console.error(e); process.exit(1); });
+if (/demo\.[jt]s$/.test(process.argv[1] ?? '')) demo().then(() => pool.end()).catch((e) => { console.error(e); process.exit(1); });

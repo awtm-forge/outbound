@@ -28,7 +28,7 @@ export const env = {
   saleshandyKey: process.env.SALESHANDY_API_KEY ?? '',
   saleshandyBaseUrl: process.env.SALESHANDY_BASE_URL ?? 'https://open-api.saleshandy.com/v1',
   saleshandyWebhookSecret: process.env.SALESHANDY_WEBHOOK_SECRET ?? '',
-  configDir: process.env.CONFIG_DIR ?? new URL('../../../config/', import.meta.url).pathname,
+  configDir: process.env.CONFIG_DIR ?? new URL('../../config/', import.meta.url).pathname, // core/config, from src/lib or dist/lib
   discoverySource: (process.env.DISCOVERY_SOURCE ?? 'mock') as 'mock' | 'serper' | 'google_cse',
   serperKey: process.env.SERPER_API_KEY ?? '',
   googleCseKey: process.env.GOOGLE_CSE_KEY ?? '',
@@ -38,5 +38,7 @@ export const env = {
   sessionSecret: process.env.SESSION_SECRET ?? '',
   cookieSecure: (process.env.CORE_PUBLIC_URL ?? '').startsWith('https://'),
   webDist: process.env.WEB_DIST ?? new URL('../../web/dist', import.meta.url).pathname,
+  scheduler: (process.env.SCHEDULER ?? 'on') !== 'off',
+  dbPoolMax: Number(process.env.DB_POOL_MAX ?? 5),
   nodeEnv: process.env.NODE_ENV ?? 'development',
 };

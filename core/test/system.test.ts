@@ -163,7 +163,7 @@ test('ops app: overview, review queue, add a decision maker, approve from the se
   const detail = await s.call('GET', `/api/prospects/${prospect.id}`); assert.equal(detail.body.contacts[0].full_name, 'Ravi Kumar'); assert.ok(detail.body.activity.some((a: any) => a.action === 'decision_maker_added'));
   assert.equal(new Set(detail.body.research.map((r: any) => r.kind)).size, detail.body.research.length); // latest per kind only
   const inbox = await s.call('GET', '/api/inbox'); assert.ok(Array.isArray(inbox.body.replies)); assert.ok(Array.isArray(inbox.body.teardowns));
-  const deals = await s.call('GET', '/api/deals'); assert.equal(deals.status, 200); const camps = await s.call('GET', '/api/campaigns'); assert.equal(camps.body.campaigns.length, JSON.parse(readFileSync(new URL('../../config/campaigns.json', import.meta.url), 'utf8')).length);
+  const deals = await s.call('GET', '/api/deals'); assert.equal(deals.status, 200); const camps = await s.call('GET', '/api/campaigns'); assert.equal(camps.body.campaigns.length, JSON.parse(readFileSync(new URL('../config/campaigns.json', import.meta.url), 'utf8')).length);
   const sup = await s.call('POST', `/api/prospects/${prospect.id}/contact`, { full_name: 'Someone Else', email: 'x@acme10.example' });
   await db.q(`insert into suppression_list(domain,reason,source) values('blocked.example','test','test')`);
   const { prospect: p2 } = await P.ingest({ company: { name: 'Blocked', website: 'https://blocked.example' }, campaign_code: 'IND-WEB-B2B' });

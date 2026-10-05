@@ -42,7 +42,7 @@ docker compose restart n8n
 scripts/backup-now.sh                               # ad hoc backup
 ```
 
-Config changes (`config/*.json`) take effect for scoring and capabilities immediately; campaigns and proof assets are re-seeded on
+Config changes (`core/config/*.json`) take effect for scoring and capabilities immediately; campaigns and proof assets are re-seeded on
 `docker compose restart core`.
 
 ## Backups

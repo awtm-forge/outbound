@@ -39,7 +39,12 @@ Tests (create and drop their own database on the same Postgres):
 cd core && npm install && npm run typecheck && npm test
 ```
 
-## Production (Hostinger VPS)
+## Production
+
+The live setup is Hostinger Cloud Professional plus Neon Postgres, with no n8n: see `docs/HOSTINGER.md`.
+The Docker route below is for a VPS, should one ever be bought.
+
+## Production on a VPS (Docker)
 
 ```bash
 # on the VPS, as a sudo user with Docker installed
@@ -67,7 +72,7 @@ brand: the portal's tokens, Bricolage Grotesque and IBM Plex Mono, self-hosted. 
 | Meetings and deals | The brief before a call, notes into next steps after it, proposal drafts |
 | Campaigns | Results per campaign, the weekly recommendations, and the do-not-contact list |
 
-The five seed campaigns in `config/campaigns.json` were approved by the founders on 5 Oct 2026.
+The five seed campaigns in `core/config/campaigns.json` were approved by the founders on 5 Oct 2026.
 
 Sign-in is a form, not a browser pop-up: an HMAC-signed, HttpOnly, SameSite=Strict session cookie (12 hours,
 `SESSION_SECRET`). Login is throttled to 10 attempts per 15 minutes per IP. Every API mutation still needs an
@@ -132,7 +137,7 @@ daily cap tracked in `source_calls`), `google_cse` (legacy: Google closed it to 
 - Suppression overrides campaign membership: unsubscribe reply, unsubscribe event or hard bounce suppresses immediately, cascades to prospects, memberships and pending drafts, and a re-ingested contact lands suppressed.
 - Proposals take price, deadline, deliverables, guarantees and SLA only from `business_inputs`; otherwise "TO BE CONFIRMED".
 - Money is integer paise everywhere.
-- Scoring weights and thresholds are `config/scoring.json`. Campaigns are `config/campaigns.json`. Proof is `config/proof_assets.json`. All three are upserted on every core start; no code change needed for a new campaign.
+- Scoring weights and thresholds are `core/config/scoring.json`. Campaigns are `core/config/campaigns.json`. Proof is `core/config/proof_assets.json`. All three are upserted on every core start; no code change needed for a new campaign.
 - Agents: explicit zod input and output schemas, provider/model/prompt version/tokens/duration recorded per call in `ai_runs`, cache by input hash (`AI_CACHE_TTL_HOURS`), one re-prompt on invalid output, exponential retry on 429/5xx, `UNKNOWN` tags instead of invention.
 
 ## Configuration
