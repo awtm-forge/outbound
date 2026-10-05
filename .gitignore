@@ -6,3 +6,4 @@ backups/*.dump
 .DS_Store
 core/web/dist/
 dist/
+hostinger.env
