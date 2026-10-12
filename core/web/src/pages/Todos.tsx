@@ -35,9 +35,9 @@ export function Todos() {
         <div className="tabs" role="tablist">{(['me', 'all'] as const).map((k) => <button key={k} role="tab" aria-selected={who === k} className={who === k ? 'on' : ''} onClick={() => setWho(k)}>{k === 'me' ? 'Mine' : 'Everyone'}</button>)}</div></div>
       <div className="card flush">
         <form className="todo-add" onSubmit={add}>
-          <input className="input" placeholder="Add a to-do, then Enter" aria-label="New to-do" required value={f.title} maxLength={200} onChange={(e) => setF({ ...f, title: e.target.value })} />
-          <select className="input" aria-label="For" value={f.assignee_id} onChange={(e) => setF({ ...f, assignee_id: e.target.value })}>{team.map((u) => <option key={u.id} value={u.id}>{u.id === me.id ? 'Me' : u.name}</option>)}</select>
-          <input className="input" type="date" aria-label="Due" value={f.due_date} onChange={(e) => setF({ ...f, due_date: e.target.value })} />
+          <label className="field"><span>To-do</span><input className="input" placeholder="What needs doing? Then Enter" required value={f.title} maxLength={200} onChange={(e) => setF({ ...f, title: e.target.value })} /></label>
+          <label className="field"><span>For</span><select className="input" value={f.assignee_id} onChange={(e) => setF({ ...f, assignee_id: e.target.value })}>{team.map((u) => <option key={u.id} value={u.id}>{u.id === me.id ? 'Me' : u.name}</option>)}</select></label>
+          <label className="field"><span>Due date (optional)</span><input className="input" type="date" value={f.due_date} onChange={(e) => setF({ ...f, due_date: e.target.value })} /></label>
           <button className="btn primary" disabled={busy}>{busy ? <Spinner /> : <Icon.plus size={16} />}Add</button>
         </form>
         {error ? <div style={{ padding: 'var(--s-4)' }}><Failure error={error} retry={reload} /></div>

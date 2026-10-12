@@ -89,11 +89,11 @@ function MyTasks() {
   return (
     <>
       <form className="card todo-add task-add" onSubmit={add} aria-label="Add a task">
-        <input className="input" autoFocus placeholder="Add a task, then Enter" aria-label="New task" required value={f.title} maxLength={200} onChange={(e) => setF({ ...f, title: e.target.value })} />
-        <select className="input" aria-label="Project" value={f.project_id} onChange={(e) => setF({ ...f, project_id: e.target.value })}>
-          <option value="">No project</option>{(projects.data ?? []).filter((p) => p.status === 'ACTIVE' || p.status === 'ON_HOLD').map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
-        <select className="input" aria-label="For" value={f.assignee_id} onChange={(e) => setF({ ...f, assignee_id: e.target.value })}>{team.map((u) => <option key={u.id} value={u.id}>{u.id === me.id ? 'Me' : u.name}</option>)}</select>
-        <input className="input" type="date" aria-label="Due" value={f.due_date} onChange={(e) => setF({ ...f, due_date: e.target.value })} />
+        <label className="field"><span>Task</span><input className="input" autoFocus placeholder="What needs doing? Then Enter" required value={f.title} maxLength={200} onChange={(e) => setF({ ...f, title: e.target.value })} /></label>
+        <label className="field"><span>Project</span><select className="input" value={f.project_id} onChange={(e) => setF({ ...f, project_id: e.target.value })}>
+          <option value="">No project (a to-do)</option>{(projects.data ?? []).filter((p) => p.status === 'ACTIVE' || p.status === 'ON_HOLD').map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
+        <label className="field"><span>For</span><select className="input" value={f.assignee_id} onChange={(e) => setF({ ...f, assignee_id: e.target.value })}>{team.map((u) => <option key={u.id} value={u.id}>{u.id === me.id ? 'Me' : u.name}</option>)}</select></label>
+        <label className="field"><span>Due date (optional)</span><input className="input" type="date" value={f.due_date} onChange={(e) => setF({ ...f, due_date: e.target.value })} /></label>
         <button className="btn primary" disabled={busy}>{busy ? <Spinner /> : <Icon.plus size={16} />}Add</button>
       </form>
       {loading && !data ? <Loading rows={4} /> : error ? <Failure error={error} retry={reload} /> : !list.length
