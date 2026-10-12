@@ -18,7 +18,7 @@ export function Todos() {
   const [open, setOpen] = useState<string | null>(null);
   const changed = () => { reload(true); countsBus.dispatchEvent(new Event('changed')); };
   const add = async (e: React.FormEvent) => {
-    e.preventDefault(); if (!f.title.trim()) return; setBusy(true);
+    e.preventDefault(); if (!f.title.trim()) { (e.currentTarget as HTMLFormElement).querySelector('input')?.focus(); return; } setBusy(true);
     try { await api.post('/api/todos', f); setF({ ...f, title: '', due_date: '', assignee_id: me.id }); changed(); } catch (x: any) { toast(x.message, { err: true }); } finally { setBusy(false); }
   };
   // ticks at once; snaps back if the server says no
@@ -35,10 +35,10 @@ export function Todos() {
         <div className="tabs" role="tablist">{(['me', 'all'] as const).map((k) => <button key={k} role="tab" aria-selected={who === k} className={who === k ? 'on' : ''} onClick={() => setWho(k)}>{k === 'me' ? 'Mine' : 'Everyone'}</button>)}</div></div>
       <div className="card flush">
         <form className="todo-add" onSubmit={add}>
-          <input className="input" placeholder="Add a to-do, then Enter" aria-label="New to-do" value={f.title} maxLength={200} onChange={(e) => setF({ ...f, title: e.target.value })} />
+          <input className="input" placeholder="Add a to-do, then Enter" aria-label="New to-do" required value={f.title} maxLength={200} onChange={(e) => setF({ ...f, title: e.target.value })} />
           <select className="input" aria-label="For" value={f.assignee_id} onChange={(e) => setF({ ...f, assignee_id: e.target.value })}>{team.map((u) => <option key={u.id} value={u.id}>{u.id === me.id ? 'Me' : u.name}</option>)}</select>
           <input className="input" type="date" aria-label="Due" value={f.due_date} onChange={(e) => setF({ ...f, due_date: e.target.value })} />
-          <button className="btn primary" disabled={busy || !f.title.trim()}>{busy ? <Spinner /> : <Icon.plus size={16} />}Add</button>
+          <button className="btn primary" disabled={busy}>{busy ? <Spinner /> : <Icon.plus size={16} />}Add</button>
         </form>
         {error ? <div style={{ padding: 'var(--s-4)' }}><Failure error={error} retry={reload} /></div>
           : loading && !data ? null

@@ -77,7 +77,7 @@ function MyTasks() {
   const changed = () => { reload(true); countsBus.dispatchEvent(new Event('changed')); };
   // with a project it goes on that board; without one it is a plain to-do
   const add = async (e: React.FormEvent) => {
-    e.preventDefault(); if (!f.title.trim()) return; setBusy(true);
+    e.preventDefault(); if (!f.title.trim()) { (e.currentTarget as HTMLFormElement).querySelector('input')?.focus(); return; } setBusy(true);
     const body = { title: f.title, assignee_id: f.assignee_id || null, due_date: f.due_date };
     try {
       if (f.project_id) await api.post(`/api/projects/${f.project_id}/tasks`, body); else await api.post('/api/todos', body);
@@ -89,12 +89,12 @@ function MyTasks() {
   return (
     <>
       <form className="card todo-add task-add" onSubmit={add} aria-label="Add a task">
-        <input className="input" autoFocus placeholder="Add a task, then Enter" aria-label="New task" value={f.title} maxLength={200} onChange={(e) => setF({ ...f, title: e.target.value })} />
+        <input className="input" autoFocus placeholder="Add a task, then Enter" aria-label="New task" required value={f.title} maxLength={200} onChange={(e) => setF({ ...f, title: e.target.value })} />
         <select className="input" aria-label="Project" value={f.project_id} onChange={(e) => setF({ ...f, project_id: e.target.value })}>
           <option value="">No project</option>{(projects.data ?? []).filter((p) => p.status === 'ACTIVE' || p.status === 'ON_HOLD').map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
         <select className="input" aria-label="For" value={f.assignee_id} onChange={(e) => setF({ ...f, assignee_id: e.target.value })}>{team.map((u) => <option key={u.id} value={u.id}>{u.id === me.id ? 'Me' : u.name}</option>)}</select>
         <input className="input" type="date" aria-label="Due" value={f.due_date} onChange={(e) => setF({ ...f, due_date: e.target.value })} />
-        <button className="btn primary" disabled={busy || !f.title.trim()}>{busy ? <Spinner /> : <Icon.plus size={16} />}Add</button>
+        <button className="btn primary" disabled={busy}>{busy ? <Spinner /> : <Icon.plus size={16} />}Add</button>
       </form>
       {loading && !data ? <Loading rows={4} /> : error ? <Failure error={error} retry={reload} /> : !list.length
         ? <div className="card"><Empty title="Nothing on your plate">Add a task above. Tasks assigned to you, in any project or none, show up here.</Empty></div>
