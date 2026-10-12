@@ -19,7 +19,7 @@ export function Todos() {
   const changed = () => { reload(true); countsBus.dispatchEvent(new Event('changed')); };
   const add = async (e: React.FormEvent) => {
     e.preventDefault(); if (!f.title.trim()) return; setBusy(true);
-    try { await api.post('/api/todos', f); setF({ ...f, title: '', due_date: '' }); changed(); } catch (x: any) { toast(x.message, { err: true }); } finally { setBusy(false); }
+    try { await api.post('/api/todos', f); setF({ ...f, title: '', due_date: '', assignee_id: me.id }); changed(); } catch (x: any) { toast(x.message, { err: true }); } finally { setBusy(false); }
   };
   // ticks at once; snaps back if the server says no
   const toggle = async (t: any) => {

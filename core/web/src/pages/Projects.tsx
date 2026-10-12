@@ -6,6 +6,8 @@ import { Icon } from '../ui/icons.tsx';
 import { useToast } from '../ui/toast.tsx';
 import { Empty, Failure, Loading, Spinner, dayLabel, isLate } from '../ui/kit.tsx';
 import { useMe, useTeam } from '../session.tsx';
+import { countsBus } from '../App.tsx';
+import { TaskDrawer } from './Project.tsx';
 
 export const PROJECT_STATUS: Record<string, string> = { ACTIVE: 'Active', ON_HOLD: 'On hold', DONE: 'Done', ARCHIVED: 'Archived' };
 export const TASK_STATUS: Record<string, string> = { TODO: 'To do', DOING: 'Doing', REVIEW: 'In review', DONE: 'Done' };
@@ -67,17 +69,42 @@ function NewProject({ onDone }: { onDone: () => void }) {
 }
 
 function MyTasks() {
-  const { go } = useRouter();
+  const { go } = useRouter(); const me = useMe(); const team = useTeam(); const toast = useToast();
   const { data, error, loading, reload } = useLoad(() => api.get<any[]>('/api/tasks?mine=1'));
-  if (loading && !data) return <Loading rows={4} />;
-  if (error) return <Failure error={error} retry={reload} />;
-  if (!data!.length) return <div className="card"><Empty title="Nothing on your plate">Tasks assigned to you, across every project, show up here.</Empty></div>;
+  const projects = useLoad(() => api.get<any[]>('/api/projects'));
+  const [f, setF] = useState({ title: '', project_id: '', assignee_id: me.id, due_date: '' }); const [busy, setBusy] = useState(false);
+  const [open, setOpen] = useState<string | null>(null);
+  const changed = () => { reload(true); countsBus.dispatchEvent(new Event('changed')); };
+  // with a project it goes on that board; without one it is a plain to-do
+  const add = async (e: React.FormEvent) => {
+    e.preventDefault(); if (!f.title.trim()) return; setBusy(true);
+    const body = { title: f.title, assignee_id: f.assignee_id || null, due_date: f.due_date };
+    try {
+      if (f.project_id) await api.post(`/api/projects/${f.project_id}/tasks`, body); else await api.post('/api/todos', body);
+      if (f.assignee_id !== me.id) toast(`Added for ${team.find((u) => u.id === f.assignee_id)?.name ?? 'them'}. It is on their list.`);
+      setF({ ...f, title: '', due_date: '', assignee_id: me.id }); changed();
+    } catch (x: any) { toast(x.message, { err: true }); } finally { setBusy(false); }
+  };
+  const list = data ?? [];
   return (
-    <div className="card flush scrollx"><table className="t">
-      <thead><tr><th>Task</th><th>Project</th><th>Status</th><th>Priority</th><th>Due</th></tr></thead>
-      <tbody>{data!.map((t) => <tr key={t.id} className="click" onClick={() => go(`/projects/${t.project_id}?task=${t.id}`)}>
-        <td style={{ fontWeight: 600 }}>{t.title}</td><td className="muted">{t.project_name}</td><td><span className="tag">{TASK_STATUS[t.status]}</span></td>
-        <td><span className={`tag ${t.priority === 'HIGH' ? 'ember' : 'dim'}`}>{PRIORITY[t.priority]}</span></td>
-        <td className={isLate(t.due_date) ? 'late' : 'sub'}>{dayLabel(t.due_date) || '·'}</td></tr>)}</tbody></table></div>
+    <>
+      <form className="card todo-add task-add" onSubmit={add} aria-label="Add a task">
+        <input className="input" autoFocus placeholder="Add a task, then Enter" aria-label="New task" value={f.title} maxLength={200} onChange={(e) => setF({ ...f, title: e.target.value })} />
+        <select className="input" aria-label="Project" value={f.project_id} onChange={(e) => setF({ ...f, project_id: e.target.value })}>
+          <option value="">No project</option>{(projects.data ?? []).filter((p) => p.status === 'ACTIVE' || p.status === 'ON_HOLD').map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
+        <select className="input" aria-label="For" value={f.assignee_id} onChange={(e) => setF({ ...f, assignee_id: e.target.value })}>{team.map((u) => <option key={u.id} value={u.id}>{u.id === me.id ? 'Me' : u.name}</option>)}</select>
+        <input className="input" type="date" aria-label="Due" value={f.due_date} onChange={(e) => setF({ ...f, due_date: e.target.value })} />
+        <button className="btn primary" disabled={busy || !f.title.trim()}>{busy ? <Spinner /> : <Icon.plus size={16} />}Add</button>
+      </form>
+      {loading && !data ? <Loading rows={4} /> : error ? <Failure error={error} retry={reload} /> : !list.length
+        ? <div className="card"><Empty title="Nothing on your plate">Add a task above. Tasks assigned to you, in any project or none, show up here.</Empty></div>
+        : <div className="card flush scrollx"><table className="t">
+          <thead><tr><th>Task</th><th>Project</th><th>Status</th><th>Priority</th><th>Due</th></tr></thead>
+          <tbody>{list.map((t) => <tr key={t.id} className="click" onClick={() => (t.project_id ? go(`/projects/${t.project_id}?task=${t.id}`) : setOpen(t.id))}>
+            <td style={{ fontWeight: 600 }}>{t.title}</td><td className="muted">{t.project_name ?? <span className="faint">To-do</span>}</td><td><span className="tag">{TASK_STATUS[t.status]}</span></td>
+            <td><span className={`tag ${t.priority === 'HIGH' ? 'ember' : 'dim'}`}>{PRIORITY[t.priority]}</span></td>
+            <td className={isLate(t.due_date) ? 'late' : 'sub'}>{dayLabel(t.due_date) || '·'}</td></tr>)}</tbody></table></div>}
+      {open && <TaskDrawer key={open} taskId={open} task={list.find((t) => t.id === open)} onClose={() => setOpen(null)} onChanged={changed} />}
+    </>
   );
 }

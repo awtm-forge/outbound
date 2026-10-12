@@ -414,6 +414,8 @@ mark { background: var(--accent-soft); color: var(--accent); padding: 0 2px; bor
 /* ---------- to-dos on Today ---------- */
 .todo-add { display: grid; grid-template-columns: minmax(0, 1fr) 150px 160px auto; gap: var(--s-2); padding: var(--s-3); border-bottom: 1px solid var(--hairline); }
 @media (max-width: 700px) { .todo-add { grid-template-columns: 1fr 1fr; } .todo-add > input:first-child { grid-column: 1 / -1; } }
+.task-add { grid-template-columns: minmax(0, 1fr) 190px 150px 160px auto; border: 1px solid var(--hairline); border-radius: var(--r-2); }
+@media (max-width: 900px) { .task-add { grid-template-columns: 1fr 1fr; } .task-add > input:first-child { grid-column: 1 / -1; } }
 .todos { list-style: none; margin: 0; padding: 0; }
 .todos li { display: flex; align-items: center; gap: var(--s-3); padding: 10px var(--s-4); border-bottom: 1px solid var(--hairline-soft); }
 .todos li:last-child { border-bottom: 0; }
