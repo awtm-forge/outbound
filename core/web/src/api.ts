@@ -13,6 +13,7 @@ export const api = {
   get: <T = any>(p: string) => call<T>('GET', p),
   post: <T = any>(p: string, b: unknown = {}) => call<T>('POST', p, b),
   patch: <T = any>(p: string, b: unknown = {}) => call<T>('PATCH', p, b),
+  put: <T = any>(p: string, b: unknown = {}) => call<T>('PUT', p, b),
   del: <T = any>(p: string) => call<T>('DELETE', p),
   // AI actions come back as a job id (the host cuts requests at 60 s); wait here until the work is done.
   run: async <T = any>(p: string, b: unknown = {}, onWait?: (ms: number) => void): Promise<T> => {

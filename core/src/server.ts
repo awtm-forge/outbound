@@ -6,6 +6,7 @@ import './routes/api.ts';
 import './routes/discovery.ts';
 import './routes/users.ts';
 import './routes/projects.ts';
+import './routes/wiki.ts';
 import { migrate } from './migrate.ts';
 import { seed } from './seed.ts';
 import { startScheduler } from './scheduler.ts';

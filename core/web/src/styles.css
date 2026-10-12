@@ -342,3 +342,29 @@ table.t { width: 100%; border-collapse: collapse; }
 .quickadd { display: flex; gap: 6px; }
 .quickadd input { flex: 1; min-width: 0; }
 @media (max-width: 900px) { .board { grid-template-columns: repeat(4, 260px); } }
+
+/* ---------- wiki ---------- */
+.md { display: flex; flex-direction: column; gap: var(--s-4); line-height: 1.7; max-width: 72ch; overflow-wrap: anywhere; }
+.md h2 { font-size: var(--fs-4); margin-top: var(--s-3); } .md h3 { font-size: var(--fs-3); margin-top: var(--s-2); } .md h4, .md h5 { font-size: var(--fs-2); }
+.md > :first-child { margin-top: 0; }
+.md ul, .md ol { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 4px; }
+.md li.todo { list-style: none; margin-left: -20px; }
+.md li.todo input { accent-color: var(--accent); vertical-align: -2px; }
+.md a { color: var(--accent); text-decoration-color: var(--accent-line); text-underline-offset: 3px; }
+.md a:hover { text-decoration-color: var(--accent); }
+.md code { font-family: var(--mono); font-size: 0.88em; padding: 1px 5px; border-radius: 3px; background: var(--ground); border: 1px solid var(--hairline); }
+.md pre { margin: 0; padding: var(--s-4); border-radius: var(--r-1); background: var(--ground); border: 1px solid var(--hairline); overflow-x: auto; }
+.md pre code { padding: 0; border: 0; background: none; font-size: 13px; line-height: 1.55; }
+.md blockquote { margin: 0; padding: var(--s-2) var(--s-4); border-left: 2px solid var(--accent-line); color: var(--ink-muted); }
+.md hr { border: 0; height: 1px; background: var(--hairline); width: 100%; }
+.md-table td, .md-table th { border: 1px solid var(--hairline-soft); }
+.wikilink { border-bottom: 1px dashed var(--accent-line); text-decoration: none !important; }
+.tree { list-style: none; margin: 0; display: flex; flex-direction: column; }
+.tree a { display: flex; gap: var(--s-2); align-items: center; padding: 8px var(--s-2); border-radius: var(--r-1); text-decoration: none; }
+.tree a:hover { background: var(--surface-hover); }
+.tree a svg { color: var(--ink-faint); flex: none; }
+.wiki-hit { display: flex; flex-direction: column; gap: 4px; padding: var(--s-4) var(--s-5); border-bottom: 1px solid var(--hairline-soft); text-decoration: none; }
+.wiki-hit:last-child { border-bottom: 0; }
+.wiki-hit:hover { background: var(--surface-hover); }
+mark { background: var(--accent-soft); color: var(--accent); padding: 0 2px; border-radius: 2px; }
+.textarea.mono-ish { font-family: var(--mono); font-size: 13.5px; }
