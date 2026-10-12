@@ -22,7 +22,7 @@ export async function bootstrap() {
     return { status: res.status, body: json, headers: res.headers };
   };
   const teardown = async () => {
-    const { pool } = await import('../src/lib/db.ts'); await new Promise<void>((r) => server.close(() => r())); await pool.end();
+    const { pool } = await import('../src/lib/db.ts'); (await import('../src/lib/wakeup.ts')).releaseAll(); await new Promise<void>((r) => server.close(() => r())); await pool.end();
     const a = new pg.Client({ connectionString: base }); await a.connect(); await a.query(`drop database if exists ${dbName}`); await a.end();
   };
   // Signs in like the ops app does and returns a fetch bound to that session cookie.

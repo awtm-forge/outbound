@@ -7,6 +7,8 @@ import './routes/discovery.ts';
 import './routes/users.ts';
 import './routes/projects.ts';
 import './routes/wiki.ts';
+import './routes/chat.ts';
+import { releaseAll } from './lib/wakeup.ts';
 import { migrate } from './migrate.ts';
 import { seed } from './seed.ts';
 import { startScheduler } from './scheduler.ts';
@@ -23,5 +25,5 @@ if (!process.env.NODE_TEST_CONTEXT) {
     if (env.scheduler) startScheduler();
     const n = await requeueStale((id) => runChain(id)); if (n) log.info('requeued research left unfinished by a restart', { prospects: n });
   })().catch((e) => { log.error('boot failed', { err: e.message }); process.exit(1); });
-  process.on('SIGTERM', () => server.close(() => process.exit(0)));
+  process.on('SIGTERM', () => { releaseAll(); server.close(() => process.exit(0)); });
 }

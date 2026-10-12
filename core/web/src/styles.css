@@ -368,3 +368,45 @@ table.t { width: 100%; border-collapse: collapse; }
 .wiki-hit:hover { background: var(--surface-hover); }
 mark { background: var(--accent-soft); color: var(--accent); padding: 0 2px; border-radius: 2px; }
 .textarea.mono-ish { font-family: var(--mono); font-size: 13.5px; }
+
+/* ---------- chat ---------- */
+.page.chat-page { max-width: 1400px; gap: 0; height: calc(100dvh - var(--s-8) - var(--s-12)); min-height: 480px; }
+.chat { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: var(--s-4); height: 100%; min-height: 0; }
+.chat-side { display: flex; flex-direction: column; gap: 6px; padding: var(--s-4) var(--s-3); border-radius: var(--r-2); background: var(--surface); border: 1px solid var(--hairline); overflow-y: auto; min-height: 0; }
+.chan { display: flex; align-items: center; gap: var(--s-2); padding: 7px var(--s-2); border-radius: var(--r-1); text-decoration: none; color: var(--ink-muted); font-size: var(--fs-1); }
+.chan:hover { background: var(--surface-hover); color: var(--ink); }
+.chan.on { background: var(--surface-raised); color: var(--ink); box-shadow: inset 2px 0 0 var(--accent); }
+.chan.unread { color: var(--ink); font-weight: 650; }
+.chan .hash { font-family: var(--mono); color: var(--ink-faint); width: 22px; text-align: center; flex: none; }
+.chan .count { margin-left: auto; font-family: var(--mono); font-size: 11px; min-width: 20px; height: 18px; padding: 0 6px; display: inline-grid; place-items: center; border-radius: var(--r-pill); background: var(--accent); color: var(--accent-ink); font-weight: 500; }
+.avatar.sm { width: 22px; height: 22px; font-size: 10px; }
+.live { margin-top: auto; padding-top: var(--s-4); display: flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 11px; }
+.conv { display: flex; flex-direction: column; min-height: 0; border-radius: var(--r-2); background: var(--surface); border: 1px solid var(--hairline); overflow: hidden; }
+.conv-head { display: flex; align-items: center; gap: var(--s-3); padding: var(--s-4) var(--s-5); border-bottom: 1px solid var(--hairline); }
+.msgs { flex: 1; overflow-y: auto; padding: var(--s-4) var(--s-5); display: flex; flex-direction: column; gap: 2px; min-height: 0; }
+.msg { position: relative; display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: var(--s-3); padding: 6px var(--s-2); margin-top: var(--s-2); border-radius: var(--r-1); }
+.msg.grouped { margin-top: 0; padding-top: 1px; padding-bottom: 1px; }
+.msg:hover { background: var(--surface-hover); }
+.msg.pending { opacity: 0.55; }
+.msg .t { font-size: 10px; visibility: hidden; padding-top: 4px; text-align: right; }
+.msg:hover .t { visibility: visible; }
+.msg .who-line { display: flex; gap: var(--s-2); align-items: baseline; font-size: var(--fs-0); }
+.msg .who-line b { font-weight: 650; font-size: var(--fs-1); }
+.msg .who-line .mono { font-size: 11px; }
+.msg .body { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.55; }
+.msg .body a { color: var(--accent); }
+.msg .body code { font-family: var(--mono); font-size: 0.88em; padding: 1px 4px; border-radius: 3px; background: var(--ground); border: 1px solid var(--hairline); }
+.msg-tools { display: none; gap: 2px; align-self: start; }
+.msg:hover .msg-tools, .msg:focus-within .msg-tools { display: flex; }
+.mention { color: var(--accent); font-weight: 600; }
+.mention.me { background: var(--accent-soft); border-radius: 3px; padding: 0 3px; }
+.day { display: flex; align-items: center; gap: var(--s-3); margin: var(--s-4) 0 var(--s-2); font-family: var(--mono); font-size: 11px; color: var(--ink-faint); letter-spacing: 0.08em; }
+.day::before, .day::after { content: ''; flex: 1; height: 1px; background: var(--hairline); }
+.composer-chat { display: flex; gap: var(--s-2); align-items: flex-end; padding: var(--s-3) var(--s-4); border-top: 1px solid var(--hairline); background: var(--surface-raised); }
+.composer-chat textarea { flex: 1; resize: none; field-sizing: content; max-height: 220px; min-height: 40px; background: var(--ground); border: 1px solid var(--hairline); border-radius: var(--r-1); padding: 9px 12px; line-height: 1.45; }
+.composer-chat textarea:focus { outline: none; border-color: var(--accent); }
+@media (max-width: 900px) {
+  .page.chat-page { height: calc(100dvh - 140px); }
+  .chat { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); }
+  .chat-side { max-height: 150px; }
+}
