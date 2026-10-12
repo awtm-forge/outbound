@@ -6,6 +6,9 @@ pg.types.setTypeParser(1082, (v: string) => v);
 export const pool = new pg.Pool({ connectionString: env.databaseUrl, max: env.dbPoolMax, idleTimeoutMillis: 30_000, connectionTimeoutMillis: 15_000 });
 pool.on('error', (e) => console.error('pg pool error', e.message));
 export type Row = Record<string, any>;
+// Today as a calendar day in India. current_date follows the database's time zone (UTC on Neon), which is a day behind
+// until 05:30 IST; a session SET would not survive Neon's transaction pooler, so say it in the query instead.
+export const TODAY_IST = `(now() at time zone 'Asia/Kolkata')::date`;
 export const q = async <T extends Row = Row>(text: string, params: unknown[] = []): Promise<T[]> => (await pool.query(text, params)).rows as T[];
 export const one = async <T extends Row = Row>(text: string, params: unknown[] = []): Promise<T | undefined> => (await q<T>(text, params))[0];
 export async function tx<T>(fn: (c: pg.PoolClient) => Promise<T>): Promise<T> {

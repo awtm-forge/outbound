@@ -20,6 +20,7 @@ import { Wiki, WikiPage } from './pages/Wiki.tsx';
 import { Chat } from './pages/Chat.tsx';
 import { Crm } from './pages/Crm.tsx';
 import { Company } from './pages/Company.tsx';
+import { People, Person } from './pages/People.tsx';
 import { ChatProvider, useChat } from './chat.tsx';
 import { MeContext } from './session.tsx';
 
@@ -59,6 +60,7 @@ function Shell({ me, onSignOut, onMeChanged }: { me: Me; onSignOut: () => void; 
     { to: '/wiki', label: 'Wiki', icon: 'wiki', on: (p) => p.startsWith('/wiki') },
     { to: '/chat', label: 'Chat', icon: 'chat', n: chat.unread, on: (p) => p.startsWith('/chat') },
     { to: '/crm', label: 'CRM', icon: 'crm', on: (p) => p.startsWith('/crm') },
+    { to: '/people', label: 'People', icon: 'people', on: (p) => p.startsWith('/people') },
     ...(me.role === 'admin' ? [{ to: '/team', label: 'Team', icon: 'user', on: (p: string) => p.startsWith('/team') } as Item] : []),
   ];
   const groups = [{ title: 'Outbound', items: outbound }, { title: 'Workspace', items: workspace }].filter((g) => g.items.length);
@@ -80,6 +82,8 @@ function Shell({ me, onSignOut, onMeChanged }: { me: Me; onSignOut: () => void; 
   else if (path.startsWith('/chat')) page = <Chat />;
   else if ((m = match('/crm/companies/:id', path))) page = <Company id={m.id} key={m.id} />;
   else if (path.startsWith('/crm')) page = <Crm />;
+  else if ((m = match('/people/:id', path))) page = <Person id={m.id} key={m.id} />;
+  else if (path.startsWith('/people')) page = <People />;
   else if (path.startsWith('/account')) page = <Account me={me} onChanged={onMeChanged} />;
   else if (path.startsWith('/team') && me.role === 'admin') page = <Team />;
   else page = <div className="page"><div className="head"><div><h1>Nothing here</h1><p>This address does not lead anywhere. <Link to="/">Back to today</Link>.</p></div></div></div>;

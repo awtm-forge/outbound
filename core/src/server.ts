@@ -9,6 +9,7 @@ import './routes/projects.ts';
 import './routes/wiki.ts';
 import './routes/chat.ts';
 import './routes/crm.ts';
+import './routes/hr.ts';
 import { releaseAll } from './lib/wakeup.ts';
 import { migrate } from './migrate.ts';
 import { seed } from './seed.ts';

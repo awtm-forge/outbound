@@ -1,6 +1,6 @@
 // Workspace: projects, tasks on a board, comments on tasks. Signed-in people only.
 import { route } from '../lib/http.ts';
-import { q, one } from '../lib/db.ts';
+import { q, one, TODAY_IST } from '../lib/db.ts';
 import { HttpError } from '../pipeline.ts';
 import { parse, z, uuid, day, text, needUuid } from '../lib/validate.ts';
 import { patchRow } from '../lib/patch.ts';
@@ -19,7 +19,7 @@ const TaskIn = z.object({
 
 const PROJECT_LIST = `select p.*, u.name owner_name, c.name company_name,
     count(t.id)::int tasks, count(t.id) filter (where t.status='DONE')::int done,
-    count(t.id) filter (where t.status<>'DONE' and t.due_date < current_date)::int overdue
+    count(t.id) filter (where t.status<>'DONE' and t.due_date < ${TODAY_IST})::int overdue
   from projects p left join users u on u.id=p.owner_id left join companies c on c.id=p.company_id left join tasks t on t.project_id=p.id`;
 route('GET', '/api/projects', 'user', async (c) => {
   const s = c.url.searchParams.get('status');
