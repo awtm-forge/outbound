@@ -3,6 +3,7 @@ import { Link } from '../router.tsx';
 import { useLoad } from '../ui/hooks.ts';
 import { Icon } from '../ui/icons.tsx';
 import { Loading, Failure, ago, pct, inr } from '../ui/kit.tsx';
+import { Todos } from './Todos.tsx';
 
 const STAGES: { label: string; statuses: string[] }[] = [
   { label: 'Researching', statuses: ['NEW', 'QUALIFYING', 'RESEARCHING', 'RESEARCH_FURTHER'] },
@@ -40,9 +41,10 @@ export function Today({ me }: { me: Me }) {
     <div className="page">
       <div className="hello">
         <p className="kick ember">{new Date().toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', weekday: 'long', day: 'numeric', month: 'long' })}</p>
-        <h1 style={{ marginTop: 10 }}>{greet}, {me.user}.<br />{waiting ? <><b>{waiting}</b> {waiting === 1 ? 'thing needs' : 'things need'} you.</> : <>Nothing is waiting on you.</>}</h1>
+        <h1 style={{ marginTop: 10 }}>{greet}, {me.name.split(' ')[0]}.<br />{waiting ? <><b>{waiting}</b> {waiting === 1 ? 'thing needs' : 'things need'} you.</> : <>Nothing is waiting on you.</>}</h1>
       </div>
       {(c.failures > 0 || c.ai_failures > 0) && <div className="banner err"><Icon.shield /><span>{c.failures} workflow failure{c.failures === 1 ? '' : 's'} and {c.ai_failures} failed AI run{c.ai_failures === 1 ? '' : 's'} in the last 7 days. The operations guide says where to look.</span></div>}
+      <Todos />
       <section className="tiles" aria-label="What needs you">
         {tiles.map((t) => <Link key={t.label} to={t.to} className={`tile${t.n ? (t.to === '/review' || t.to === '/inbox' ? ' hot' : '') : ' zero'}`}>
           <span className="go"><Icon.arrow /></span><span className="n">{t.n}</span><span className="lbl">{t.label}</span><span className="hint">{t.hint}</span></Link>)}

@@ -7,6 +7,7 @@ import { one, q } from './db.ts';
 import { log } from './log.ts';
 import { HttpError } from '../pipeline.ts';
 import { loadUser, publicUser, type SessionUser } from './auth.ts';
+import { markActivity } from './activity.ts';
 
 // user: the signed-in person, or null for X-Api-Key callers. actor: who the audit trail names (the username for a person).
 export type Ctx = { req: IncomingMessage; res: ServerResponse; url: URL; params: Record<string, string>; body: any; actor: string; user: SessionUser | null; ip: string; setCookie: (c: string) => void };
@@ -113,6 +114,7 @@ export async function handle(req: IncomingMessage, res: ServerResponse) {
     }
     const who = await authenticate(req, r.auth);
     if (!who) return send(401, { error: 'unauthorized' });
+    if (r.auth !== 'none') markActivity();
     if ((r.auth === 'user' || r.auth === 'admin') && !who.user) return send(403, { error: 'This needs a personal sign-in; the API key does not open it.' });
     if (r.auth === 'admin' && who.user!.role !== 'admin') return send(403, { error: 'Only an admin can do that.' });
     // a password someone else set is temporary: until the person chooses their own, only that is open to them

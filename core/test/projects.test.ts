@@ -29,3 +29,28 @@ test('projects: create, tasks across the board, done stamps a time, my tasks, co
   assert.equal((await m.call('DELETE', `/api/tasks/${t2.body.id}`)).status, 200);
   assert.equal((await m.call('GET', '/api/projects/not-a-uuid')).status, 404);
 });
+
+test('to-dos: no project needed, yours by default, can be handed over, Today lists them with project tasks, and the badge counts what is due', async () => {
+  const r = await t.person('rahul'); const a = await t.person('ayush');
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+  const mine = await r.call('POST', '/api/todos', { title: 'Send Acme the revised quote', due_date: today, priority: 'HIGH' });
+  assert.equal(mine.status, 201); assert.equal(mine.body.project_id, null); assert.equal(mine.body.assignee_id, r.id);
+  const handed = await r.call('POST', '/api/todos', { title: 'Renew the domain', assignee_id: a.id }); assert.equal(handed.body.assignee_id, a.id);
+  assert.equal((await r.call('POST', '/api/todos', { title: '' })).status, 400);
+  const p = await r.call('POST', '/api/projects', { name: 'Site' });
+  const pt = await r.call('POST', `/api/projects/${p.body.id}/tasks`, { title: 'Fix the footer', assignee_id: r.id, due_date: '2020-01-01' });
+  const list = await r.call('GET', '/api/todos'); assert.deepEqual(list.body.map((x: any) => x.title), ['Fix the footer', 'Send Acme the revised quote'], 'late first, then due today');
+  assert.equal(list.body[0].project_name, 'Site');
+  assert.ok((await r.call('GET', '/api/todos?who=all')).body.some((x: any) => x.title === 'Renew the domain'));
+  assert.ok((await a.call('GET', '/api/todos')).body.some((x: any) => x.id === handed.body.id), 'it lands on their list');
+  assert.equal((await r.call('GET', '/api/overview')).body.counts.todos_due, 2);
+  assert.equal((await t.api('GET', '/api/overview')).body.counts.todos_due, 0, 'the API key has no to-dos');
+  // ticked off: still on today's list, crossed out, and out of the badge; comments and edits work as for any task
+  await r.call('PATCH', `/api/tasks/${mine.body.id}`, { status: 'DONE' });
+  const after = await r.call('GET', '/api/todos'); assert.equal(after.body.at(-1).id, mine.body.id); assert.equal(after.body.at(-1).status, 'DONE');
+  assert.equal((await r.call('GET', '/api/overview')).body.counts.todos_due, 1);
+  assert.equal((await a.call('POST', `/api/tasks/${handed.body.id}/comments`, { body: 'Done on GoDaddy' })).status, 201);
+  assert.ok((await r.call('GET', '/api/tasks?mine=1')).body.some((x: any) => x.id === pt.body.id));
+  assert.ok((await a.call('GET', '/api/tasks?mine=1')).body.some((x: any) => x.id === handed.body.id), 'My tasks includes to-dos');
+  assert.equal((await t.api('GET', '/api/todos')).status, 403);
+});

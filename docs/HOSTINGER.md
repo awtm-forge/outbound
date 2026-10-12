@@ -1,15 +1,15 @@
 # Deploying on Hostinger Cloud Professional with Neon
 
 Decided 5 Oct 2026: no paid VPS. The core runs as a Node.js web app on the existing Hostinger Cloud
-Professional plan, beside the client portal. The database is Neon Postgres, on a paid plan from October 2026 (the
-Workspace's chat keeps it busy whenever someone has the app open; see below). n8n does not run
+Professional plan, beside the client portal. The database is Neon's free Postgres (decided again 13 Oct 2026: use what
+we already pay for; Hostinger's Cloud plans do not offer Postgres, so the database stays on Neon). n8n does not run
 on managed hosting, so the core's own scheduler does its timed work; the n8n workflows stay in the
 repo for the day a server exists.
 
 | Part | Where |
 |---|---|
 | Core API, ops app, scheduler, Saleshandy webhook | Hostinger Node.js web app, `ops.awtmforge.com` |
-| Database | Neon paid plan, Singapore region |
+| Database | Neon free plan, Singapore region |
 | Search | Serper |
 | AI | Gemini free tier |
 
@@ -21,23 +21,31 @@ repo for the day a server exists.
    It looks like `postgresql://USER:PASSWORD@ep-xxx-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require`.
 4. Put it in hPanel as `DATABASE_URL` (step 3). Never in the repo, never in chat.
 
-### Why the paid plan (decided Oct 2026)
+### Staying inside the free plan
 
-The free plan gives 100 compute hours a month and sleeps after 5 idle minutes. The Workspace changes that: every open
-browser tab holds a chat long-poll, and while anyone is waiting the core runs one small query a second to catch new
-messages. With the team signed in through the working day the database never sleeps, which runs past 100 hours within
-the month. On the paid plan:
+Free plan limits that matter: 100 CU-hours of compute a month, 0.5 GB of storage, and the database suspends after 5
+idle minutes, waking on the next query in about a second. Compute hours are spent only while the database is awake, so
+the app is built to let it sleep whenever nobody is using it:
 
-- In Neon, Billing, upgrade the existing `awtm-outbound` project. The connection string does not change; nothing to
-  redeploy.
-- Leave scale to zero on in the compute settings. Nights and weekends with nobody signed in still suspend the
-  database, and the first request after wakes it in about a second.
-- The smallest compute size is enough. Chat waits do not hold a database connection, so `DB_POOL_MAX=5` stays right
-  for the team's size.
-- Raise the restore window (history retention) to at least 7 days. Keep the nightly dump below as well: it is the copy
-  that lives outside Neon.
+- The 15-minute Saleshandy sync runs only if someone used the app, the API or the webhook in the last quarter hour.
+  Nothing new can be waiting to sync otherwise. The 08:00 metrics and the Monday review still run on their own.
+- Stalled research is retried automatically at most 3 times a week, then waits for Research again on the company's
+  page. (Before this, one broken site was retried every 15 minutes for good.)
+- A browser tab stops its live updates (chat, counts, the AI indicator) after 2 minutes hidden or 30 minutes without a
+  touch, and picks up again the moment someone is back. A tab left open overnight costs nothing.
 
-The daily job still trims raw AI text older than 30 days.
+Rough budget for the two of you: awake while you work, about 10 hours on a working day, so roughly 220 to 250 hours a
+month. At the smallest compute size, 0.25 CU, that is about 55 to 65 of the 100 CU-hours. It is an estimate; check it.
+
+Do once, in the Neon console:
+
+1. Compute settings for the `main` branch: set autoscaling to a fixed **0.25 CU** (minimum and maximum). The free
+   plan lets compute grow to 2 CU, which spends hours eight times faster during an AI batch. Leave scale to zero on.
+2. Look at the project's usage page at the end of the first week. If compute is heading past 100 CU-hours for the
+   month, the paid Launch plan is billed per hour used, with the same connection string and nothing to redeploy.
+
+The daily job trims raw AI text older than 30 days to stay well under 0.5 GB. Neon keeps 6 hours of restore history on
+the free plan, so the nightly backup below is still needed.
 
 ## 2. GitHub, once (Ayush)
 

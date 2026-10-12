@@ -22,6 +22,7 @@ import { Crm } from './pages/Crm.tsx';
 import { Company } from './pages/Company.tsx';
 import { People, Person } from './pages/People.tsx';
 import { ChatProvider, useChat } from './chat.tsx';
+import { isActive, onActiveChange } from './active.ts';
 import { MeContext } from './session.tsx';
 
 export function App() {
@@ -35,19 +36,21 @@ export function App() {
   return <RouterProvider><ToastProvider><MeContext.Provider value={me}>{!me ? <Login onIn={refresh} /> : me.must_change_password ? <Account me={me} forced onChanged={refresh} /> : <ChatProvider><Shell me={me} onSignOut={() => setMe(null)} onMeChanged={refresh} /></ChatProvider>}</MeContext.Provider></ToastProvider></RouterProvider>;
 }
 
-type Counts = { drafts: number; replies: number; teardowns: number; needs_contact: number; meetings: number; proposals: number; replies_high: number };
+type Counts = { drafts: number; replies: number; teardowns: number; needs_contact: number; meetings: number; proposals: number; replies_high: number; todos_due: number };
 export const countsBus = new EventTarget(); // pages poke this after an action so the sidebar badges stay true
 function Shell({ me, onSignOut, onMeChanged }: { me: Me; onSignOut: () => void; onMeChanged: () => void }) {
   const { path } = useRouter(); const chat = useChat();
   const [counts, setCounts] = useState<Counts | null>(null);
   useEffect(() => {
     const load = () => api.get<{ counts: Counts }>('/api/overview').then((o) => setCounts(o.counts)).catch(() => {});
-    load(); const t = setInterval(load, 60_000); countsBus.addEventListener('changed', load);
-    return () => { clearInterval(t); countsBus.removeEventListener('changed', load); };
+    // paused while nobody is at the tab; fresh the moment they come back
+    load(); const t = setInterval(() => { if (isActive()) load(); }, 60_000); countsBus.addEventListener('changed', load);
+    const offActive = onActiveChange(() => { if (isActive()) load(); });
+    return () => { clearInterval(t); offActive(); countsBus.removeEventListener('changed', load); };
   }, []);
   type Item = { to: string; label: string; icon: keyof typeof Icon; n?: number; quiet?: boolean; on: (p: string) => boolean };
   const outbound: Item[] = [
-    { to: '/', label: 'Today', icon: 'today', on: (p) => p === '/' },
+    { to: '/', label: 'Today', icon: 'today', n: counts?.todos_due, on: (p) => p === '/' },
     { to: '/find', label: 'Find companies', icon: 'find', on: (p) => p.startsWith('/find') },
     { to: '/review', label: 'Review emails', icon: 'review', n: counts?.drafts, on: (p) => p.startsWith('/review') },
     { to: '/inbox', label: 'Inbox', icon: 'inbox', n: (counts?.replies ?? 0) + (counts?.teardowns ?? 0), on: (p) => p.startsWith('/inbox') },
@@ -115,7 +118,7 @@ function Working() {
   useEffect(() => {
     let live = true;
     const load = () => api.get<Me>('/api/me').then((m) => { if (live) setQ(m.queue ?? null); }).catch(() => {});
-    load(); const t = setInterval(load, 5000); return () => { live = false; clearInterval(t); };
+    load(); const t = setInterval(() => { if (isActive()) load(); }, 5000); return () => { live = false; clearInterval(t); };
   }, []);
   if (!q || (!q.running && !q.waiting)) return null;
   const n = (q.running ? 1 : 0) + q.waiting;

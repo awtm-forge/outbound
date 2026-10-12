@@ -71,7 +71,7 @@ function QuickAdd({ projectId, status, onAdded }: { projectId: string; status: s
   return <form className="quickadd" onSubmit={add}><input className="input" placeholder="Add a task" aria-label={`Add a task to ${TASK_STATUS[status]}`} value={title} onChange={(e) => setTitle(e.target.value)} maxLength={200} />{title && <button className="btn sm" disabled={busy}><Icon.plus size={14} /></button>}</form>;
 }
 
-function TaskDrawer({ taskId, task, onClose, onChanged }: { taskId: string; task: any; onClose: () => void; onChanged: () => void }) {
+export function TaskDrawer({ taskId, task, onClose, onChanged }: { taskId: string; task: any; onClose: () => void; onChanged: () => void }) {
   const toast = useToast(); const team = useTeam();
   const [f, setF] = useState(() => ({ title: task?.title ?? '', description: task?.description ?? '' }));
   const comments = useLoad(() => api.get<any[]>(`/api/tasks/${taskId}/comments`), [taskId]);

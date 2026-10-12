@@ -410,3 +410,16 @@ mark { background: var(--accent-soft); color: var(--accent); padding: 0 2px; bor
   .chat { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); }
   .chat-side { max-height: 150px; }
 }
+
+/* ---------- to-dos on Today ---------- */
+.todo-add { display: grid; grid-template-columns: minmax(0, 1fr) 150px 160px auto; gap: var(--s-2); padding: var(--s-3); border-bottom: 1px solid var(--hairline); }
+@media (max-width: 700px) { .todo-add { grid-template-columns: 1fr 1fr; } .todo-add > input:first-child { grid-column: 1 / -1; } }
+.todos { list-style: none; margin: 0; padding: 0; }
+.todos li { display: flex; align-items: center; gap: var(--s-3); padding: 10px var(--s-4); border-bottom: 1px solid var(--hairline-soft); }
+.todos li:last-child { border-bottom: 0; }
+.todos li:hover { background: var(--surface-hover); }
+.todo-title { flex: 1; min-width: 0; text-align: left; background: none; border: 0; padding: 0; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.todos li.done .todo-title { color: var(--ink-faint); text-decoration: line-through; }
+.todo-meta { display: flex; align-items: center; gap: 8px; flex: none; font-size: var(--fs-0); }
+.todo-meta a.tag { text-decoration: none; max-width: 160px; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 700px) { .todos li { flex-wrap: wrap; } .todo-meta { width: 100%; padding-left: 28px; } }

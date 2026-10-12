@@ -6,6 +6,8 @@ import { q } from './lib/db.ts';
 import { log } from './lib/log.ts';
 
 export type Job = { id: string; label: string; status: 'queued' | 'running' | 'done' | 'failed'; result?: unknown; error?: string; run_id?: string; created: number; started?: number; finished?: number };
+// research left half-done is retried by requeueStale at most this many times a week, then waits for a person
+export const MAX_AUTO_RETRIES = 3;
 const jobs = new Map<string, Job>();
 const work = new Map<string, () => Promise<unknown>>();
 const queue: string[] = [];
@@ -33,7 +35,7 @@ async function drain() {
       catch (e: any) {
         job.status = 'failed'; job.error = e?.message ?? String(e); job.run_id = e?.runId; log.warn('job failed', { label: job.label, err: job.error });
         const chain = job.label.match(/^batch:chain:([0-9a-f-]{36})$/);
-        if (chain) await q(`insert into activities(entity_type,entity_id,action,actor,detail) values('prospect',$1,'research_failed','system',$2)`, [chain[1], { error: job.error, retry: 'automatic, within 15 minutes' }]).catch(() => {});
+        if (chain) await q(`insert into activities(entity_type,entity_id,action,actor,detail) values('prospect',$1,'research_failed','system',$2)`, [chain[1], { error: job.error, retry: `automatic, up to ${MAX_AUTO_RETRIES} times while the app is in use` }]).catch(() => {});
       }
       job.finished = Date.now(); work.delete(id);
     }
@@ -47,8 +49,11 @@ export async function idle() { while (busy || queue.length) await new Promise((r
 
 // Prospects caught mid-research by a restart go back on the queue.
 export async function requeueStale(runChain: (id: string) => Promise<unknown>) {
-  const rows = await q(`select id from prospects where status in ('RESEARCHING','QUALIFYING') and updated_at < now() - interval '2 minutes' and not suppressed order by updated_at limit 200`);
-  // ponytail: no attempt cap; a company whose site always breaks research is retried every 15 minutes. Add a cap if one shows up.
+  // Three automatic tries a week, then it waits for a person (Research again on the company's page). Without the cap one
+  // broken site was retried every 15 minutes for good: hundreds of failed AI calls, and a database that never slept.
+  const rows = await q(`select p.id from prospects p where p.status in ('RESEARCHING','QUALIFYING') and p.updated_at < now() - interval '2 minutes' and not p.suppressed
+    and (select count(*) from activities a where a.entity_type='prospect' and a.entity_id=p.id and a.action='research_failed' and a.created_at > now() - interval '7 days') < ${MAX_AUTO_RETRIES}
+    order by p.updated_at limit 200`);
   for (const r of rows) enqueue(`batch:chain:${r.id}`, () => runChain(r.id), 'batch');
   return rows.length;
 }

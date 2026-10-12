@@ -80,6 +80,7 @@ Workspace, for running the company around the outbound work:
 
 | Screen | What it is for |
 |---|---|
+| To-dos (on Today) | Quick to-dos with no project needed: yours by default, hand one to the other person, optional due date. Mine and Everyone views; project tasks assigned to you show here too. The Today badge counts what is due or late |
 | Projects | Projects (optionally for a client company) with a four-column task board, assignees, due dates, comments, and My tasks across every project |
 | Wiki | Markdown pages that nest and link with `[[Page title]]`; every save kept and restorable; full-text search; a second editor gets a conflict instead of overwriting |
 | Chat | Channels and one-to-one conversations, unread counts, edits and deletes; messages arrive in well under a second |
@@ -116,8 +117,9 @@ after 25 seconds with nothing, inside Hostinger's 60 second limit. If the host e
 query of the newest message number each second, made only while someone is waiting, catches posts from the other
 process. Every chat write takes a Postgres advisory lock until it commits, so message numbers become visible in order
 and a cursor never steps over a message still being written; edits and deletes take a new number, so the same cursor
-carries them. No LISTEN/NOTIFY, which Neon's pooled connection does not carry. The cost: while anyone has the app open
-the database sees a small query every second, which is why Neon moves to a paid plan (see `docs/HOSTINGER.md`).
+carries them. No LISTEN/NOTIFY, which Neon's pooled connection does not carry. A tab pauses all of this after 2 minutes
+hidden or 30 minutes untouched, so the database can sleep when nobody is working (see `docs/HOSTINGER.md`, staying
+inside the free plan).
 
 Develop the app with hot reload against the running core:
 

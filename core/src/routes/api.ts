@@ -1,5 +1,5 @@
 import { route } from '../lib/http.ts';
-import { q, one, pool, audit } from '../lib/db.ts';
+import { q, one, pool, audit, TODAY_IST } from '../lib/db.ts';
 import { suppress, isSuppressed } from '../lib/suppression.ts';
 import { saleshandy } from '../adapters/saleshandy.ts';
 import { scoringConfig } from '../lib/config.ts';
@@ -41,7 +41,7 @@ route('POST', '/api/workflow-runs/log-error', 'api', async (c) => one(`insert in
 
 // ---------------- today ----------------
 const NEEDS_CONTACT = `p.status in ('QUALIFIED','RESEARCH_FURTHER') and not p.suppressed and (p.contact_id is null or not exists (select 1 from contacts x where x.id=p.contact_id and (x.full_name is not null or x.first_name is not null)))`;
-route('GET', '/api/overview', 'api', async () => {
+route('GET', '/api/overview', 'api', async (c) => {
   const counts = await one(`select
     (select count(*) from email_drafts where status='PENDING_APPROVAL')::int drafts,
     (select count(*) from email_drafts where status='APPROVED')::int approved_unsynced,
@@ -62,7 +62,9 @@ route('GET', '/api/overview', 'api', async () => {
     left join companies c on c.id=p.company_id
     where a.entity_type in ('prospect','email_draft','teardown','reply','meeting') order by a.created_at desc limit 12`);
   const disc = await one(`select count(*)::int n from discovery_candidates where status='NEW' and enriched_at is not null`);
-  return { counts: { ...counts, new_candidates: disc!.n }, stages, recent, campaigns: await P.campaignMetrics() };
+  // a person's own to-dos and tasks that are due today or late, for the badge on Today
+  const todos = c.user ? (await one(`select count(*)::int n from tasks t left join projects p on p.id=t.project_id where t.assignee_id=$1 and t.status<>'DONE' and t.due_date <= ${TODAY_IST} and (p.id is null or p.status in ('ACTIVE','ON_HOLD'))`, [c.user.id]))!.n : 0;
+  return { counts: { ...counts, new_candidates: disc!.n, todos_due: todos }, stages, recent, campaigns: await P.campaignMetrics() };
 });
 
 // ---------------- review queue ----------------

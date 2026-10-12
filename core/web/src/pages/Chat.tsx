@@ -7,6 +7,7 @@ import { Empty, Failure, Loading, initials } from '../ui/kit.tsx';
 import { inline } from '../ui/markdown.tsx';
 import { useMe, useTeam } from '../session.tsx';
 import { channelLabel, useChat, type Channel, type ChatMessage } from '../chat.tsx';
+import { useActive } from '../active.ts';
 
 const IST = { timeZone: 'Asia/Kolkata' } as const;
 const time = (ts: string) => new Date(ts).toLocaleTimeString('en-IN', { ...IST, hour: 'numeric', minute: '2-digit' });
@@ -30,6 +31,7 @@ export function Chat({ id }: { id?: string }) {
 }
 
 function Sidebar({ channels, current, reload, live }: { channels: Channel[]; current: string | null; reload: () => Promise<void>; live: boolean }) {
+  const active = useActive();
   const toast = useToast(); const team = useTeam(); const me = useMe(); const { go } = useRouter();
   const [adding, setAdding] = useState<'channel' | 'direct' | null>(null); const [name, setName] = useState(''); const [showArchived, setShowArchived] = useState(false);
   const open = channels.filter((c) => c.kind === 'CHANNEL' && !c.archived); const archived = channels.filter((c) => c.kind === 'CHANNEL' && c.archived);
@@ -54,7 +56,7 @@ function Sidebar({ channels, current, reload, live }: { channels: Channel[]; cur
       {adding === 'direct' && <select className="input" autoFocus defaultValue="" onChange={(e) => startDirect(e.target.value)} aria-label="Message someone"><option value="" disabled>Message someone…</option>{team.filter((u) => u.id !== me.id).map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}</select>}
       <nav className="col" style={{ gap: 2 }}>{direct.length ? direct.map(item) : <span className="faint" style={{ fontSize: 'var(--fs-0)', padding: '4px 8px' }}>No conversations yet.</span>}</nav>
       {archived.length > 0 && <><button className="btn sm ghost" style={{ marginTop: 'var(--s-4)', justifyContent: 'flex-start' }} onClick={() => setShowArchived(!showArchived)}>{showArchived ? 'Hide' : 'Show'} archived ({archived.length})</button>{showArchived && <nav className="col" style={{ gap: 2, opacity: 0.7 }}>{archived.map(item)}</nav>}</>}
-      <div className="live faint" title={live ? 'Messages arrive as they are sent' : 'Reconnecting'}><span className={`dot ${live ? 'hot' : ''}`} />{live ? 'Live' : 'Reconnecting…'}</div>
+      <div className="live faint" title={live ? 'Messages arrive as they are sent' : active ? 'Reconnecting' : 'Resumes when you are back'}><span className={`dot ${live ? 'hot' : ''}`} />{live ? 'Live' : active ? 'Reconnecting…' : 'Paused while you are away'}</div>
     </aside>
   );
 }

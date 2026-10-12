@@ -4,8 +4,11 @@ import { tx, q } from './lib/db.ts';
 import { log } from './lib/log.ts';
 import * as P from './pipeline.ts';
 import { requeueStale } from './jobs.ts';
+import { lastActivity } from './lib/activity.ts';
 
-type Job = { name: string; due: (t: Ist) => boolean; run: () => Promise<unknown> };
+// whenUsed: run only if someone used the app in the last quarter hour. Nothing new can be waiting otherwise, and
+// skipping lets the database sleep through nights and weekends instead of waking every 15 minutes.
+type Job = { name: string; due: (t: Ist) => boolean; run: () => Promise<unknown>; whenUsed?: boolean };
 type Ist = { minute: number; hour: number; weekday: number; slot: string };
 export function ist(d = new Date()): Ist {
   const p = Object.fromEntries(new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Kolkata', hour12: false, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', weekday: 'short' })
@@ -22,8 +25,8 @@ export async function prune() {
 }
 
 export const JOBS: Job[] = [
-  // only touches the database when an approved draft is waiting, so the free database can sleep the rest of the time
-  { name: 'core:sync_to_saleshandy', due: (t) => t.minute % 15 === 0, run: async () => {
+  // approvals and stalled research only come from someone using the app, so this waits for that
+  { name: 'core:sync_to_saleshandy', due: (t) => t.minute % 15 === 0, whenUsed: true, run: async () => {
     const rows = await q(`select id from email_drafts where status='APPROVED' order by approved_at limit 50`);
     const out = []; for (const r of rows) { try { out.push(await P.syncToSaleshandy(r.id)); } catch (e: any) { out.push({ draft_id: r.id, error: e.message }); } }
     // research a provider outage interrupted goes back on the queue; it runs after this, in the background
@@ -38,6 +41,8 @@ export const JOBS: Job[] = [
   { name: 'core:weekly_analysis', due: (t) => t.weekday === 1 && t.hour === 9 && t.minute === 0, run: async () => (await P.weeklyAnalysis()).recommendations?.length ?? 0 },
 ];
 
+export const USED_WITHIN_MS = 16 * 60_000;
+export const wanted = (job: Job, t: Ist, now = Date.now(), last = lastActivity()) => job.due(t) && (!job.whenUsed || now - last < USED_WITHIN_MS);
 const lockKey = (name: string) => { let h = 0; for (const c of name) h = (h * 31 + c.charCodeAt(0)) | 0; return h; };
 export async function runJob(job: Job, slot: string) {
   return tx(async (c) => {
@@ -65,7 +70,7 @@ export function startScheduler() {
   let last = '';
   const tick = async () => {
     const t = ist(); if (t.slot === last) return; last = t.slot;
-    for (const job of JOBS) if (job.due(t)) {
+    for (const job of JOBS) if (wanted(job, t)) {
       try { const r = await runJob(job, t.slot); log.info('scheduled job', { job: job.name, slot: t.slot, result: r }); }
       catch (e: any) { log.error('scheduled job could not start', { job: job.name, err: e.message }); }
     }

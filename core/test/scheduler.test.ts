@@ -31,3 +31,27 @@ test('prune trims old model text and replay keys, never prospects, drafts or rep
   assert.equal((await one(`select raw_output from ai_runs where agent='x'`))!.raw_output, null); assert.equal((await one(`select raw_output from ai_runs where agent='y'`))!.raw_output, 'keep me');
   assert.ok(await one(`select 1 from idempotency_keys where key='new'`));
 });
+
+test('the 15-minute sync waits for someone to have used the app, so the database can sleep; the daily and weekly jobs do not', async () => {
+  const S = await import('../src/scheduler.ts'); const at = S.ist(new Date('2026-10-05T02:30:00Z')); const now = Date.parse('2026-10-05T02:30:00Z');
+  const sync = S.JOBS.find((j) => j.name === 'core:sync_to_saleshandy')!; const daily = S.JOBS.find((j) => j.name === 'core:daily_metrics')!;
+  assert.equal(S.wanted(sync, at, now, now - 5 * 60_000), true, 'used five minutes ago');
+  assert.equal(S.wanted(sync, at, now, now - 3 * 3600_000), false, 'nobody for three hours');
+  assert.equal(S.wanted(daily, at, now, now - 3 * 3600_000), true);
+  // a request through the API counts as use
+  const A = await import('../src/lib/activity.ts'); const before = A.lastActivity(); await new Promise((r) => setTimeout(r, 5));
+  await t.api('GET', '/api/me'); assert.ok(A.lastActivity() > before);
+  const h = A.lastActivity(); await fetch(t.url + '/health'); assert.equal(A.lastActivity(), h, 'a health check does not');
+});
+test('stalled research is retried three times a week at most, then waits for a person', async () => {
+  const J = await import('../src/jobs.ts'); const P = await import('../src/pipeline.ts'); const { q, tx } = await import('../src/lib/db.ts');
+  // the updated_at trigger would stamp now(); skip triggers for this one back-dating write
+  const stale = (id: string) => tx(async (c) => { await c.query(`set local session_replication_role = replica`); await c.query(`update prospects set status='RESEARCHING', updated_at=now() - interval '10 minutes' where id=$1`, [id]); });
+  const { prospect } = await P.ingest({ company: { name: 'Broken Site', website: 'broken.example' }, campaign_code: 'IND-WEB-ELECTRONICS' });
+  await stale(prospect.id);
+  const ran: string[] = []; const fake = async (id: string) => { ran.push(id); };
+  assert.equal(await J.requeueStale(fake), 1); await J.idle(); assert.deepEqual(ran, [prospect.id]);
+  for (let i = 0; i < J.MAX_AUTO_RETRIES; i++) await q(`insert into activities(entity_type,entity_id,action,actor) values('prospect',$1,'research_failed','system')`, [prospect.id]);
+  await stale(prospect.id);
+  assert.equal(await J.requeueStale(fake), 0);
+});

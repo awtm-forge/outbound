@@ -50,8 +50,8 @@ route('PATCH', '/api/projects/:id', 'user', async (c) => {
 route('GET', '/api/tasks', 'user', async (c) => {
   // ?mine=1: what is on my plate across every project, not done, soonest first
   const mine = c.url.searchParams.get('mine') === '1';
-  return q(`select t.*, p.name project_name, u.name assignee_name from tasks t join projects p on p.id=t.project_id left join users u on u.id=t.assignee_id
-    where t.status <> 'DONE' and p.status in ('ACTIVE','ON_HOLD') and ($1::uuid is null or t.assignee_id=$1)
+  return q(`select t.*, p.name project_name, u.name assignee_name from tasks t left join projects p on p.id=t.project_id left join users u on u.id=t.assignee_id
+    where t.status <> 'DONE' and (p.id is null or p.status in ('ACTIVE','ON_HOLD')) and ($1::uuid is null or t.assignee_id=$1)
     order by t.due_date nulls last, case t.priority when 'HIGH' then 0 when 'MEDIUM' then 1 else 2 end, t.created_at limit 300`, [mine ? c.user!.id : null]);
 });
 route('POST', '/api/projects/:id/tasks', 'user', async (c) => {
@@ -78,4 +78,25 @@ route('POST', '/api/tasks/:id/comments', 'user', async (c) => {
   if (!(await one('select 1 from tasks where id=$1', [id]))) throw new HttpError(404, 'task not found');
   const k = (await one('insert into task_comments(task_id,author_id,body) values($1,$2,$3) returning id, body, created_at, author_id', [id, c.user!.id, b.body]))!;
   return { created: true, ...k, author_name: c.user!.name };
+});
+
+// ---------- to-dos: tasks with no project, for the day-to-day ----------
+// The list on Today: open to-dos and open project tasks, for you or for everyone, soonest and most urgent first, plus
+// what was ticked off today so it does not vanish the moment it is done.
+route('GET', '/api/todos', 'user', async (c) => {
+  const mine = c.url.searchParams.get('who') !== 'all';
+  return q(`select t.id, t.project_id, t.title, t.description, t.status, t.priority, t.assignee_id, t.due_date, t.completed_at, t.created_at, t.created_by,
+      p.name project_name, u.name assignee_name, (select count(*)::int from task_comments k where k.task_id=t.id) comments
+    from tasks t left join projects p on p.id=t.project_id left join users u on u.id=t.assignee_id
+    where (p.id is null or p.status in ('ACTIVE','ON_HOLD')) and ($1::uuid is null or t.assignee_id=$1)
+      and (t.status <> 'DONE' or (t.completed_at at time zone 'Asia/Kolkata')::date = ${TODAY_IST})
+      and (t.project_id is null or t.assignee_id is not null)
+    order by t.status = 'DONE', t.due_date nulls last, case t.priority when 'HIGH' then 0 when 'MEDIUM' then 1 else 2 end, t.created_at limit 300`, [mine ? c.user!.id : null]);
+});
+route('POST', '/api/todos', 'user', async (c) => {
+  const b = parse(TaskIn.pick({ title: true, priority: true, due_date: true, assignee_id: true }), c.body);
+  // yours unless you hand it to someone
+  const t = (await one(`insert into tasks(project_id,title,priority,assignee_id,due_date,created_by) values(null,$1,$2,$3,$4,$5) returning *`,
+    [b.title, b.priority ?? 'MEDIUM', b.assignee_id === undefined ? c.user!.id : b.assignee_id, b.due_date ?? null, c.user!.id]))!;
+  return { created: true, ...t };
 });
