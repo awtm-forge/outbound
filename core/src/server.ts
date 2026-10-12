@@ -5,6 +5,7 @@ import { handle } from './lib/http.ts';
 import './routes/api.ts';
 import './routes/discovery.ts';
 import './routes/users.ts';
+import './routes/projects.ts';
 import { migrate } from './migrate.ts';
 import { seed } from './seed.ts';
 import { startScheduler } from './scheduler.ts';

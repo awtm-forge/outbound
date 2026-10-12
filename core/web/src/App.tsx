@@ -14,6 +14,8 @@ import { Deals } from './pages/Deals.tsx';
 import { Campaigns } from './pages/Campaigns.tsx';
 import { Account } from './pages/Account.tsx';
 import { Team } from './pages/Team.tsx';
+import { Projects } from './pages/Projects.tsx';
+import { Project } from './pages/Project.tsx';
 import { MeContext } from './session.tsx';
 
 export function App() {
@@ -48,6 +50,7 @@ function Shell({ me, onSignOut, onMeChanged }: { me: Me; onSignOut: () => void; 
     { to: '/campaigns', label: 'Campaigns', icon: 'campaigns', on: (p) => p.startsWith('/campaigns') },
   ];
   const workspace: Item[] = [
+    { to: '/projects', label: 'Projects', icon: 'projects', on: (p) => p.startsWith('/projects') },
     ...(me.role === 'admin' ? [{ to: '/team', label: 'Team', icon: 'user', on: (p: string) => p.startsWith('/team') } as Item] : []),
   ];
   const groups = [{ title: 'Outbound', items: outbound }, { title: 'Workspace', items: workspace }].filter((g) => g.items.length);
@@ -61,6 +64,8 @@ function Shell({ me, onSignOut, onMeChanged }: { me: Me; onSignOut: () => void; 
   else if (path.startsWith('/pipeline')) page = <Pipeline />;
   else if (path.startsWith('/deals')) page = <Deals />;
   else if (path.startsWith('/campaigns')) page = <Campaigns />;
+  else if ((m = match('/projects/:id', path))) page = <Project id={m.id} key={m.id} />;
+  else if (path.startsWith('/projects')) page = <Projects />;
   else if (path.startsWith('/account')) page = <Account me={me} onChanged={onMeChanged} />;
   else if (path.startsWith('/team') && me.role === 'admin') page = <Team />;
   else page = <div className="page"><div className="head"><div><h1>Nothing here</h1><p>This address does not lead anywhere. <Link to="/">Back to today</Link>.</p></div></div></div>;

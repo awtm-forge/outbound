@@ -1,5 +1,7 @@
 import pg from 'pg';
 import { env } from './env.ts';
+// A calendar date stays the string Postgres gave (2026-12-01); as a JS Date it would shift by the server's time zone.
+pg.types.setTypeParser(1082, (v: string) => v);
 // Small pool: Neon's free tier and its pooler are shared, and this app never needs more than a handful at once.
 export const pool = new pg.Pool({ connectionString: env.databaseUrl, max: env.dbPoolMax, idleTimeoutMillis: 30_000, connectionTimeoutMillis: 15_000 });
 pool.on('error', (e) => console.error('pg pool error', e.message));

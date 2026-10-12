@@ -1,0 +1,31 @@
+import { test, before, after } from 'node:test';
+import assert from 'node:assert/strict';
+import { bootstrap } from './helpers.ts';
+let t: Awaited<ReturnType<typeof bootstrap>>;
+before(async () => { t = await bootstrap(); });
+after(async () => { await t.teardown(); });
+
+test('projects: create, tasks across the board, done stamps a time, my tasks, comments', async () => {
+  const admin = await t.signIn(); const m = await t.person('meera');
+  assert.equal((await t.api('GET', '/api/projects')).status, 403, 'the API key does not open the workspace');
+  assert.equal((await m.call('POST', '/api/projects', { name: '' })).status, 400);
+  const p = await m.call('POST', '/api/projects', { name: 'Acme site rebuild', description: 'Shopify to headless', due_date: '2026-12-01' });
+  assert.equal(p.status, 201); assert.equal(p.body.owner_id, m.id, 'the creator owns it unless told otherwise');
+  assert.equal((await m.call('POST', `/api/projects/${p.body.id}/tasks`, { title: 'x', assignee_id: '00000000-0000-0000-0000-000000000000' })).status, 400);
+  assert.equal((await m.call('POST', `/api/projects/${p.body.id}/tasks`, { title: 'x', due_date: '1 Dec' })).status, 400);
+  const t1 = await m.call('POST', `/api/projects/${p.body.id}/tasks`, { title: 'Audit the theme', priority: 'HIGH', assignee_id: m.id, due_date: '2026-10-01' });
+  const t2 = await admin.call('POST', `/api/projects/${p.body.id}/tasks`, { title: 'Write the brief' }); assert.equal(t2.status, 201);
+  assert.equal(t1.body.status, 'TODO');
+  const done = await m.call('PATCH', `/api/tasks/${t1.body.id}`, { status: 'DONE' }); assert.ok(done.body.completed_at);
+  const reopened = await m.call('PATCH', `/api/tasks/${t1.body.id}`, { status: 'DOING', due_date: '' }); assert.equal(reopened.body.completed_at, null); assert.equal(reopened.body.due_date, null);
+  assert.equal(reopened.body.title, 'Audit the theme', 'fields not sent are left alone');
+  const mine = await m.call('GET', '/api/tasks?mine=1'); assert.deepEqual(mine.body.map((x: any) => x.id), [t1.body.id]); assert.equal(mine.body[0].project_name, 'Acme site rebuild');
+  const k = await admin.call('POST', `/api/tasks/${t1.body.id}/comments`, { body: 'Theme is Dawn 9, heavily edited.' }); assert.equal(k.status, 201);
+  const ks = await m.call('GET', `/api/tasks/${t1.body.id}/comments`); assert.equal(ks.body[0].author_name, 'Tester');
+  const detail = await m.call('GET', `/api/projects/${p.body.id}`); assert.equal(detail.body.tasks, 2); assert.equal(detail.body.task_list[0].priority, 'HIGH'); assert.equal(detail.body.task_list[0].comments, 1);
+  await m.call('PATCH', `/api/projects/${p.body.id}`, { status: 'ARCHIVED' });
+  assert.equal((await m.call('GET', '/api/projects')).body.length, 0, 'archived projects are out of the default list');
+  assert.equal((await m.call('GET', '/api/projects?status=ARCHIVED')).body.length, 1);
+  assert.equal((await m.call('DELETE', `/api/tasks/${t2.body.id}`)).status, 200);
+  assert.equal((await m.call('GET', '/api/projects/not-a-uuid')).status, 404);
+});

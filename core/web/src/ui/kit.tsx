@@ -58,3 +58,12 @@ export async function copy(text: string) { try { await navigator.clipboard.write
 export function ScoreBars({ criteria, values }: { criteria: { key: string; label: string; max: number }[]; values: Record<string, number> }) {
   return <div className="bars">{criteria.map((c) => { const v = values?.[c.key] ?? 0; return <div key={c.key} style={{ display: 'contents' }}><span className="muted ellipsis">{c.label}</span><span className="track"><i style={{ width: `${(v / c.max) * 100}%` }} /></span><span className="v">{v}/{c.max}</span></div>; })}</div>;
 }
+
+// Calendar dates (YYYY-MM-DD) are days, not instants: shown as written, compared against today in India.
+export const todayIST = () => new Date().toLocaleDateString('en-CA', IST);
+export function dayLabel(d?: string | null) {
+  if (!d) return '';
+  const [y, m, dd] = d.split('-').map(Number); const dt = new Date(Date.UTC(y!, m! - 1, dd!));
+  return dt.toLocaleDateString('en-IN', { timeZone: 'UTC', day: 'numeric', month: 'short', ...(y !== Number(todayIST().slice(0, 4)) ? { year: 'numeric' } : {}) });
+}
+export const isLate = (d?: string | null) => !!d && d < todayIST();

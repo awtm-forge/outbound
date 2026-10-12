@@ -131,7 +131,10 @@ export async function handle(req: IncomingMessage, res: ServerResponse) {
     if (idem && req.method !== 'GET' && typeof out !== 'string') await q('insert into idempotency_keys(key,method,path,status,response) values($1,$2,$3,$4,$5) on conflict do nothing', [idem, req.method, url.pathname, status, JSON.stringify(out ?? {})]);
     send(status, out ?? {});
   } catch (e: any) {
-    const status = e instanceof HttpError ? e.status : e?.name === 'ZodError' ? 400 : 500;
+    // a reference to a row that does not exist, or a duplicate, is the caller's mistake rather than ours
+    const pgStatus: Record<string, number> = { '23503': 400, '23505': 409, '22P02': 400 };
+    const status = e instanceof HttpError ? e.status : e?.name === 'ZodError' ? 400 : pgStatus[e?.code] ?? 500;
+    if (status !== 500 && pgStatus[e?.code]) e.message = e.code === '23505' ? 'That already exists.' : e.code === '23503' ? 'That refers to something that does not exist.' : 'A value is not in the right form.';
     if (status >= 500) log.error('unhandled', { p: url.pathname, err: e?.message, stack: e?.stack?.split('\n').slice(0, 4) });
     send(status, { error: status === 500 && env.nodeEnv === 'production' ? 'Something went wrong on our side. It is logged.' : e?.message ?? 'error', run_id: e?.runId });
   }

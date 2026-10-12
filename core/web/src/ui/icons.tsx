@@ -21,4 +21,12 @@ export const Icon = {
   spark: (p: { size?: number }) => <I {...p} d="M12 3v4m0 10v4M3 12h4m10 0h4M6 6l2.5 2.5m7 7L18 18M6 18l2.5-2.5m7-7L18 6" />,
   send: (p: { size?: number }) => <I {...p} d="m4 12 16-8-6 16-2-7-8-1Z" />,
   shield: (p: { size?: number }) => <I {...p} d="M12 3 5 6v6c0 4 3 7 7 9 4-2 7-5 7-9V6l-7-3Z" />,
+  projects: (p: { size?: number }) => <I {...p} d="M4 4h4v16H4zM10 4h4v10h-4zM16 4h4v6h-4z" />,
+  wiki: (p: { size?: number }) => <I {...p} d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2V5Zm0 16a2 2 0 0 1 2-2h13M8 7h7" />,
+  chat: (p: { size?: number }) => <I {...p} d="M4 5h16v11H9l-5 4V5Z" />,
+  crm: (p: { size?: number }) => <I {...p} d="M4 21V5l8-2v18M12 9h8v12M7 8h2m-2 4h2m-2 4h2m6-4h2m-2 4h2M2 21h20" />,
+  people: (p: { size?: number }) => <I {...p} d="M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Zm-6 9a6 6 0 0 1 12 0m1-9a3 3 0 1 0 0-6m2 15h3a5 5 0 0 0-4-5" />,
+  plus: (p: { size?: number }) => <I {...p} d="M12 5v14M5 12h14" />,
+  trash: (p: { size?: number }) => <I {...p} d="M4 7h16M10 11v6m4-6v6M6 7l1 13h10l1-13M9 7V4h6v3" />,
+  edit: (p: { size?: number }) => <I {...p} d="M4 20h4L19 9l-4-4L4 16v4Zm9-13 4 4" />,
 };
