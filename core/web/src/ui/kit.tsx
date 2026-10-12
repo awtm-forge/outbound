@@ -67,3 +67,15 @@ export function dayLabel(d?: string | null) {
   return dt.toLocaleDateString('en-IN', { timeZone: 'UTC', day: 'numeric', month: 'short', ...(y !== Number(todayIST().slice(0, 4)) ? { year: 'numeric' } : {}) });
 }
 export const isLate = (d?: string | null) => !!d && d < todayIST();
+
+// Rupees typed by a person ("1,50,000" or "2500.50") to integer paise as a string, without passing through a float.
+export function toPaise(rupees: string): string | null {
+  const s = rupees.replace(/[,\s₹]/g, ''); if (!s) return null;
+  const m = /^(\d{1,14})(?:\.(\d{1,2}))?$/.exec(s); if (!m) return 'invalid';
+  return (BigInt(m[1]!) * 100n + BigInt((m[2] ?? '').padEnd(2, '0') || '0')).toString();
+}
+// integer paise back to an editable rupee string ("150000" or "2500.50")
+export function toRupees(paise?: string | null) {
+  if (paise == null) return ''; const p = BigInt(paise); const r = p / 100n; const f = p % 100n;
+  return f ? `${r}.${f.toString().padStart(2, '0')}` : r.toString();
+}

@@ -14,4 +14,5 @@ export function needUuid(s: string, what = 'record') { if (!isUuid(s)) throw new
 // dates arrive as YYYY-MM-DD from <input type=date>; empty means none
 export const day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'use YYYY-MM-DD').nullable().optional().or(z.literal('').transform(() => null));
 export const text = (max: number) => z.string().trim().max(max);
-export const optText = (max: number) => z.string().trim().max(max).nullable().optional().transform((v) => (v ? v : null));
+// absent stays absent (a partial update leaves it alone); sent empty means clear it
+export const optText = (max: number) => z.string().trim().max(max).nullable().optional().transform((v) => (v === undefined ? undefined : v || null));
