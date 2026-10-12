@@ -66,5 +66,6 @@ then run the script.
 ## Security notes
 
 - Postgres and the core bind to 127.0.0.1 only; Caddy terminates TLS. n8n webhooks are public by design (Saleshandy must reach them) but every workflow's first node checks `x-api-key` against `CORE_API_KEY` and answers 401 otherwise; the Saleshandy inbound path additionally requires `X-Webhook-Secret` at the core.
-- Rotate `CORE_API_KEY`, `SALESHANDY_WEBHOOK_SECRET`, `SESSION_SECRET` (signs everyone out), `DASHBOARD_PASSWORD` and the n8n basic-auth password by editing `.env` and `docker compose up -d`.
+- People and passwords are managed in the app (Team, admins only). `DASHBOARD_PASSWORD` only seeds the first admin. Locked out: `cd core && npm run user -- reset <username>` with `DATABASE_URL` set prints a temporary password.
+- Rotate `CORE_API_KEY`, `SALESHANDY_WEBHOOK_SECRET`, `SESSION_SECRET` (signs everyone out) and the n8n basic-auth password by editing `.env` and `docker compose up -d`.
 - Rate limit: 120 requests per minute per IP on the core.

@@ -34,7 +34,7 @@ function Companies() {
   return (
     <>
       <div className="row wrap">
-        <input ref={s.ref} className="input" style={{ width: 300 }} placeholder="Company, domain, person or email   /" value={s.term} onChange={(e) => s.setTerm(e.target.value)} aria-label="Search companies" />
+        <input ref={s.ref} className="input" style={{ width: 300, maxWidth: '100%' }} placeholder="Company, domain, person or email   /" value={s.term} onChange={(e) => s.setTerm(e.target.value)} aria-label="Search companies" />
         <div className="chips" role="group" aria-label="Filter">{[['', 'All'], ['deals', 'Open deals'], ['won', 'Won']].map(([k, l]) => <button key={k} className={`chip${has === k ? ' on' : ''}`} onClick={() => setHas(k)}>{l}</button>)}</div>
         <button className="btn right" onClick={() => setAdding(!adding)}><Icon.plus size={16} />Add a company</button>
       </div>
@@ -69,7 +69,7 @@ function Contacts() {
   const { data, error, loading, reload } = useLoad(() => api.get<any[]>(`/api/crm/contacts${s.q ? `?q=${encodeURIComponent(s.q)}` : ''}`), [s.q]);
   return (
     <>
-      <input ref={s.ref} className="input" style={{ width: 300 }} placeholder="Name, title, email or company   /" value={s.term} onChange={(e) => s.setTerm(e.target.value)} aria-label="Search people" />
+      <input ref={s.ref} className="input" style={{ width: 300, maxWidth: '100%' }} placeholder="Name, title, email or company   /" value={s.term} onChange={(e) => s.setTerm(e.target.value)} aria-label="Search people" />
       {loading && !data ? <Loading rows={6} /> : error ? <Failure error={error} retry={reload} /> : !data!.length ? <div className="card"><Empty title="Nobody matches" /></div> :
         <div className="card flush scrollx"><table className="t">
           <thead><tr><th>Person</th><th>Company</th><th>Email</th><th>Added</th></tr></thead>

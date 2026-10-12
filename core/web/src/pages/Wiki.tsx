@@ -19,7 +19,7 @@ export function Wiki() {
   return (
     <div className="page">
       <div className="head"><div><h1>Wiki</h1><p>How we work, written down once. Link pages with [[Page title]].</p></div>
-        <div className="row"><input ref={ref} className="input" style={{ width: 280 }} placeholder="Search every page   /" value={term} onChange={(e) => setTerm(e.target.value)} aria-label="Search the wiki" />
+        <div className="row wrap"><input ref={ref} className="input" style={{ width: 280, maxWidth: '100%' }} placeholder="Search every page   /" value={term} onChange={(e) => setTerm(e.target.value)} aria-label="Search the wiki" />
           <Link className="btn primary" to="/wiki/new"><Icon.plus size={16} />New page</Link></div></div>
       {loading && !data ? <Loading rows={5} /> : error ? <Failure error={error} retry={reload} /> : !data!.length ?
         <div className="card"><Empty title={q ? 'Nothing matches' : 'The wiki is empty'} action={!q && <Link className="btn primary" to="/wiki/new">Write the first page</Link>}>{q ? 'Try fewer words.' : 'Start with how a project runs, or how to onboard someone.'}</Empty></div>

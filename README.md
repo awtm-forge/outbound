@@ -23,7 +23,7 @@ cp .env.example .env            # then set every "change-me": openssl rand -hex 
 docker compose up -d --build
 docker compose exec -T n8n n8n import:workflow --separate --input=/workflows
 docker compose exec -T n8n n8n update:workflow --all --active=true && docker compose restart n8n
-open http://localhost:8095       # the ops app: sign in with DASHBOARD_USER / DASHBOARD_PASSWORD
+open http://localhost:8095       # the ops app: the first sign-in is DASHBOARD_USER / DASHBOARD_PASSWORD (it becomes the first admin)
 open http://localhost:5678       # n8n, N8N_BASIC_AUTH_USER / N8N_BASIC_AUTH_PASSWORD
 ```
 
@@ -60,7 +60,9 @@ awtmforge.com site is untouched. Firewall: allow 22, 80, 443 only.
 ## The ops app
 
 A React app in `core/web`, built into the core image and served by the core on the same origin. Dark, in the awtm forge
-brand: the portal's tokens, Bricolage Grotesque and IBM Plex Mono, self-hosted. Seven screens, ordered by the day's work:
+brand: the portal's tokens, Bricolage Grotesque and IBM Plex Mono, self-hosted. Two sections: Outbound and Workspace.
+
+Outbound, seven screens ordered by the day's work:
 
 | Screen | What it is for |
 |---|---|
@@ -74,10 +76,48 @@ brand: the portal's tokens, Bricolage Grotesque and IBM Plex Mono, self-hosted. 
 
 The five seed campaigns in `core/config/campaigns.json` were approved by the founders on 5 Oct 2026.
 
-Sign-in is a form, not a browser pop-up: an HMAC-signed, HttpOnly, SameSite=Strict session cookie (12 hours,
-`SESSION_SECRET`). Login is throttled to 10 attempts per 15 minutes per IP. Every API mutation still needs an
-Idempotency-Key header, which a cross-site page cannot send, so the session cannot be used from another site.
-n8n and scripts keep using `X-Api-Key`.
+Workspace, for running the company around the outbound work:
+
+| Screen | What it is for |
+|---|---|
+| Projects | Projects (optionally for a client company) with a four-column task board, assignees, due dates, comments, and My tasks across every project |
+| Wiki | Markdown pages that nest and link with `[[Page title]]`; every save kept and restorable; full-text search; a second editor gets a conflict instead of overwriting |
+| Chat | Channels and one-to-one conversations, unread counts, edits and deletes; messages arrive in well under a second |
+| CRM | Companies, people and opportunities on the outbound tables: notes, deals in whole paise, stage changes that move the prospect forward only |
+| People | Directory, reporting lines, leave requests and approval, who is out. Pay is recorded and shown to admins only |
+| Team | Admins only: who can sign in, their role, temporary passwords, switching someone off |
+
+### Sign-in and roles
+
+Everyone signs in with their own name (or email) and password, hashed with scrypt. On the first boot with personal
+logins, `DASHBOARD_USER` / `DASHBOARD_PASSWORD` becomes the first admin with the same password; after that people are
+managed on the Team screen and `DASHBOARD_PASSWORD` is not read again. A password an admin sets is temporary: the person
+must choose their own before anything else opens. Two roles:
+
+- **member**: every Outbound screen and every Workspace screen, except Team and anything to do with pay.
+- **admin**: also manages people and roles, sees and records pay, approves leave.
+
+The session is an HMAC-signed, HttpOnly, SameSite=Strict cookie (12 hours, `SESSION_SECRET`) naming the person and a
+session version: switching someone off or resetting their password ends their sessions at once, and a role change
+applies on their next request. Sign-in is throttled to 10 attempts per 15 minutes per IP and 20 failures per 15
+minutes per account. Every API mutation still needs an Idempotency-Key header, which a cross-site page cannot send, and
+a person's keys are scoped to them.
+
+n8n and scripts keep using `X-Api-Key`, unchanged, for every Outbound route and the CRM routes (`/api/crm/...`). The key
+does not open Projects, Wiki, Chat, People or Team: those need a person. Locked out? From any machine with
+`DATABASE_URL`: `cd core && npm run user -- reset <username>` (or `add <username> "<Full name>" admin`) prints a
+temporary password.
+
+### How chat is live without WebSockets
+
+Each browser tab holds one long-poll, `GET /api/chat/poll?after=<cursor>&wait=25`. The server answers the moment
+something new is visible to that person (a post through the same process wakes it at once, about 40 ms measured) or
+after 25 seconds with nothing, inside Hostinger's 60 second limit. If the host ever runs a second process, one shared
+query of the newest message number each second, made only while someone is waiting, catches posts from the other
+process. Every chat write takes a Postgres advisory lock until it commits, so message numbers become visible in order
+and a cursor never steps over a message still being written; edits and deletes take a new number, so the same cursor
+carries them. No LISTEN/NOTIFY, which Neon's pooled connection does not carry. The cost: while anyone has the app open
+the database sees a small query every second, which is why Neon moves to a paid plan (see `docs/HOSTINGER.md`).
 
 Develop the app with hot reload against the running core:
 

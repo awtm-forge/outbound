@@ -1,14 +1,15 @@
 # Deploying on Hostinger Cloud Professional with Neon
 
 Decided 5 Oct 2026: no paid VPS. The core runs as a Node.js web app on the existing Hostinger Cloud
-Professional plan, beside the client portal. The database is Neon's free Postgres. n8n does not run
+Professional plan, beside the client portal. The database is Neon Postgres, on a paid plan from October 2026 (the
+Workspace's chat keeps it busy whenever someone has the app open; see below). n8n does not run
 on managed hosting, so the core's own scheduler does its timed work; the n8n workflows stay in the
 repo for the day a server exists.
 
 | Part | Where |
 |---|---|
 | Core API, ops app, scheduler, Saleshandy webhook | Hostinger Node.js web app, `ops.awtmforge.com` |
-| Database | Neon free plan, Singapore region |
+| Database | Neon paid plan, Singapore region |
 | Search | Serper |
 | AI | Gemini free tier |
 
@@ -20,10 +21,23 @@ repo for the day a server exists.
    It looks like `postgresql://USER:PASSWORD@ep-xxx-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require`.
 4. Put it in hPanel as `DATABASE_URL` (step 3). Never in the repo, never in chat.
 
-Free plan limits that matter: 1 GB storage, 100 compute hours a month, the database sleeps after
-5 idle minutes and wakes on the next query in about a second. The daily job trims raw AI text older
-than 30 days to stay well under 1 GB. Neon keeps 6 hours of restore history on the free plan, so
-the nightly backup below is still needed.
+### Why the paid plan (decided Oct 2026)
+
+The free plan gives 100 compute hours a month and sleeps after 5 idle minutes. The Workspace changes that: every open
+browser tab holds a chat long-poll, and while anyone is waiting the core runs one small query a second to catch new
+messages. With the team signed in through the working day the database never sleeps, which runs past 100 hours within
+the month. On the paid plan:
+
+- In Neon, Billing, upgrade the existing `awtm-outbound` project. The connection string does not change; nothing to
+  redeploy.
+- Leave scale to zero on in the compute settings. Nights and weekends with nobody signed in still suspend the
+  database, and the first request after wakes it in about a second.
+- The smallest compute size is enough. Chat waits do not hold a database connection, so `DB_POOL_MAX=5` stays right
+  for the team's size.
+- Raise the restore window (history retention) to at least 7 days. Keep the nightly dump below as well: it is the copy
+  that lives outside Neon.
+
+The daily job still trims raw AI text older than 30 days.
 
 ## 2. GitHub, once (Ayush)
 
@@ -60,8 +74,8 @@ Environment variables, all in hPanel:
 | `CORE_PUBLIC_URL` | `https://ops.awtmforge.com` (https makes the session cookie Secure) |
 | `CORE_API_KEY` | `openssl rand -hex 32` |
 | `SESSION_SECRET` | `openssl rand -hex 32` |
-| `DASHBOARD_USER` | the sign-in name |
-| `DASHBOARD_PASSWORD` | a long password, kept in the password manager |
+| `DASHBOARD_USER` | the first admin's sign-in name (read once, see below) |
+| `DASHBOARD_PASSWORD` | the first admin's password, kept in the password manager (read once) |
 | `AI_PROVIDER` | `gemini` |
 | `GEMINI_API_KEY` | from aistudio.google.com |
 | `DISCOVERY_SOURCE` | `serper` |
@@ -77,6 +91,22 @@ A value saved in hPanel reaches the app only on the next deploy: press Redeploy 
 
 Every boot applies new migrations and re-reads campaigns and proof assets from `core/config/`, so a
 campaign change is a commit and a deploy.
+
+### The deploy that brings in personal logins
+
+The first boot of this version creates the `users` table and makes `DASHBOARD_USER` an admin with
+`DASHBOARD_PASSWORD`. Everyone who was signed in is signed out once (the old shared session cookie is not a session any
+more). Then:
+
+1. Sign in with the shared name and password as before. You are the first admin.
+2. Team, Add someone, for each person, with a temporary password. Make the other founder an admin.
+3. Your account (your name, bottom left): change your own password. From now on `DASHBOARD_PASSWORD` is not read;
+   changing it in hPanel changes nothing.
+4. People, Add a person, for each member of staff, linking their sign-in so they can ask for leave. Record pay on each
+   person's page; only admins see that panel.
+
+Locked out of every admin account: from the Mac, `cd core && DATABASE_URL='<Neon direct string>' npm run user -- reset <username>`
+prints a temporary password.
 
 ## 4. Check it
 
@@ -105,6 +135,8 @@ project with `gunzip -c FILE | psql "$NEON_DIRECT_URL"`.
 
 ## What is different from the Docker setup
 
+- One Node process. Rate limits, the AI queue and the chat wake-ups live in memory. Chat still delivers within about a
+  second if the host ever starts a second process, but the rate limits would then be per process.
 - No n8n. The scheduler runs sync every 15 minutes, metrics at 08:00 IST and the weekly review on
   Monday at 09:00 IST. Each run is locked in Postgres, so it runs once even if n8n is also pointed at
   the same database. Runs are in `workflow_runs` under names starting `core:`.
