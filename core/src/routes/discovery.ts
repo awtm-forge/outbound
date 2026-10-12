@@ -1,10 +1,10 @@
-import { route, sessionUser } from '../lib/http.ts';
+import { route } from '../lib/http.ts';
 import { q } from '../lib/db.ts';
 import { env } from '../lib/env.ts';
 import * as D from '../discovery.ts';
 route('POST', '/api/discovery/searches', 'api', async (c) => D.runSearch(c.body, c.actor, { force: !!c.body.force }));
 route('GET', '/api/discovery/searches', 'api', async () => D.listSearches());
 route('GET', '/api/discovery/searches/:id', 'api', async (c) => D.getSearch(c.params.id));
-route('POST', '/api/discovery/candidates/add', 'api', async (c) => D.addCandidates(c.body.candidate_ids ?? [], c.body.campaign_code, c.actor, { run_chain: c.body.run_chain !== false, background: !!sessionUser(c.req) || /respond-async/i.test(String(c.req.headers.prefer ?? '')) }));
+route('POST', '/api/discovery/candidates/add', 'api', async (c) => D.addCandidates(c.body.candidate_ids ?? [], c.body.campaign_code, c.actor, { run_chain: c.body.run_chain !== false, background: !!c.user || /respond-async/i.test(String(c.req.headers.prefer ?? '')) }));
 route('POST', '/api/discovery/candidates/:id/ignore', 'api', async (c) => q(`update discovery_candidates set status='IGNORED' where id=$1 returning id,status`, [c.params.id]));
 route('GET', '/api/discovery/quota', 'api', async () => ({ source: env.discoverySource, used_today: await D.quotaUsed(env.discoverySource), daily_quota: env.discoveryDailyQuota }));

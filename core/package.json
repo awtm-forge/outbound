@@ -10,6 +10,7 @@
     "start": "node dist/server.js",
     "migrate": "node src/migrate.ts",
     "seed": "node src/seed.ts",
+    "user": "node src/user-cli.ts",
     "demo": "node src/demo.ts",
     "gen-n8n": "node src/gen-n8n.ts",
     "typecheck": "tsc --noEmit",

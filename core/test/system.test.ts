@@ -1,6 +1,6 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { bootstrap } from './helpers.ts';
 let t: Awaited<ReturnType<typeof bootstrap>>; let P: typeof import('../src/pipeline.ts'); let db: typeof import('../src/lib/db.ts');
 const html = readFileSync(new URL('../fixtures/demo-electronics.html', import.meta.url), 'utf8');
@@ -12,7 +12,7 @@ const company = (n = 1) => ({ company: { name: `Acme ${n}`, website: `https://ww
 test('migrations applied once and schema has every required table', async () => {
   const rows = await db.q(`select table_name from information_schema.tables where table_schema='public'`); const names = rows.map((r) => r.table_name);
   for (const n of ['companies','contacts','prospects','research','campaigns','campaign_memberships','email_events','replies','opportunities','meetings','proposals','deals','activities','suppression_list','proof_assets','ai_runs','workflow_runs']) assert.ok(names.includes(n), n);
-  assert.equal((await db.q('select * from schema_migrations')).length, 2);
+  assert.equal((await db.q('select * from schema_migrations')).length, readdirSync(new URL('../migrations/', import.meta.url)).filter((f) => f.endsWith('.sql')).length);
 });
 test('prospect creation dedupes on normalized domain and (company, campaign)', async () => {
   const a = await P.ingest(company()); const b = await P.ingest({ ...company(), company: { ...company().company, website: 'acme1.example' } });

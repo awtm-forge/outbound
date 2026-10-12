@@ -79,6 +79,11 @@ p { margin: 0; }
 .nav .count { margin-left: auto; font-family: var(--mono); font-size: 11px; min-width: 22px; height: 20px; padding: 0 6px; display: inline-grid; place-items: center;
   border-radius: var(--r-pill); background: var(--accent); color: var(--accent-ink); font-weight: 500; }
 .nav .count.quiet { background: var(--surface-raised); color: var(--ink-muted); }
+.nav-group { display: flex; flex-direction: column; gap: 2px; }
+.nav-group + .nav-group { margin-top: var(--s-4); }
+.nav-title { padding: 0 var(--s-3) 6px; font-family: var(--mono); font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-faint); }
+.who a { text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.who a:hover, .who a.on { color: var(--ink); }
 .side-foot { margin-top: auto; display: flex; flex-direction: column; gap: var(--s-3); padding: 0 var(--s-2); }
 .modes { display: flex; flex-direction: column; gap: 6px; padding: var(--s-3); border: 1px solid var(--hairline); border-radius: var(--r-2); }
 .mode { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 11px; color: var(--ink-faint); }
@@ -97,11 +102,12 @@ p { margin: 0; }
   .side { position: sticky; top: 0; z-index: 30; width: auto; height: auto; flex-direction: row; align-items: center; gap: var(--s-3); padding: var(--s-3) var(--s-4); border-right: 0; border-bottom: 1px solid var(--hairline); overflow-x: auto; }
   .brand .kick, .side-foot .modes { display: none; }
   .nav { flex-direction: row; }
+  .nav-group { flex-direction: row; } .nav-group + .nav-group { margin: 0 0 0 var(--s-3); padding-left: var(--s-3); border-left: 1px solid var(--hairline); } .nav-title { display: none; }
   .nav a { border-left: 0; border-bottom: 2px solid transparent; white-space: nowrap; padding: 8px 10px; }
   .nav a.on { border-bottom-color: var(--accent); }
   .nav a svg { display: none; }
   .side-foot { margin: 0 0 0 auto; flex-direction: row; }
-  .who span { display: none; }
+  .who a { display: none; }
   .main { padding: var(--s-6) var(--s-4) var(--s-10); }
 }
 

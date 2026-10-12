@@ -12,6 +12,8 @@ async function call<T>(method: string, path: string, body?: unknown): Promise<T>
 export const api = {
   get: <T = any>(p: string) => call<T>('GET', p),
   post: <T = any>(p: string, b: unknown = {}) => call<T>('POST', p, b),
+  patch: <T = any>(p: string, b: unknown = {}) => call<T>('PATCH', p, b),
+  del: <T = any>(p: string) => call<T>('DELETE', p),
   // AI actions come back as a job id (the host cuts requests at 60 s); wait here until the work is done.
   run: async <T = any>(p: string, b: unknown = {}, onWait?: (ms: number) => void): Promise<T> => {
     const r: any = await call('POST', p, b);
@@ -26,4 +28,6 @@ export const api = {
     }
   },
 };
-export type Me = { user: string; ai_provider: string; saleshandy: string; discovery_source: string; queue?: { waiting: number; running: string | null } };
+export type Role = 'admin' | 'member';
+export type Me = { user: string; id: string; name: string; role: Role; email: string | null; must_change_password: boolean; ai_provider: string; saleshandy: string; discovery_source: string; queue?: { waiting: number; running: string | null } };
+export type TeamMember = { id: string; username: string; name: string; role: Role };

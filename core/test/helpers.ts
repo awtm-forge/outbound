@@ -27,7 +27,8 @@ export async function bootstrap() {
   };
   // Signs in like the ops app does and returns a fetch bound to that session cookie.
   const signIn = async (user = 'tester', password = 'test-pass') => {
-    const r = await fetch(url + '/auth/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ user, password }) });
+    // a fresh address per sign-in: the per-address throttle is tested on its own, not tripped by the suite
+    const r = await fetch(url + '/auth/login', { method: 'POST', headers: { 'content-type': 'application/json', 'x-forwarded-for': `10.9.${Math.floor(Math.random() * 250)}.${Math.floor(Math.random() * 250)}` }, body: JSON.stringify({ user, password }) });
     const cookie = (r.headers.get('set-cookie') ?? '').split(';')[0];
     const call = async (method: string, path: string, body?: unknown, headers: Record<string, string> = {}) => {
       const res = await fetch(url + path, { method, headers: { cookie, 'content-type': 'application/json', ...(method === 'GET' ? {} : { 'idempotency-key': crypto.randomUUID() }), ...headers }, body: body === undefined ? undefined : JSON.stringify(body) });
@@ -36,5 +37,16 @@ export async function bootstrap() {
     };
     return { status: r.status, cookie, setCookie: r.headers.get('set-cookie') ?? '', call };
   };
-  return { url, api, signIn, teardown };
+  // A new person created by the admin, signed in, with their own password chosen (so nothing is held back from them).
+  let adminSession: Awaited<ReturnType<typeof signIn>> | undefined;
+  const person = async (username: string, role: 'admin' | 'member' = 'member', name = username[0]!.toUpperCase() + username.slice(1)) => {
+    const admin = (adminSession ??= await signIn());
+    const made = await admin.call('POST', '/api/users', { username, name, role, password: 'temporary-pass-1' });
+    if (made.status !== 201) throw new Error(`could not create ${username}: ${JSON.stringify(made.body)}`);
+    const first = await signIn(username, 'temporary-pass-1');
+    const changed = await first.call('POST', '/api/me/password', { current: 'temporary-pass-1', next: `${username}-own-password` });
+    if (changed.status !== 200) throw new Error('password change failed');
+    return { id: made.body.id as string, ...(await signIn(username, `${username}-own-password`)) };
+  };
+  return { url, api, signIn, person, teardown };
 }

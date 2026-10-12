@@ -11,11 +11,11 @@ export function Login({ onIn }: { onIn: () => void }) {
     <div className="login">
       <form onSubmit={submit} aria-label="Sign in">
         <div><div className="mark">awtm <b>forge</b></div><div className="kick">Built in one piece</div></div>
-        <label className="field"><span>Name</span><input autoFocus autoComplete="username" value={user} onChange={(e) => setUser(e.target.value)} required /></label>
+        <label className="field"><span>Name or email</span><input autoFocus autoComplete="username" value={user} onChange={(e) => setUser(e.target.value)} required /></label>
         <label className="field"><span>Password</span><input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required /></label>
         {err && <div className="banner err" role="alert">{err}</div>}
         <button className="btn primary lg" disabled={busy}>{busy && <Spinner />}Sign in</button>
-        <p className="faint" style={{ textAlign: 'center', fontSize: 'var(--fs-0)' }}>Outbound, for the two of you. Nothing sends without your say.</p>
+        <p className="faint" style={{ textAlign: 'center', fontSize: 'var(--fs-0)' }}>Outbound and the team workspace. Nothing sends without your say.</p>
       </form>
     </div>
   );

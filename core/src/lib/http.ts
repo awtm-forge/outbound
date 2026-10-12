@@ -6,11 +6,14 @@ import { env } from './env.ts';
 import { one, q } from './db.ts';
 import { log } from './log.ts';
 import { HttpError } from '../pipeline.ts';
+import { loadUser, publicUser, type SessionUser } from './auth.ts';
 
-export type Ctx = { req: IncomingMessage; res: ServerResponse; url: URL; params: Record<string, string>; body: any; actor: string; ip: string; setCookie: (c: string) => void };
+// user: the signed-in person, or null for X-Api-Key callers. actor: who the audit trail names (the username for a person).
+export type Ctx = { req: IncomingMessage; res: ServerResponse; url: URL; params: Record<string, string>; body: any; actor: string; user: SessionUser | null; ip: string; setCookie: (c: string) => void };
 type Handler = (c: Ctx) => Promise<unknown>;
-// api: X-Api-Key (n8n, scripts) or a signed-in session (the ops app). webhook: X-Webhook-Secret. none: public.
-type Route = { method: string; re: RegExp; keys: string[]; h: Handler; auth: 'api' | 'webhook' | 'none' };
+// api: X-Api-Key (n8n, scripts) or a signed-in person (the ops app). user: a signed-in person only, any role.
+// admin: a signed-in admin only. webhook: X-Webhook-Secret. none: public.
+type Route = { method: string; re: RegExp; keys: string[]; h: Handler; auth: 'api' | 'user' | 'admin' | 'webhook' | 'none' };
 const routes: Route[] = [];
 export function route(method: string, path: string, auth: Route['auth'], h: Handler) {
   const keys: string[] = [];
@@ -26,6 +29,8 @@ export function rateLimited(key: string, limit: number, windowMs = 60_000) {
   if (now - b.t > windowMs) { b.n = 0; b.t = now; }
   b.n++; buckets.set(key, b); return b.n > limit;
 }
+// Looks without counting; pair with rateLimited() on the outcome that should count (a failed sign-in).
+export function overLimit(key: string, limit: number, windowMs = 60_000) { const b = buckets.get(key); return !!b && Date.now() - b.t <= windowMs && b.n >= limit; }
 
 // ---------- sessions: HMAC-signed cookie, HttpOnly, SameSite=Strict ----------
 // CSRF: every /api mutation already requires an Idempotency-Key header, which a cross-site form or image cannot send,
@@ -33,30 +38,36 @@ export function rateLimited(key: string, limit: number, windowMs = 60_000) {
 export const SESSION_COOKIE = 'awtm_session';
 const SESSION_HOURS = 12;
 const sign = (v: string) => createHmac('sha256', env.sessionSecret).update(v).digest('base64url');
-export function makeSession(user: string, secure: boolean) {
-  const v = Buffer.from(JSON.stringify({ u: user, exp: Date.now() + SESSION_HOURS * 3600_000 })).toString('base64url');
+// The cookie names the person and their session_version; bumping the version in the database ends every session they have.
+export function makeSession(user: { id: string; session_version: number }, secure: boolean) {
+  const v = Buffer.from(JSON.stringify({ uid: user.id, sv: user.session_version, exp: Date.now() + SESSION_HOURS * 3600_000 })).toString('base64url');
   return `${SESSION_COOKIE}=${v}.${sign(v)}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${SESSION_HOURS * 3600}${secure ? '; Secure' : ''}`;
 }
 export const clearSession = () => `${SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0`;
-export function sessionUser(req: IncomingMessage): string | null {
+export async function sessionUser(req: IncomingMessage): Promise<SessionUser | null> {
   if (!env.sessionSecret) return null;
   const raw = String(req.headers.cookie ?? '').split(/;\s*/).find((c) => c.startsWith(SESSION_COOKIE + '='))?.slice(SESSION_COOKIE.length + 1);
   if (!raw) return null;
   const [v, sig] = raw.split('.'); if (!v || !sig || !safeEq(sig, sign(v))) return null;
-  try { const s = JSON.parse(Buffer.from(v, 'base64url').toString()); return s.exp > Date.now() ? String(s.u) : null; } catch { return null; }
+  let s: any; try { s = JSON.parse(Buffer.from(v, 'base64url').toString()); } catch { return null; }
+  // a cookie from before personal logins carries no uid and is simply not a session any more
+  if (!(s.exp > Date.now()) || typeof s.uid !== 'string' || !/^[0-9a-f-]{36}$/.test(s.uid)) return null;
+  const u = await loadUser(s.uid);
+  return u && u.active && u.session_version === s.sv ? publicUser(u) : null;
 }
 
-function authenticate(req: IncomingMessage, kind: Route['auth']): string | null {
-  if (kind === 'none') return 'anonymous';
+async function authenticate(req: IncomingMessage, kind: Route['auth']): Promise<{ actor: string; user: SessionUser | null } | null> {
+  if (kind === 'none') return { actor: 'anonymous', user: null };
   const h = req.headers;
   if (kind === 'webhook') {
     // header first; a ?token= in the URL for senders that cannot set headers. The query string is never logged.
     const s = String(h['x-webhook-secret'] ?? '') || (new URL(req.url ?? '/', 'http://x').searchParams.get('token') ?? '');
-    return env.saleshandyWebhookSecret && safeEq(s, env.saleshandyWebhookSecret) ? 'saleshandy' : null;
+    return env.saleshandyWebhookSecret && safeEq(s, env.saleshandyWebhookSecret) ? { actor: 'saleshandy', user: null } : null;
   }
   const key = String(h['x-api-key'] ?? '');
-  if (env.apiKey && key && safeEq(key, env.apiKey)) return String(h['x-actor'] ?? 'n8n');
-  return sessionUser(req);
+  if (env.apiKey && key && safeEq(key, env.apiKey)) return { actor: String(h['x-actor'] ?? 'n8n'), user: null };
+  const u = await sessionUser(req);
+  return u ? { actor: u.username, user: u } : null;
 }
 
 async function readBody(req: IncomingMessage): Promise<any> {
@@ -100,14 +111,21 @@ export async function handle(req: IncomingMessage, res: ServerResponse) {
       if (req.method === 'GET' && !/^\/(api|webhooks)\//.test(url.pathname) && await serveApp(url, res)) return;
       throw new HttpError(404, 'not found');
     }
-    const actor = authenticate(req, r.auth);
-    if (!actor) return send(401, { error: 'unauthorized' });
+    const who = await authenticate(req, r.auth);
+    if (!who) return send(401, { error: 'unauthorized' });
+    if ((r.auth === 'user' || r.auth === 'admin') && !who.user) return send(403, { error: 'This needs a personal sign-in; the API key does not open it.' });
+    if (r.auth === 'admin' && who.user!.role !== 'admin') return send(403, { error: 'Only an admin can do that.' });
+    // a password someone else set is temporary: until the person chooses their own, only that is open to them
+    if (who.user?.must_change_password && !/^\/api\/me(\/password)?$/.test(url.pathname)) return send(403, { error: 'Choose your own password first.', must_change_password: true });
+    const { actor, user } = who;
     const m = url.pathname.match(r.re)!; const params = Object.fromEntries(r.keys.map((k, i) => [k, decodeURIComponent(m[i + 1])]));
     const body = req.method === 'GET' ? {} : await readBody(req);
-    const idem = String(req.headers['idempotency-key'] ?? '');
+    const sent = String(req.headers['idempotency-key'] ?? '');
+    // a person's keys are theirs: replaying someone else's key never returns their stored response
+    const idem = sent && user ? `u:${user.id}:${sent}` : sent;
     if (req.method !== 'GET' && url.pathname.startsWith('/api/') && !idem) throw new HttpError(400, 'Idempotency-Key header required');
     if (idem && req.method !== 'GET') { const prev = await one('select status, response from idempotency_keys where key=$1', [idem]); if (prev) return send(prev.status, prev.response, { 'idempotent-replay': 'true' }); }
-    const out = await r.h({ req, res, url, params, body, actor, ip, setCookie: (c) => cookies.push(c) });
+    const out = await r.h({ req, res, url, params, body, actor, user, ip, setCookie: (c) => cookies.push(c) });
     if (res.writableEnded) return;
     const status = typeof out === 'object' && out && 'created' in (out as any) && (out as any).created ? 201 : 200;
     if (idem && req.method !== 'GET' && typeof out !== 'string') await q('insert into idempotency_keys(key,method,path,status,response) values($1,$2,$3,$4,$5) on conflict do nothing', [idem, req.method, url.pathname, status, JSON.stringify(out ?? {})]);

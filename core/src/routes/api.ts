@@ -1,4 +1,4 @@
-import { route, makeSession, clearSession, rateLimited, safeEq, sessionUser } from '../lib/http.ts';
+import { route } from '../lib/http.ts';
 import { q, one, pool, audit } from '../lib/db.ts';
 import { suppress, isSuppressed } from '../lib/suppression.ts';
 import { saleshandy } from '../adapters/saleshandy.ts';
@@ -7,12 +7,12 @@ import { env } from '../lib/env.ts';
 import { firstName } from '../lib/normalize.ts';
 import * as P from '../pipeline.ts';
 import { HttpError } from '../pipeline.ts';
-import { enqueue, getJob, queueState } from '../jobs.ts';
+import { enqueue, getJob } from '../jobs.ts';
 import type { Ctx } from '../lib/http.ts';
 
 // AI work: a signed-in browser (or a caller sending Prefer: respond-async) gets a job id at once and polls /api/jobs/:id,
 // because Hostinger's proxy cuts requests at 60 s. n8n and scripts on the same machine keep the synchronous answer.
-const wantsAsync = (c: Ctx) => !!sessionUser(c.req) || /respond-async/i.test(String(c.req.headers.prefer ?? ''));
+const wantsAsync = (c: Ctx) => !!c.user || /respond-async/i.test(String(c.req.headers.prefer ?? ''));
 const ai = (method: string, path: string, label: (c: Ctx) => string, fn: (c: Ctx) => Promise<unknown>) =>
   route(method, path, 'api', async (c) => { if (!wantsAsync(c)) return fn(c); const j = enqueue(label(c), () => fn(c)); return { job_id: j.id, status: j.status }; });
 route('GET', '/api/jobs/:id', 'api', async (c) => { const j = getJob(c.params.id); if (!j) throw new HttpError(404, 'That job is gone. It may have finished more than an hour ago, or the app restarted.'); return { id: j.id, label: j.label, status: j.status, result: j.status === 'done' ? j.result : undefined, error: j.error, run_id: j.run_id, waited_ms: (j.started ?? Date.now()) - j.created }; });
@@ -32,18 +32,7 @@ route('GET', '/metrics', 'api', async () => {
   return lines.join('\n') + '\n';
 });
 
-// ---------------- sign in ----------------
-route('POST', '/auth/login', 'none', async (c) => {
-  if (rateLimited('login:' + c.ip, 10, 15 * 60_000)) throw new HttpError(429, 'Too many attempts. Try again in 15 minutes.');
-  const { user = '', password = '' } = c.body ?? {};
-  const ok = !!env.dashboardUser && !!env.dashboardPassword && !!env.sessionSecret && safeEq(String(user), env.dashboardUser) && safeEq(String(password), env.dashboardPassword);
-  if (!ok) { await new Promise((r) => setTimeout(r, 400)); throw new HttpError(401, 'That name and password do not match.'); }
-  c.setCookie(makeSession(env.dashboardUser, env.cookieSecure));
-  await audit('session', '00000000-0000-0000-0000-000000000000', 'signed_in', env.dashboardUser, { ip: c.ip });
-  return { user: env.dashboardUser };
-});
-route('POST', '/auth/logout', 'none', async (c) => { c.setCookie(clearSession()); return { ok: true }; });
-route('GET', '/api/me', 'api', async (c) => ({ user: c.actor, session: !!sessionUser(c.req), ai_provider: env.aiProvider, saleshandy: env.saleshandyMode, discovery_source: env.discoverySource, queue: queueState() }));
+// sign in, sign out, /api/me and people: routes/users.ts
 
 // ---------------- workflow run bookkeeping (n8n) ----------------
 route('POST', '/api/workflow-runs', 'api', async (c) => one(`insert into workflow_runs(workflow,external_execution_id,entity_type,entity_id,detail) values($1,$2,$3,$4,$5) returning id`, [c.body.workflow, c.body.execution_id ?? null, c.body.entity_type ?? null, c.body.entity_id ?? null, c.body.detail ?? {}]));
