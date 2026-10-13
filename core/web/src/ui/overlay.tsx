@@ -71,10 +71,10 @@ export function Drawer({ label, onClose, actions, children }: { label: string; o
   return (
     <>
       <div className="drawer-back" onClick={onClose} />
-      <aside ref={ref} className="drawer" role="dialog" aria-modal="true" aria-label={label} tabIndex={-1}>
+      <section ref={ref} className="drawer" role="dialog" aria-modal="true" aria-label={label} tabIndex={-1}>
         <header><h2 className="drawer-title">{label}</h2>{actions}<button className="btn sm ghost icon-only" onClick={onClose} aria-label="Close"><Icon.x size={16} /></button></header>
         {children}
-      </aside>
+      </section>
     </>
   );
 }

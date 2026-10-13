@@ -299,3 +299,6 @@ mark { background: var(--warning-bg); color: var(--ink); }
 /* numbers line up on the right in tables, and read left to right again once rows stack on phones */
 .t th.num, .t td.num { text-align: right; }
 @media (max-width: 640px) { .t.stack td.num { text-align: left; } }
+/* headings that follow the page's h1 are h2 for a correct outline; they keep the look of the old h3 */
+.empty h2.empty-title { font-size: var(--fs-2); font-weight: 620; color: var(--ink); }
+.pcard h2 { font-size: var(--fs-2); }

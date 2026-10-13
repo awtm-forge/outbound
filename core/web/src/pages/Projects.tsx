@@ -37,7 +37,7 @@ function ProjectList({ archived }: { archived: boolean }) {
       {!archived && (adding ? <NewProject onDone={() => { setAdding(false); reload(true); }} /> : <div><button className="btn primary" onClick={() => setAdding(true)}><Icon.plus size={16} />New project</button></div>)}
       {!data!.length ? <div className="card"><Empty title={archived ? 'Nothing archived' : 'No projects yet'}>{archived ? 'Set a project to Archived from its page and it moves here, out of the way.' : 'Start one for the next piece of client work. Each project gets a board with To do, Doing, In review and Done.'}</Empty></div> :
         <div className="cards">{data!.map((p) => <Link key={p.id} to={`/projects/${p.id}`} className="pcard">
-          <div className="row between"><h3 className="ellipsis">{p.name}</h3><Badge tone={PROJECT_TONE[p.status]}>{PROJECT_STATUS[p.status]}</Badge></div>
+          <div className="row between"><h2 className="ellipsis">{p.name}</h2><Badge tone={PROJECT_TONE[p.status]}>{PROJECT_STATUS[p.status]}</Badge></div>
           {p.description && <p className="muted ellipsis">{p.description}</p>}
           <div className="progress" role="img" aria-label={`${p.done} of ${p.tasks} tasks done`}><i style={{ width: `${p.tasks ? (p.done / p.tasks) * 100 : 0}%` }} /></div>
           <div className="row between faint" style={{ fontSize: 'var(--fs-0)' }}>

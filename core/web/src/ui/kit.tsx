@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Icon } from './icons.tsx';
 export function Spinner() { return <span className="spinner" aria-hidden="true" />; }
 export function Empty({ title, children, action }: { title: string; children?: React.ReactNode; action?: React.ReactNode }) {
-  return <div className="empty"><div className="glyph"><Icon.check /></div><h3>{title}</h3>{children && <p style={{ maxWidth: '46ch' }}>{children}</p>}{action}</div>;
+  return <div className="empty"><div className="glyph" aria-hidden="true"><Icon.check /></div><h2 className="empty-title">{title}</h2>{children && <p style={{ maxWidth: '46ch' }}>{children}</p>}{action}</div>;
 }
 export function Skeleton({ h = 18, w = '100%' }: { h?: number; w?: number | string }) { return <div className="skeleton" style={{ height: h, width: w }} />; }
 // Placeholders shaped like what is coming, so nothing jumps when it arrives. kind: a table, a list of rows, or a page.
