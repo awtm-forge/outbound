@@ -1,0 +1,78 @@
+dark   ink on ground                      15.27 pass
+dark   muted on ground                    8.06 pass
+dark   faint on ground                    5.93 pass
+dark   accentText on ground               7.91 pass
+dark   success on ground                  9.15 pass
+dark   warning on ground                  9.79 pass
+dark   danger on ground                   8.03 pass
+dark   info on ground                     8.73 pass
+dark   ink on surface                     14.46 pass
+dark   muted on surface                   7.63 pass
+dark   faint on surface                   5.61 pass
+dark   accentText on surface              7.49 pass
+dark   success on surface                 8.66 pass
+dark   warning on surface                 9.27 pass
+dark   danger on surface                  7.61 pass
+dark   info on surface                    8.27 pass
+dark   ink on raised                      13.56 pass
+dark   muted on raised                    7.16 pass
+dark   faint on raised                    5.26 pass
+dark   accentText on raised               7.02 pass
+dark   success on raised                  8.12 pass
+dark   warning on raised                  8.69 pass
+dark   danger on raised                   7.13 pass
+dark   info on raised                     7.75 pass
+dark   onAccent on accent (button)        6.79 pass
+dark   success on successBg (tag)         7.86 pass
+dark   warning on warningBg (tag)         8.25 pass
+dark   danger on dangerBg (tag)           7.02 pass
+dark   info on infoBg (tag)               7.63 pass
+dark   control border vs ground           3.67 pass
+dark   focus ring vs ground               7.91 pass
+dark   accent vs ground (current marker)  6.78 pass
+dark   control border vs surface          3.48 pass
+dark   focus ring vs surface              7.49 pass
+dark   accent vs surface (current marker) 6.42 pass
+dark   control border vs raised           3.26 pass
+dark   focus ring vs raised               7.02 pass
+dark   accent vs raised (current marker)  6.02 pass
+light  ink on ground                      14.47 pass
+light  muted on ground                    7.00 pass
+light  faint on ground                    5.07 pass
+light  accentText on ground               5.23 pass
+light  success on ground                  5.72 pass
+light  warning on ground                  5.59 pass
+light  danger on ground                   5.81 pass
+light  info on ground                     6.38 pass
+light  ink on surface                     16.39 pass
+light  muted on surface                   7.93 pass
+light  faint on surface                   5.74 pass
+light  accentText on surface              5.93 pass
+light  success on surface                 6.48 pass
+light  warning on surface                 6.33 pass
+light  danger on surface                  6.57 pass
+light  info on surface                    7.22 pass
+light  ink on raised                      15.41 pass
+light  muted on raised                    7.46 pass
+light  faint on raised                    5.40 pass
+light  accentText on raised               5.57 pass
+light  success on raised                  6.09 pass
+light  warning on raised                  5.95 pass
+light  danger on raised                   6.18 pass
+light  info on raised                     6.79 pass
+light  onAccent on accent (button)        5.18 pass
+light  success on successBg (tag)         5.66 pass
+light  warning on warningBg (tag)         5.61 pass
+light  danger on dangerBg (tag)           5.75 pass
+light  info on infoBg (tag)               6.28 pass
+light  control border vs ground           3.01 pass
+light  focus ring vs ground               4.57 pass
+light  accent vs ground (current marker)  4.57 pass
+light  control border vs surface          3.41 pass
+light  focus ring vs surface              5.18 pass
+light  accent vs surface (current marker) 5.18 pass
+light  control border vs raised           3.20 pass
+light  focus ring vs raised               4.87 pass
+light  accent vs raised (current marker)  4.87 pass
+76 pairs checked, 0 failing
+before: faint on raised 4.26 | faint on surface 4.54 | input border (hairline) vs ground 1.31
