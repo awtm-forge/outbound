@@ -9,7 +9,7 @@ import { Crumbs, actorLabel } from '../ui/chrome.tsx';
 import { DIM } from './Review.tsx';
 import { countsBus } from '../App.tsx';
 
-const EVENT: Record<string, string> = { research_failed: 'Research stopped on an AI error; it retries up to 3 times, then waits for Research again', created: 'Added to the pipeline', researched: 'Website and company researched', qualified: 'Scored', suppressed: 'Put on the do-not-contact list', decision_maker_added: 'Decision maker added',
+export const EVENT: Record<string, string> = { research_failed: 'Research stopped on an AI error; it retries up to 3 times, then waits for Research again', created: 'Added to the pipeline', researched: 'Website and company researched', qualified: 'Scored', suppressed: 'Put on the do-not-contact list', decision_maker_added: 'Decision maker added',
   drafted: 'Email drafted', approve: 'Email approved', edit: 'Email edited and approved', reject: 'Email rejected', research_more: 'Sent back for research', synced: 'Queued in Saleshandy', classified: 'Reply read', handled: 'Reply handled', analysed: 'Meeting notes analysed' };
 export function Prospect({ id }: { id: string }) {
   const toast = useToast(); const { go } = useRouter();
