@@ -4,9 +4,7 @@
  "steps": [
   {
    "step": "open",
-   "writes": [
-    "POST /api/chat/channels/:id/read {seq}"
-   ],
+   "writes": [],
    "reads": [
     "GET /api/chat/channels/:id/messages",
     "GET /api/team"
@@ -15,16 +13,14 @@
   {
    "step": "send",
    "writes": [
-    "POST /api/chat/channels/:id/messages {body}",
-    "POST /api/chat/channels/:id/read {seq}"
+    "POST /api/chat/channels/:id/messages {body}"
    ],
    "reads": []
   },
   {
    "step": "edit own",
    "writes": [
-    "PATCH /api/chat/messages/:id {body}",
-    "POST /api/chat/channels/:id/read {seq}"
+    "PATCH /api/chat/messages/:id {body}"
    ],
    "reads": []
   },
@@ -59,6 +55,7 @@
   "GET /api/chat/poll?after=#&wait=#",
   "GET /api/chat/poll?wait=#",
   "GET /api/me",
-  "GET /api/overview"
+  "GET /api/overview",
+  "POST /api/chat/channels/:id/read {seq}"
  ]
 }

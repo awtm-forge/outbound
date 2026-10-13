@@ -16,8 +16,10 @@ How it was run (scripts in `ui-ux-audit/tools/`): a fixture database made throug
 field names, mutation order or the set of reads. Running the baseline twice gave no differences, so the harness is
 deterministic.
 
-**One harness change during the pass.** The first after run showed one extra `POST /api/chat/channels/:id/read` in
-the chat "delete own" step. `tools/chatcheck.mjs` showed both builds send exactly that request once the live feed
-delivers the deletion; the old build had simply moved on to the next step before the feed arrived. The step now
-waits 6 seconds for the feed to settle, and both `before/` (served from the `main` build) and `after/` were
-re-recorded with the same harness. Result: `19 flows, 86 steps, 53 mutations compared: no differences`.
+**One harness change during the pass.** `POST /api/chat/channels/:id/read` is sent when the chat live feed brings a
+message newer than the last one marked read, not on any click. Replays showed it landing inside the "delete own" step
+in some runs and not in others, on both builds (`tools/chatcheck.mjs`, four runs each: main 2 of 4, this branch 3 of
+4). The code that sends it (`chat.tsx`, and the read effect in `pages/Chat.tsx`) is unchanged by this branch. The
+harness therefore records it with the other feed-driven requests, as a set per flow, and the chat delete step waits
+6 seconds for the feed to settle. Both `before/` (served from the `main` build) and `after/` were recorded with the
+final harness.

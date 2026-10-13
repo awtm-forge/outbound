@@ -21,7 +21,8 @@ async function flow(name, role, steps) {
     if (!/chat\/poll/.test(path)) inflight++;
     let body = []; try { body = keys(JSON.parse(r.postData() ?? 'null')); } catch {}
     const e = `${r.method()} ${path}${q ? '?' + q : ''}${body.length ? ' {' + body.join(',') + '}' : ''}`;
-    if (r.method() === 'GET' && BACKGROUND.test(path)) rec.background.add(e); else if (cur) (r.method() === 'GET' ? cur.reads : cur.writes).push(e); });
+    // marking a channel read is sent when the live feed brings a newer message, not on any click, so it is compared as a set per flow
+    if ((r.method() === 'GET' && BACKGROUND.test(path)) || (r.method() === 'POST' && /^\/api\/chat\/channels\/:id\/read$/.test(path))) rec.background.add(e); else if (cur) (r.method() === 'GET' ? cur.reads : cur.writes).push(e); });
   const done = () => { inflight = Math.max(0, inflight - 1); };
   page.on('requestfinished', (r) => { if (/\/(api|auth)\//.test(r.url()) && !/chat\/poll/.test(r.url())) done(); });
   page.on('requestfailed', (r) => { if (/\/(api|auth)\//.test(r.url()) && !/chat\/poll/.test(r.url())) done(); });
@@ -79,10 +80,10 @@ await flow('campaigns', 'admin', [['open', go('/campaigns')], ['read the numbers
 await flow('projects', 'admin', [['open', go('/projects')],
   ['new project', async (p) => { await btn(p, /New project/).click(); await p.getByLabel('Name', { exact: true }).fill('Bloom Bakery menu site'); await btn(p, /^Create/).click(); await p.waitForURL(/projects\/[0-9a-f-]{36}/); }],
   ['quick add task', async (p) => { const i = p.getByLabel(/Add a task to To do/); await i.fill('Gather the menu'); await i.press('Enter'); await p.getByText('Gather the menu').first().waitFor(); }],
-  ['open task', async (p) => { await p.getByText('Gather the menu').first().click(); await p.locator('aside[role=dialog]').waitFor(); }],
-  ['set status doing', async (p) => { await p.locator('aside[role=dialog]').getByLabel('Status').selectOption('DOING'); }],
-  ['comment', async (p) => { const d = p.locator('aside[role=dialog]'); await d.getByPlaceholder(/comment/i).fill('Asked for the PDF'); await d.getByRole('button', { name: /^Comment/ }).click(); await d.getByText('Asked for the PDF').waitFor(); }],
-  ['delete task', async (p) => { await p.locator('aside[role=dialog]').getByRole('button', { name: /Delete/ }).click(); await confirmIt(p); }],
+  ['open task', async (p) => { await p.getByText('Gather the menu').first().click(); await p.locator('aside[role=dialog], section[role=dialog]').waitFor(); }],
+  ['set status doing', async (p) => { await p.locator('aside[role=dialog], section[role=dialog]').getByLabel('Status').selectOption('DOING'); }],
+  ['comment', async (p) => { const d = p.locator('aside[role=dialog], section[role=dialog]'); await d.getByPlaceholder(/comment/i).fill('Asked for the PDF'); await d.getByRole('button', { name: /^Comment/ }).click(); await d.getByText('Asked for the PDF').waitFor(); }],
+  ['delete task', async (p) => { await p.locator('aside[role=dialog], section[role=dialog]').getByRole('button', { name: /Delete/ }).click(); await confirmIt(p); }],
   ['project status', async (p) => { await p.getByLabel('Status').first().selectOption('ON_HOLD'); }]]);
 await flow('my-tasks', 'admin', [['open', go('/projects?view=mine')], ['add task', async (p) => { await p.getByLabel('Task', { exact: true }).fill('Send invoice'); await p.getByLabel('Task', { exact: true }).press('Enter'); await p.getByText('Send invoice').first().waitFor(); }],
   ['open a to-do', async (p) => { await p.getByText('Send invoice').first().click(); }]]);
