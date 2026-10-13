@@ -31,14 +31,17 @@ export function Crm() {
   );
 }
 function useSearch() {
-  const [term, setTerm] = useState(''); const [q, setQ] = useState('');
+  // a search can arrive in the address (?q=), from the top bar's search box
+  const urlQ = useRouter().search.get('q') ?? '';
+  const [term, setTerm] = useState(urlQ); const [q, setQ] = useState(urlQ.trim());
+  useEffect(() => { if (urlQ) setTerm(urlQ); }, [urlQ]);
   useEffect(() => { const t = setTimeout(() => setQ(term.trim()), 220); return () => clearTimeout(t); }, [term]);
   const ref = useRef<HTMLInputElement>(null); useKeys({ '/': () => ref.current?.focus() });
   return { term, setTerm, q, ref };
 }
 
 function Companies() {
-  const { go } = useRouter(); const s = useSearch(); const [has, setHas] = useState(''); const [adding, setAdding] = useState(false);
+  const { go, search } = useRouter(); const s = useSearch(); const [has, setHas] = useState(''); const [adding, setAdding] = useState(search.get('new') === '1');
   const { data, error, loading, reload } = useLoad(() => api.get<any[]>(`/api/crm/companies?${new URLSearchParams({ ...(s.q ? { q: s.q } : {}), ...(has ? { has } : {}) })}`), [s.q, has]);
   return (
     <>

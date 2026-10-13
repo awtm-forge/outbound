@@ -62,6 +62,20 @@ function ConfirmDialog({ p, close }: { p: Pending; close: (v: string | boolean) 
   );
 }
 
+// ---------- modal: a centred dialog for a short form ----------
+export function Modal({ title, onClose, children, wide }: { title: string; onClose: () => void; children: ReactNode; wide?: boolean }) {
+  const box = useRef<HTMLDivElement>(null);
+  useFocusTrap(box, onClose);
+  return (
+    <div className="overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div ref={box} className={`dialog${wide ? ' wide' : ''}`} role="dialog" aria-modal="true" aria-labelledby="modal-title">
+        <h2 id="modal-title">{title}</h2>
+        {children}
+      </div>
+    </div>
+  );
+}
+
 // ---------- drawer: a side panel that behaves as a modal dialog ----------
 export function Drawer({ label, onClose, actions, children }: { label: string; onClose: () => void; actions?: ReactNode; children: ReactNode }) {
   const ref = useRef<HTMLElement>(null);

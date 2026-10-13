@@ -29,4 +29,29 @@ export const Icon = {
   plus: (p: { size?: number }) => <I {...p} d="M12 5v14M5 12h14" />,
   trash: (p: { size?: number }) => <I {...p} d="M4 7h16M10 11v6m4-6v6M6 7l1 13h10l1-13M9 7V4h6v3" />,
   edit: (p: { size?: number }) => <I {...p} d="M4 20h4L19 9l-4-4L4 16v4Zm9-13 4 4" />,
+  mail: (p: { size?: number }) => <I {...p} d="M4 6h16v12H4zM4 7l8 6 8-6" />,
+  reply: (p: { size?: number }) => <I {...p} d="M9 14 4 9l5-5M4 9h10a6 6 0 0 1 6 6v3" />,
+  file: (p: { size?: number }) => <I {...p} d="M14 3H6v18h12V7l-4-4Zm0 0v4h4M9 13h6m-6 4h4" />,
+  calendar: (p: { size?: number }) => <I {...p} d="M4 6h16v15H4zM4 10h16M8 3v4m8-4v4" />,
+  bell: (p: { size?: number }) => <I {...p} d="M6 16v-5a6 6 0 0 1 12 0v5l2 2H4l2-2Zm4 4a2 2 0 0 0 4 0" />,
+  trophy: (p: { size?: number }) => <I {...p} d="M8 4h8v5a4 4 0 0 1-8 0V4ZM8 6H5a3 3 0 0 0 3 4m8-4h3a3 3 0 0 1-3 4m-4 3v4m-4 3h8" />,
+  handshake: (p: { size?: number }) => <I {...p} d="m3 11 4-4 4 2 3-2 4 1 3 3-6 6-2-1-2 2-3-2-2 1-3-3Zm8-2-3 3 2 2" />,
+  message: (p: { size?: number }) => <I {...p} d="M4 5h16v11H9l-5 4V5Zm5 5h.01M12 10h.01M15 10h.01" />,
+  checkCircle: (p: { size?: number }) => <I {...p} d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Zm-4-9 3 3 5-6" />,
+  down: (p: { size?: number }) => <I {...p} d="m6 9 6 6 6-6" />,
+  bolt: (p: { size?: number }) => <I {...p} d="M13 3 5 14h6l-1 7 8-11h-6l1-7Z" />,
+  sparkle: (p: { size?: number }) => <I {...p} d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3Zm6 11 .8 2.2L21 17l-2.2.8L18 20l-.8-2.2L15 17l2.2-.8L18 14Z" />,
+  target: (p: { size?: number }) => <I {...p} d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Zm0-5a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm0-4h.01" />,
+  globe: (p: { size?: number }) => <I {...p} d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18ZM3 12h18M12 3c3 3.5 3 14.5 0 18M12 3c-3 3.5-3 14.5 0 18" />,
+  chip: (p: { size?: number }) => <I {...p} d="M7 7h10v10H7zM10 10h4v4h-4zM10 3v4m4-4v4m-4 10v4m4-4v4M3 10h4m-4 4h4m10-4h4m-4 4h4" />,
+  home: (p: { size?: number }) => <I {...p} d="M4 11 12 4l8 7v9H4v-9Zm6 9v-6h4v6" />,
+  layers: (p: { size?: number }) => <I {...p} d="M12 3 3 8l9 5 9-5-9-5Zm-9 9 9 5 9-5M3 16l9 5 9-5" />,
+  funnel: (p: { size?: number }) => <I {...p} d="M3 5h18l-7 8v6l-4 2v-8L3 5Z" />,
+  clock: (p: { size?: number }) => <I {...p} d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Zm0-13v4l3 2" />,
+  logo: (p: { size?: number }) => <I {...p} d="M10 5H6v14h4m4-14h4v8m-4 6h4" />,
 };
+// Three dots, for menus. Filled circles read better than stroked ones at this size.
+export function Dots({ size = 18, vertical = false }: { size?: number; vertical?: boolean }) {
+  const pts = [6, 12, 18];
+  return <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">{pts.map((v) => <circle key={v} cx={vertical ? 12 : v} cy={vertical ? v : 12} r="1.6" />)}</svg>;
+}

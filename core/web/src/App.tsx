@@ -25,7 +25,8 @@ import { ChatProvider, useChat } from './chat.tsx';
 import { isActive, onActiveChange } from './active.ts';
 import { MeContext } from './session.tsx';
 import { ConfirmProvider } from './ui/overlay.tsx';
-import { CommandPalette, ThemeSwitch, type PaletteItem } from './ui/chrome.tsx';
+import { CommandPalette, openSearch, type PaletteItem } from './ui/chrome.tsx';
+import { AiPromo, Profile, Workbar, type Counts } from './ui/shell.tsx';
 
 export function App() {
   const [me, setMe] = useState<Me | null | undefined>(undefined);
@@ -38,7 +39,6 @@ export function App() {
   return <RouterProvider><ToastProvider><ConfirmProvider><MeContext.Provider value={me}>{!me ? <Login onIn={refresh} /> : me.must_change_password ? <Account me={me} forced onChanged={refresh} /> : <ChatProvider><Shell me={me} onSignOut={() => setMe(null)} onMeChanged={refresh} /></ChatProvider>}</MeContext.Provider></ConfirmProvider></ToastProvider></RouterProvider>;
 }
 
-type Counts = { drafts: number; replies: number; teardowns: number; needs_contact: number; meetings: number; proposals: number; replies_high: number; todos_due: number };
 export const countsBus = new EventTarget(); // pages poke this after an action so the sidebar badges stay true
 function Shell({ me, onSignOut, onMeChanged }: { me: Me; onSignOut: () => void; onMeChanged: () => void }) {
   const { path } = useRouter(); const chat = useChat();
@@ -58,10 +58,10 @@ function Shell({ me, onSignOut, onMeChanged }: { me: Me; onSignOut: () => void; 
   const outbound: Item[] = [
     { to: '/', label: 'Today', icon: 'today', n: counts?.todos_due, on: (p) => p === '/' },
     { to: '/find', label: 'Find companies', icon: 'find', on: (p) => p.startsWith('/find') },
-    { to: '/review', label: 'Review emails', icon: 'review', n: counts?.drafts, on: (p) => p.startsWith('/review') },
+    { to: '/review', label: 'Review emails', icon: 'mail', n: counts?.drafts, on: (p) => p.startsWith('/review') },
     { to: '/inbox', label: 'Inbox', icon: 'inbox', n: (counts?.replies ?? 0) + (counts?.teardowns ?? 0), on: (p) => p.startsWith('/inbox') },
-    { to: '/pipeline', label: 'Pipeline', icon: 'pipeline', n: counts?.needs_contact, quiet: true, on: (p) => p.startsWith('/pipeline') || p.startsWith('/prospects') },
-    { to: '/deals', label: 'Meetings', icon: 'deals', n: (counts?.meetings ?? 0) + (counts?.proposals ?? 0), quiet: true, on: (p) => p.startsWith('/deals') },
+    { to: '/pipeline', label: 'Pipeline', icon: 'funnel', n: counts?.needs_contact, quiet: true, on: (p) => p.startsWith('/pipeline') || p.startsWith('/prospects') },
+    { to: '/deals', label: 'Meetings & deals', icon: 'calendar', n: (counts?.meetings ?? 0) + (counts?.proposals ?? 0), quiet: true, on: (p) => p.startsWith('/deals') },
     { to: '/campaigns', label: 'Campaigns', icon: 'campaigns', on: (p) => p.startsWith('/campaigns') },
   ];
   const workspace: Item[] = [
@@ -72,7 +72,7 @@ function Shell({ me, onSignOut, onMeChanged }: { me: Me; onSignOut: () => void; 
     { to: '/people', label: 'People', icon: 'people', on: (p) => p.startsWith('/people') },
     ...(me.role === 'admin' ? [{ to: '/team', label: 'Team', icon: 'user', on: (p: string) => p.startsWith('/team') } as Item] : []),
   ];
-  const groups = [{ title: 'Outbound', items: outbound }, { title: 'Workspace', items: workspace }].filter((g) => g.items.length);
+  const groups = [{ title: 'Operations', items: outbound }, { title: 'Workspace', items: workspace }].filter((g) => g.items.length);
   const signOut = async () => { await api.post('/auth/logout').catch(() => {}); onSignOut(); };
   let page: React.ReactNode; let m;
   if (path === '/') page = <Today me={me} />;
@@ -98,7 +98,7 @@ function Shell({ me, onSignOut, onMeChanged }: { me: Me; onSignOut: () => void; 
   else page = <div className="page"><div className="head"><div><h1>Nothing here</h1><p>This address does not lead to a screen{path.startsWith('/team') ? ' you can open; managing the team is for admins' : ''}.</p></div></div><div><Link className="btn" to="/">Go to Today</Link></div></div>;
   // what is live and what is simulated, in plain words
   const WORDS: Record<string, string> = { mock: 'Simulated', gemini: 'Gemini', anthropic: 'Claude', real: 'Live', serper: 'Live', google_cse: 'Live' };
-  const mode = (v: string, live: string[]) => <b className={live.includes(v) ? 'live' : ''}>{WORDS[v] ?? v}</b>;
+  const modes = [{ label: 'AI', value: WORDS[me.ai_provider] ?? me.ai_provider }, { label: 'Sending', value: WORDS[me.saleshandy] ?? me.saleshandy }, { label: 'Search', value: WORDS[me.discovery_source] ?? me.discovery_source }];
   const here = groups.flatMap((g) => g.items).find((n) => n.on(path))?.label ?? (path.startsWith('/account') ? 'Your account' : 'awtm forge');
   const palette: PaletteItem[] = [...groups.flatMap((g) => g.items.map((n) => ({ label: n.label, to: n.to, group: g.title }))),
     { label: 'My tasks', to: '/projects?view=mine', group: 'Workspace', hint: 'to-dos' }, { label: 'New wiki page', to: '/wiki/new', group: 'Workspace', hint: 'write' },
@@ -108,25 +108,22 @@ function Shell({ me, onSignOut, onMeChanged }: { me: Me; onSignOut: () => void; 
     <div className="app">
       <a href="#main" className="skip">Skip to content</a>
       <header className="topbar"><button className="btn sm" onClick={() => setMenu(true)} aria-expanded={menu} aria-controls="side-nav"><Icon.pipeline size={16} />Menu</button>
-        <span className="where">{here}</span><button className="btn sm ghost icon-only" onClick={() => dispatchEvent(new Event('open-palette'))} aria-label="Go to a screen"><Icon.find size={16} /></button></header>
+        <span className="where">{here}</span><button className="btn sm ghost icon-only" onClick={() => openSearch()} aria-label="Search, or go to a screen"><Icon.find size={16} /></button></header>
       {menu && <div className="side-scrim" onClick={() => setMenu(false)} />}
       <aside className={`side${menu ? ' open' : ''}`} id="side-nav">
-        <Link to="/" className="brand" aria-label="awtm forge ops, today"><div className="mark">awtm <b>forge</b></div><span className="kick">Ops</span></Link>
-        <button className="jump" onClick={() => dispatchEvent(new Event('open-palette'))}><Icon.find size={14} />Go to<kbd>{/Mac/.test(navigator.platform) ? '⌘K' : 'Ctrl K'}</kbd></button>
+        <Link to="/" className="brand" aria-label="awtm forge, Today"><span className="brand-mark" aria-hidden="true"><Icon.logo size={17} /></span><div className="mark">awtm <b>forge</b></div></Link>
         <nav className="nav" aria-label="Main">{groups.map((g) => <div key={g.title} className="nav-group" role="group" aria-label={g.title}><span className="nav-title">{g.title}</span>{g.items.map((n) => { const I = Icon[n.icon]; return (
           <Link key={n.to} to={n.to} className={n.on(path) ? 'on' : ''} aria-current={n.on(path) ? 'page' : undefined}><I /><span>{n.label}</span>{!!n.n && <span className={`count${n.quiet ? ' quiet' : ''}`}>{n.n}</span>}</Link>); })}</div>)}</nav>
         <div className="side-foot">
           <Working />
-          <div className="modes" title="What is live and what is simulated">
-            <div className="mode"><span>AI</span>{mode(me.ai_provider, ['anthropic', 'gemini'])}</div>
-            <div className="mode"><span>Sending</span>{mode(me.saleshandy, ['real'])}</div>
-            <div className="mode"><span>Search</span>{mode(me.discovery_source, ['serper', 'google_cse'])}</div>
-          </div>
-          <ThemeSwitch compact />
-          <div className="who"><Link to="/account" className={path.startsWith('/account') ? 'on' : ''} title="Your account">{me.name}</Link><button className="btn sm ghost" onClick={signOut}>Sign out</button></div>
+          <AiPromo />
+          <Profile me={me} onSignOut={signOut} modes={modes} />
         </div>
       </aside>
-      <main className="main" id="main" tabIndex={-1}>{page}</main>
+      <div className={`workspace${path === '/' ? ' is-today' : ''}`}>
+        <Workbar me={me} counts={counts} unread={chat.unread} today={path === '/'} />
+        <main className="main" id="main" tabIndex={-1}>{page}</main>
+      </div>
       <CommandPalette items={palette} />
     </div>
   );

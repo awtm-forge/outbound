@@ -16,7 +16,10 @@ type PageRow = { id: string; slug: string; title: string; parent_id: string | nu
 
 // ---------- index: search and the page tree ----------
 export function Wiki() {
-  const [term, setTerm] = useState(''); const [q, setQ] = useState('');
+  // a search can arrive in the address (?q=), from the top bar's search box
+  const urlQ = useRouter().search.get('q') ?? '';
+  const [term, setTerm] = useState(urlQ); const [q, setQ] = useState(urlQ.trim());
+  useEffect(() => { if (urlQ) setTerm(urlQ); }, [urlQ]);
   useEffect(() => { const t = setTimeout(() => setQ(term.trim()), 220); return () => clearTimeout(t); }, [term]);
   const { data, error, loading, reload } = useLoad(() => api.get<PageRow[]>(`/api/wiki${q ? `?q=${encodeURIComponent(q)}` : ''}`), [q]);
   const ref = useRef<HTMLInputElement>(null); useKeys({ '/': () => ref.current?.focus() });

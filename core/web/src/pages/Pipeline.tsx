@@ -18,7 +18,10 @@ export function Pipeline() {
   const { search, go } = useRouter();
   const view = search.get('view'); const status = search.get('status'); const campaign = search.get('campaign') ?? '';
   const current = VIEWS.find((v) => (v.qs === `view=${view}` && view) || (status && v.qs === `status=${status}`)) ?? (status || view ? null : VIEWS[0]);
-  const [term, setTerm] = useState(''); const [q, setQ] = useState('');
+  // a search can arrive in the address (?q=), from the top bar's search box
+  const urlQ = search.get('q') ?? '';
+  const [term, setTerm] = useState(urlQ); const [q, setQ] = useState(urlQ.trim());
+  useEffect(() => { if (urlQ) setTerm(urlQ); }, [urlQ]);
   useEffect(() => { const t = setTimeout(() => setQ(term), 220); return () => clearTimeout(t); }, [term]);
   const params = new URLSearchParams(); if (view) params.set('view', view); else if (status) params.set('status', status); else if (!current || current.key === 'active') params.set('view', 'active');
   if (campaign) params.set('campaign', campaign); if (q) params.set('q', q);

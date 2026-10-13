@@ -1,10 +1,11 @@
+@import '@fontsource-variable/inter/wght.css';
 /* Design tokens for both themes. Loaded after styles.css, so these values win over its original :root block.
    Light: cool grey paper, charcoal ink, burnt orange. Dark: the portal's warm charcoal and ember, with the faint text and
    control outlines raised to pass WCAG 2.2 AA. Every pair is checked in ui-ux-audit/contrast.txt.
    The theme follows the operating system unless <html data-theme> says otherwise (set by public/theme-init.js). */
 
 :root {
-  --sans: 'Bricolage Grotesque Variable', 'Helvetica Neue', Arial, sans-serif;
+  --sans: 'Inter Variable', 'Inter', 'Helvetica Neue', Arial, sans-serif;
   --mono: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
   /* type scale: small, body, section, large section, page title, display */
   --fs-0: 12.5px; --fs-1: 14.5px; --fs-2: 17px; --fs-3: 20px; --fs-4: 22px; --fs-5: 26px; --fs-6: 32px;
@@ -30,34 +31,43 @@
   --warning: #8a5300; --warning-bg: #fbf0dc; --warning-line: #ecd3a3;
   --danger: #b42318; --danger-soft: #fdecea; --danger-bg: #fdecea; --danger-line: #f3c2bc;
   --info: #2c5a85; --info-bg: #e8f0f8; --info-line: #bdd2e6;
+  --purple: #7E22CE; --purple-line: #D8B4FE; --cyan: #0369A1; --cyan-line: #BAE0F5; --accent-deep: #A8380A;
+  --glass: rgba(255, 255, 255, 0.86); --glass-raised: rgba(255, 255, 255, 0.94); --glass-line: rgba(28, 32, 36, 0.09);
   --scrim: rgba(28, 32, 36, 0.32); --shadow-overlay: 0 12px 32px rgba(28, 32, 36, 0.16), 0 2px 6px rgba(28, 32, 36, 0.08);
 }
 /* ---------- dark: the same values twice, once for the system setting and once for the explicit choice ---------- */
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) {
+  :root[data-theme='system'] {
     color-scheme: dark;
-    --ground: #141110; --surface: #1b1715; --surface-raised: #221d1a; --surface-hover: #26201c; --sunken: #100e0d; --field: #141110;
-    --ink: #ede7dc; --ink-muted: #b4a89a; --ink-faint: #9a8f82; --off: #605850;
-    --hairline: #2e2925; --hairline-soft: #252019; --control: #776c62; --control-hover: #9a8f82;
-    --accent: #e08536; --accent-hover: #ec934b; --accent-text: #ec934b; --accent-ink: #181008; --accent-soft: #2e2115; --accent-line: #5a3a1c;
-    --focus: #ec934b;
-    --success: #7cc49a; --success-bg: #15241b; --success-line: #2c4a37;
-    --warning: #e5b35c; --warning-bg: #2a2112; --warning-line: #4f3e1d;
-    --danger: #f0907a; --danger-soft: #2f1a15; --danger-bg: #2f1a15; --danger-line: #57302a;
-    --info: #9fb3c8; --info-bg: #18202a; --info-line: #2f3e4f;
-    --scrim: rgba(6, 5, 4, 0.6); --shadow-overlay: 0 16px 40px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.35);
+    /* the operations-dashboard palette: cool near-black, translucent panels, one orange accent */
+    --ground: #080A0E; --surface: #0D1117; --surface-raised: #151A22; --surface-hover: #161C26; --sunken: #06080B; --field: #0B0F14;
+    --ink: #F5F6FA; --ink-muted: #9CA3AF; --ink-faint: #808998; --off: #3A414C;
+    --hairline: #1D232C; --hairline-soft: #161B23; --control: #646D7C; --control-hover: #9CA3AF;
+    --accent: #FF8A2A; --accent-hover: #FF9B47; --accent-text: #FF9B47; --accent-ink: #140A02; --accent-soft: #2A1708; --accent-line: #6B3A12; --accent-deep: #F46A00;
+    --focus: #FF9B47;
+    --success: #22C55E; --success-bg: #0F2418; --success-line: #1E4A2E;
+    --warning: #F59E0B; --warning-bg: #2A1E08; --warning-line: #5A4110;
+    --danger: #F87171; --danger-soft: #2A1212; --danger-bg: #2A1212; --danger-line: #5C2424;
+    --info: #38BDF8; --info-bg: #0B2130; --info-line: #164A66;
+    --purple: #C084FC; --purple-line: #4C2B73; --cyan: #38BDF8; --cyan-line: #164A66;
+    --glass: rgba(13, 17, 23, 0.84); --glass-raised: rgba(17, 22, 30, 0.9); --glass-line: rgba(255, 255, 255, 0.07);
+    --scrim: rgba(3, 4, 6, 0.66); --shadow-overlay: 0 18px 44px rgba(0, 0, 0, 0.55), 0 2px 8px rgba(0, 0, 0, 0.4);
   }
 }
-:root[data-theme='dark'] {
+/* dark is the default: no saved choice means dark (see public/theme-init.js); 'system' follows the operating system */
+:root:not([data-theme='light']):not([data-theme='system']), :root[data-theme='dark'] {
   color-scheme: dark;
-  --ground: #141110; --surface: #1b1715; --surface-raised: #221d1a; --surface-hover: #26201c; --sunken: #100e0d; --field: #141110;
-  --ink: #ede7dc; --ink-muted: #b4a89a; --ink-faint: #9a8f82; --off: #605850;
-  --hairline: #2e2925; --hairline-soft: #252019; --control: #776c62; --control-hover: #9a8f82;
-  --accent: #e08536; --accent-hover: #ec934b; --accent-text: #ec934b; --accent-ink: #181008; --accent-soft: #2e2115; --accent-line: #5a3a1c;
-  --focus: #ec934b;
-  --success: #7cc49a; --success-bg: #15241b; --success-line: #2c4a37;
-  --warning: #e5b35c; --warning-bg: #2a2112; --warning-line: #4f3e1d;
-  --danger: #f0907a; --danger-soft: #2f1a15; --danger-bg: #2f1a15; --danger-line: #57302a;
-  --info: #9fb3c8; --info-bg: #18202a; --info-line: #2f3e4f;
-  --scrim: rgba(6, 5, 4, 0.6); --shadow-overlay: 0 16px 40px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.35);
+  /* the operations-dashboard palette: cool near-black, translucent panels, one orange accent */
+  --ground: #080A0E; --surface: #0D1117; --surface-raised: #151A22; --surface-hover: #161C26; --sunken: #06080B; --field: #0B0F14;
+  --ink: #F5F6FA; --ink-muted: #9CA3AF; --ink-faint: #808998; --off: #3A414C;
+  --hairline: #1D232C; --hairline-soft: #161B23; --control: #646D7C; --control-hover: #9CA3AF;
+  --accent: #FF8A2A; --accent-hover: #FF9B47; --accent-text: #FF9B47; --accent-ink: #140A02; --accent-soft: #2A1708; --accent-line: #6B3A12; --accent-deep: #F46A00;
+  --focus: #FF9B47;
+  --success: #22C55E; --success-bg: #0F2418; --success-line: #1E4A2E;
+  --warning: #F59E0B; --warning-bg: #2A1E08; --warning-line: #5A4110;
+  --danger: #F87171; --danger-soft: #2A1212; --danger-bg: #2A1212; --danger-line: #5C2424;
+  --info: #38BDF8; --info-bg: #0B2130; --info-line: #164A66;
+  --purple: #C084FC; --purple-line: #4C2B73; --cyan: #38BDF8; --cyan-line: #164A66;
+  --glass: rgba(13, 17, 23, 0.84); --glass-raised: rgba(17, 22, 30, 0.9); --glass-line: rgba(255, 255, 255, 0.07);
+  --scrim: rgba(3, 4, 6, 0.66); --shadow-overlay: 0 18px 44px rgba(0, 0, 0, 0.55), 0 2px 8px rgba(0, 0, 0, 0.4);
 }
