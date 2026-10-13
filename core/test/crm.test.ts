@@ -83,3 +83,23 @@ test('adding a decision maker checks the email\'s own domain against the do-not-
   assert.equal((await s.call('POST', `/api/prospects/${prospect.id}/contact`, { full_name: 'Moved Person', email: 'moved@gone-elsewhere.example' })).status, 409);
   assert.equal((await s.call('POST', `/api/prospects/${prospect.id}/contact`, { full_name: 'Fine Person', email: 'fine@fresh.example' })).status, 200);
 });
+test('009 keeps a lost duplicate over a stale open one; 010 restores deals the first version of 009 reopened', async () => {
+  const { readFileSync } = await import('node:fs');
+  const sql = (f: string) => readFileSync(new URL(`../migrations/${f}`, import.meta.url), 'utf8');
+  const { company, prospect } = await P.ingest({ company: { name: 'Lost Twice', website: 'lost-twice.example' }, campaign_code: 'IND-WEB-ELECTRONICS' });
+  // the duplicate as the old pipeline made it: A from the reply, B from the meeting, then B analysed as lost
+  await db.tx(async (c) => {
+    await c.query('alter table opportunities drop constraint opportunities_prospect_uq');
+    await c.query(`insert into opportunities(prospect_id,company_id,stage,created_at) values($1,$2,'REPLIED',now() - interval '2 days'),($1,$2,'LOST',now() - interval '1 day')`, [prospect.id, company.id]);
+    await c.query(sql('009_one_opportunity_per_prospect.sql'));
+  });
+  assert.deepEqual((await db.q('select stage from opportunities where prospect_id=$1', [prospect.id])).map((r) => r.stage), ['LOST']);
+  // what the first 009 left behind: the open copy, holding the meeting whose analysis said lost
+  const o = (await db.one(`update opportunities set stage='REPLIED' where prospect_id=$1 returning id`, [prospect.id]))!;
+  await db.q(`insert into meetings(opportunity_id,held,analysis) values($1,true,$2)`, [o.id, { crm_update: { stage: 'LOST', summary: 'Went with an in-house team.' } }]);
+  const untouched = (await db.one(`insert into opportunities(prospect_id,company_id,stage) select p.id, p.company_id, 'REPLIED' from prospects p where p.id <> $1 and not exists (select 1 from opportunities x where x.prospect_id=p.id) limit 1 returning id`, [prospect.id]))!;
+  await db.q(sql('010_restore_lost_opportunities.sql').split('-- 3.')[0]!);
+  const fixed = (await db.one('select stage, lost_reason from opportunities where id=$1', [o.id]))!;
+  assert.equal(fixed.stage, 'LOST'); assert.equal(fixed.lost_reason, 'Went with an in-house team.');
+  assert.equal((await db.one('select stage from opportunities where id=$1', [untouched.id]))!.stage, 'REPLIED', 'an open deal with no lost meeting is left alone');
+});

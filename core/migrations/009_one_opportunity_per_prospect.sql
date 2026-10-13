@@ -1,11 +1,11 @@
 -- One opportunity per prospect. createMeeting relied on "on conflict do nothing" with no unique constraint to conflict
 -- on, so a prospect whose reply had already opened an opportunity got a second one when a meeting was booked.
--- Merge what exists: keep the furthest-along opportunity (the oldest on a tie), move its siblings' meetings,
+-- Merge what exists: keep a closed one (won, then lost) or else the furthest along (the oldest on a tie), move its siblings' meetings,
 -- proposals, deals and history onto it, keep any value or owner only a sibling had, then add the constraint.
 create temp table opp_merge on commit drop as
 with ranked as (
   select id, prospect_id, row_number() over (partition by prospect_id order by
-    case stage when 'WON' then 7 when 'NEGOTIATION' then 6 when 'PROPOSAL_SENT' then 5 when 'MEETING_HELD' then 4
+    case stage when 'WON' then 9 when 'LOST' then 8 when 'NEGOTIATION' then 6 when 'PROPOSAL_SENT' then 5 when 'MEETING_HELD' then 4
       when 'MEETING_BOOKED' then 3 when 'REPLIED' then 2 else 1 end desc, created_at, id) rn
   from opportunities)
 select r.id old_id, k.id keep_id from ranked r join ranked k on k.prospect_id = r.prospect_id and k.rn = 1 where r.rn > 1;

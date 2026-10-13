@@ -31,7 +31,7 @@ route('GET', '/api/chat/channels', 'user', async (c) => q(`
     case when c.kind = 'DIRECT' then (select json_build_object('id', ou.id, 'name', ou.name, 'username', ou.username::text, 'active', ou.active)
       from chat_members om join users ou on ou.id = om.user_id where om.channel_id = c.id and om.user_id <> $1 limit 1) end other,
     coalesce(me.last_read_seq, 0)::text last_read_seq,
-    (select count(*)::int from chat_messages x where x.channel_id = c.id and x.seq > coalesce(me.last_read_seq, 0) and x.deleted_at is null and x.author_id is distinct from $1) unread,
+    (select count(*)::int from chat_messages x where x.channel_id = c.id and coalesce(x.first_seq, x.seq) > coalesce(me.last_read_seq, 0) and x.deleted_at is null and x.author_id is distinct from $1) unread,
     (select max(x.created_at) from chat_messages x where x.channel_id = c.id) last_at
   from chat_channels c left join chat_members me on me.channel_id = c.id and me.user_id = $1
   where ${VISIBLE('c', '$1')}
@@ -77,7 +77,7 @@ route('POST', '/api/chat/channels/:id/messages', 'user', async (c) => {
   if (ch.archived) throw new HttpError(409, 'This channel is archived.');
   const body = parse(z.object({ body: z.string().max(4000, 'keep a message under 4,000 characters').refine((s) => s.trim().length > 0, 'write something first') }), c.body).body.replace(/\s+$/, '');
   const m = await inSeqOrder(async (db) => {
-    const r = (await db.query(`insert into chat_messages(channel_id,author_id,body) values($1,$2,$3) returning id, seq`, [ch.id, c.user!.id, body])).rows[0];
+    const r = (await db.query(`with s as (select ${nextSeq} n) insert into chat_messages(channel_id,author_id,body,seq,first_seq) select $1,$2,$3,n,n from s returning id, seq`, [ch.id, c.user!.id, body])).rows[0];
     // what you write you have read
     await db.query(`insert into chat_members(channel_id,user_id,last_read_seq) values($1,$2,$3) on conflict (channel_id,user_id) do update set last_read_seq=greatest(chat_members.last_read_seq, excluded.last_read_seq)`, [ch.id, c.user!.id, r.seq]);
     return r;

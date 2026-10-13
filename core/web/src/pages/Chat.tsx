@@ -103,7 +103,7 @@ function Conversation({ id, channel }: { id: string; channel: Channel | null }) 
       <header className="conv-head"><div className="grow"><h1 style={{ fontSize: 'var(--fs-3)' }}>{title}</h1>{channel?.topic && <p className="muted" style={{ fontSize: 'var(--fs-0)' }}>{channel.topic}</p>}</div>
         {channel?.archived && <span className="tag dim">Archived</span>}</header>
       <div className="msgs" ref={scroller} onScroll={onScroll} aria-live="polite">
-        {more && <div style={{ textAlign: 'center' }}><button className="btn sm ghost" onClick={() => load(sorted.find((m) => !m.pending)?.seq)}>Earlier messages</button></div>}
+        {more && <div style={{ textAlign: 'center' }}><button className="btn sm ghost" onClick={() => load(sorted.filter((m) => !m.pending).reduce<bigint | null>((lo, m) => (lo === null || BigInt(m.seq) < lo ? BigInt(m.seq) : lo), null)?.toString())}>Earlier messages</button></div>}
         {loading && !sorted.length ? <Loading rows={4} /> : !sorted.length ? <Empty title="Nothing here yet">{channel?.kind === 'DIRECT' ? `Say hello to ${channel.other?.name ?? 'them'}.` : 'Be the first to write.'}</Empty> :
           sorted.map((m, i) => {
             const prev = sorted[i - 1]; const newDay = !prev || dayOf(prev.created_at) !== dayOf(m.created_at);

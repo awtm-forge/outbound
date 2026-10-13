@@ -87,3 +87,25 @@ test('chat: concurrent writers never let a reader skip a message', async () => {
   while (seen.size < 30 && Date.now() < deadline) { const r = (await reader.call('GET', `/api/chat/poll?after=${cursor}&wait=2`)).body; for (const m of r.messages) seen.add(m.body); cursor = r.cursor; }
   await writes; assert.equal(seen.size, 30);
 });
+
+test('chat: editing an old message keeps it read, and Earlier messages still reaches the start after edits', async () => {
+  const a = await t.person('mira'); const b = await t.person('neel');
+  const ch = (await a.call('POST', '/api/chat/channels', { name: 'history-test' })).body;
+  const ids: string[] = []; for (let i = 0; i < 70; i++) ids.push((await a.call('POST', `/api/chat/channels/${ch.id}/messages`, { body: `m${i}` })).body.id);
+  const list = async () => (await b.call('GET', '/api/chat/channels')).body.find((c: any) => c.id === ch.id);
+  assert.equal((await list()).unread, 70);
+  const top = (await b.call('GET', '/api/chat/poll')).body.cursor; await b.call('POST', `/api/chat/channels/${ch.id}/read`, { seq: top });
+  assert.equal((await list()).unread, 0);
+  await a.call('PATCH', `/api/chat/messages/${ids[0]}`, { body: 'm0, edited' }); await a.call('DELETE', `/api/chat/messages/${ids[1]}`);
+  assert.equal((await list()).unread, 0, 'an edit is not a new message');
+  // page back the way the app does: from the lowest number loaded
+  const seen = new Set<string>(); let before: string | null = null;
+  for (let guard = 0; guard < 10; guard++) {
+    const r = (await b.call('GET', `/api/chat/channels/${ch.id}/messages${before ? `?before=${before}` : ''}`)).body;
+    for (const m of r.messages) seen.add(m.id);
+    if (!r.more) break;
+    before = r.messages.reduce((lo: bigint | null, m: any) => (lo === null || BigInt(m.seq) < lo ? BigInt(m.seq) : lo), null as bigint | null).toString();
+  }
+  assert.equal(seen.size, 70);
+  await a.call('POST', `/api/chat/channels/${ch.id}/messages`, { body: 'new one' }); assert.equal((await list()).unread, 1);
+});

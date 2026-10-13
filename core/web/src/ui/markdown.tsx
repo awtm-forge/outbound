@@ -5,7 +5,7 @@ import { Link } from '../router.tsx';
 // quotes, code, tables, rules, bold, italic, inline code, links, bare URLs and [[Wiki links]].
 
 export const slugify = (s: string) => s.normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 80).replace(/-+$/, '') || 'page';
-const safeHref = (u: string) => /^(https?:|mailto:)/i.test(u) || /^\/(?!\/)/.test(u) || u.startsWith('#') ? u : null;
+const safeHref = (u: string) => /^(https?:|mailto:)/i.test(u) || /^\/(?![\/\\])/.test(u) || u.startsWith('#') ? u : null;
 
 function A({ href, children }: { href: string; children: ReactNode }) {
   const h = safeHref(href.trim()); if (!h) return <>{children}</>;
