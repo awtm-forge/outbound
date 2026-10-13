@@ -24,7 +24,7 @@ export function useFocusTrap(ref: RefObject<HTMLElement | null>, onEscape: () =>
 
 // ---------- confirm: replaces the browser's confirm() and prompt() ----------
 export type ConfirmOptions = {
-  title: string; body?: ReactNode; confirm: string; tone?: 'danger' | 'primary';
+  title: string; body?: ReactNode; confirm: string; tone?: 'danger' | 'primary'; cancel?: string;
   // a text answer, e.g. why a deal was lost; when required, the confirm button waits for it
   input?: { label: string; placeholder?: string; required?: boolean };
 };
@@ -53,7 +53,7 @@ function ConfirmDialog({ p, close }: { p: Pending; close: (v: string | boolean) 
           {p.input && <label className="field"><span>{p.input.label}{p.input.required ? '' : ' (optional)'}</span>
             <input ref={field} value={text} onChange={(e) => setText(e.target.value)} placeholder={p.input.placeholder} required={p.input.required} maxLength={500} /></label>}
           <div className="dialog-actions">
-            <button ref={cancel} type="button" className="btn" onClick={() => close(false)}>Cancel</button>
+            <button ref={cancel} type="button" className="btn" onClick={() => close(false)}>{p.cancel ?? 'Cancel'}</button>
             <button type="submit" data-confirm className={`btn ${p.tone === 'danger' ? 'danger solid' : 'primary'}`} disabled={!ok}>{p.confirm}</button>
           </div>
         </form>
