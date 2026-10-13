@@ -58,6 +58,7 @@ body { font-size: 14px; font-feature-settings: 'cv11', 'ss01'; }
 .search-box kbd { font-family: var(--sans); font-size: 11px; height: 22px; min-width: 22px; padding: 0 6px; border-radius: 5px; border: 1px solid var(--glass-line); background: var(--surface-raised); color: var(--ink-muted); opacity: 1; }
 .icon-btn { width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center; border: 1px solid transparent; background: transparent; color: var(--ink-muted); position: relative; cursor: pointer; }
 .icon-btn:hover { color: var(--ink); background: var(--surface-hover); border-color: var(--glass-line); }
+.icon-btn .bell-n { position: absolute; top: 2px; right: 0; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: #EF4444; color: #fff; font-size: 10.5px; font-weight: 700; line-height: 18px; text-align: center; box-shadow: 0 0 0 2px var(--ground); font-variant-numeric: tabular-nums; }
 .icon-btn .ping { position: absolute; top: 7px; right: 8px; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 2px var(--ground), 0 0 10px var(--accent); }
 .workbar .av { width: 38px; height: 38px; text-decoration: none; }
 .main { padding: 14px 21px 24px 35px; }

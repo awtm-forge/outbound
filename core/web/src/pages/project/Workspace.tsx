@@ -1,5 +1,6 @@
-import { Suspense, lazy, useMemo, useState } from 'react';
+import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
 import { api } from '../../api.ts';
+import { unreadChanged } from '../../unread.tsx';
 import { Link, useRouter } from '../../router.tsx';
 import { useLoad, useMedia } from '../../ui/hooks.ts';
 import { Icon, Dots } from '../../ui/icons.tsx';
@@ -49,6 +50,8 @@ export function Workspace({ id, view = '', sub }: { id: string; view?: string; s
   const base = `/projects/${id}`;
   const withRail = view === '' || view === 'board';
   const tabParam = search.get('tab');
+  // opening a task clears the alerts that pointed at it, so the counter only shows what is still new
+  useEffect(() => { if (open) api.post('/api/notifications/read', { task_id: open }).then((r: any) => { if (r?.read) unreadChanged(); }).catch(() => {}); }, [open]);
   const docked = !!open && wide && (view === 'list' || view === 'timeline') && tabParam !== 'full';
   return (
     <div className="pws" style={accentVars(color)}>

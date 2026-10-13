@@ -22,6 +22,7 @@ import { Crm } from './pages/Crm.tsx';
 import { Company } from './pages/Company.tsx';
 import { People, Person } from './pages/People.tsx';
 import { ChatProvider, useChat } from './chat.tsx';
+import { UnreadProvider, useUnread } from './unread.tsx';
 import { isActive, onActiveChange } from './active.ts';
 import { MeContext } from './session.tsx';
 import { ConfirmProvider } from './ui/overlay.tsx';
@@ -36,14 +37,14 @@ export function App() {
   }, []);
   if (me === undefined) return null;
   const refresh = () => api.get<Me>('/api/me').then(setMe).catch(() => setMe(null));
-  return <RouterProvider><ToastProvider><ConfirmProvider><MeContext.Provider value={me}>{!me ? <Login onIn={refresh} /> : me.must_change_password ? <Account me={me} forced onChanged={refresh} /> : <ChatProvider><Shell me={me} onSignOut={() => setMe(null)} onMeChanged={refresh} /></ChatProvider>}</MeContext.Provider></ConfirmProvider></ToastProvider></RouterProvider>;
+  return <RouterProvider><ToastProvider><ConfirmProvider><MeContext.Provider value={me}>{!me ? <Login onIn={refresh} /> : me.must_change_password ? <Account me={me} forced onChanged={refresh} /> : <ChatProvider><UnreadProvider><Shell me={me} onSignOut={() => setMe(null)} onMeChanged={refresh} /></UnreadProvider></ChatProvider>}</MeContext.Provider></ConfirmProvider></ToastProvider></RouterProvider>;
 }
 
 export const countsBus = new EventTarget(); // pages poke this after an action so the sidebar badges stay true
 // pages that sit on the planet artwork, besides Today
 const ART = ['/find', '/pipeline', '/campaigns', '/projects', '/crm', '/people'];
 function Shell({ me, onSignOut, onMeChanged }: { me: Me; onSignOut: () => void; onMeChanged: () => void }) {
-  const { path } = useRouter(); const chat = useChat();
+  const { path } = useRouter(); const chat = useChat(); const unread = useUnread();
   const [counts, setCounts] = useState<Counts | null>(null);
   // phones: the navigation is a sheet behind a Menu button; it closes when a screen is chosen
   const [menu, setMenu] = useState(false);
@@ -67,7 +68,7 @@ function Shell({ me, onSignOut, onMeChanged }: { me: Me; onSignOut: () => void; 
     { to: '/campaigns', label: 'Campaigns', icon: 'campaigns', on: (p) => p.startsWith('/campaigns') },
   ];
   const workspace: Item[] = [
-    { to: '/projects', label: 'Projects', icon: 'projects', on: (p) => p.startsWith('/projects') },
+    { to: '/projects', label: 'Projects', icon: 'projects', n: unread.s?.tasks, on: (p) => p.startsWith('/projects') },
     { to: '/wiki', label: 'Wiki', icon: 'wiki', on: (p) => p.startsWith('/wiki') },
     { to: '/chat', label: 'Chat', icon: 'chat', n: chat.unread, on: (p) => p.startsWith('/chat') },
     { to: '/crm', label: 'CRM', icon: 'crm', on: (p) => p.startsWith('/crm') },

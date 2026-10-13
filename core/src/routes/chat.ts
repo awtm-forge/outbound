@@ -9,7 +9,7 @@ import type { PoolClient } from 'pg';
 
 const MAX_WAIT_S = 25;
 // what one person can see: every open channel, and the direct conversations they are in
-const VISIBLE = (ch: string, user: string) => `(${ch}.kind = 'CHANNEL' or exists (select 1 from chat_members vm where vm.channel_id = ${ch}.id and vm.user_id = ${user}))`;
+export const VISIBLE = (ch: string, user: string) => `(${ch}.kind = 'CHANNEL' or exists (select 1 from chat_members vm where vm.channel_id = ${ch}.id and vm.user_id = ${user}))`;
 const MESSAGE = `m.id, m.seq::text seq, m.channel_id, m.author_id, u.name author_name, case when m.deleted_at is null then m.body else '' end body,
   m.created_at, m.edited_at, m.deleted_at is not null deleted`;
 
