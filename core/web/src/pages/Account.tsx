@@ -3,6 +3,7 @@ import { api, type Me } from '../api.ts';
 import { useToast } from '../ui/toast.tsx';
 import { Spinner } from '../ui/kit.tsx';
 import { ThemeSwitch } from '../ui/chrome.tsx';
+import { AuthLayout, Wordmark } from './Login.tsx';
 
 // Your name, email and password. Also the whole screen when an admin set your password and you have not chosen your own.
 export function Account({ me, forced, onChanged }: { me: Me; forced?: boolean; onChanged: () => void }) {
@@ -33,7 +34,7 @@ export function Account({ me, forced, onChanged }: { me: Me; forced?: boolean; o
       <div><button className="btn primary" disabled={busy}>{busy && <Spinner />}Change password</button></div>
     </form>
   );
-  if (forced) return <div className="login">{pwForm}</div>;
+  if (forced) return <AuthLayout><Wordmark big />{pwForm}</AuthLayout>;
   return (
     <div className="page">
       <div className="head"><div><h1>Your account</h1><p>Signed in as <b>{me.user}</b>, {me.role === 'admin' ? 'an admin' : 'a member'}.</p></div></div>

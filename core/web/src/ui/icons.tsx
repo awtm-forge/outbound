@@ -49,6 +49,10 @@ export const Icon = {
   funnel: (p: { size?: number }) => <I {...p} d="M3 5h18l-7 8v6l-4 2v-8L3 5Z" />,
   clock: (p: { size?: number }) => <I {...p} d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Zm0-13v4l3 2" />,
   logo: (p: { size?: number }) => <I {...p} d="M10 5H6v14h4m4-14h4v8m-4 6h4" />,
+  lock: (p: { size?: number }) => <I {...p} d="M6 11h12v10H6zM8 11V8a4 4 0 0 1 8 0v3m-4 4v2" />,
+  eye: (p: { size?: number }) => <I {...p} d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Zm10 3a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />,
+  eyeOff: (p: { size?: number }) => <I {...p} d="M3 3l18 18M10.6 5.1A9.6 9.6 0 0 1 12 5c6.5 0 10 7 10 7a17 17 0 0 1-3.2 4.2M6.6 6.6C3.7 8.5 2 12 2 12s3.5 7 10 7c1.6 0 3-.4 4.3-1M9.9 9.9a3 3 0 0 0 4.2 4.2" />,
+  chart: (p: { size?: number }) => <I {...p} d="M6 20V11m6 9V5m6 15v-6" />,
 };
 // Three dots, for menus. Filled circles read better than stroked ones at this size.
 export function Dots({ size = 18, vertical = false }: { size?: number; vertical?: boolean }) {
