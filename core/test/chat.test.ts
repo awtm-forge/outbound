@@ -101,7 +101,7 @@ test('chat: editing an old message keeps it read, and Earlier messages still rea
   // page back the way the app does: from the lowest number loaded
   const seen = new Set<string>(); let before: string | null = null;
   for (let guard = 0; guard < 10; guard++) {
-    const r = (await b.call('GET', `/api/chat/channels/${ch.id}/messages${before ? `?before=${before}` : ''}`)).body;
+    const r: any = (await b.call('GET', `/api/chat/channels/${ch.id}/messages${before ? `?before=${before}` : ''}`)).body;
     for (const m of r.messages) seen.add(m.id);
     if (!r.more) break;
     before = r.messages.reduce((lo: bigint | null, m: any) => (lo === null || BigInt(m.seq) < lo ? BigInt(m.seq) : lo), null as bigint | null).toString();

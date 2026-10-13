@@ -6,6 +6,7 @@ import './routes/api.ts';
 import './routes/discovery.ts';
 import './routes/users.ts';
 import './routes/projects.ts';
+import './routes/wiki-views.ts';
 import './routes/wiki.ts';
 import './routes/pages.ts';
 import './routes/files.ts';

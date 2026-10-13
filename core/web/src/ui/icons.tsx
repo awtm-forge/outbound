@@ -81,6 +81,10 @@ export const Icon = {
   highlight: (p: { size?: number }) => <I {...p} d="m9 11-5 5v4h4l5-5m-4-4 7-7 4 4-7 7m-4-4 4 4" />,
   grid: (p: { size?: number }) => <I {...p} d="M4 4h7v7H4zm9 0h7v7h-7zM4 13h7v7H4zm9 0h7v7h-7z" />,
   list: (p: { size?: number }) => <I {...p} d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01" />,
+  rocket: (p: { size?: number }) => <I {...p} d="M5 15c-1.5 1.3-2 4-2 6 2 0 4.7-.5 6-2m-1-4a12 12 0 0 1 12-12c0 4.5-2 9-6 12l-2 1-5-5 1-2Zm1 6-3-3m10-6.5h.01M9 13l-4-.5 3-3.5h4m3 3v4l-3.5 3-.5-4" />,
+  book: (p: { size?: number }) => <I {...p} d="M12 6.5C10.5 5 8 4.5 4 4.5v14c4 0 6.5.5 8 2m0-14c1.5-1.5 4-2 8-2v14c-4 0-6.5.5-8 2m0-14v14" />,
+  folder: (p: { size?: number }) => <I {...p} d="M3 6.5A1.5 1.5 0 0 1 4.5 5h4.6l2 2.5h8.4A1.5 1.5 0 0 1 21 9v9.5a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18.5v-12Z" />,
+  more: (p: { size?: number }) => <I {...p} d="M5 12h.01M12 12h.01M19 12h.01" />,
   palette: (p: { size?: number }) => <I {...p} d="M12 3a9 9 0 0 0 0 18c1.1 0 1.7-.8 1.7-1.7 0-.5-.2-.9-.5-1.2-.3-.3-.5-.7-.5-1.2 0-.9.8-1.7 1.7-1.7H16a5 5 0 0 0 5-5c0-4-4-7.2-9-7.2ZM7.5 12h.01M10 7.5h.01M15 7.5h.01" />,
 };
 // Three dots, for menus. Filled circles read better than stroked ones at this size.

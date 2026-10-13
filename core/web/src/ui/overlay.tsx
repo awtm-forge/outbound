@@ -29,7 +29,7 @@ export function useFocusTrap(ref: RefObject<HTMLElement | null>, onEscape: () =>
 export type ConfirmOptions = {
   title: string; body?: ReactNode; confirm: string; tone?: 'danger' | 'primary'; cancel?: string;
   // a text answer, e.g. why a deal was lost; when required, the confirm button waits for it
-  input?: { label: string; placeholder?: string; required?: boolean };
+  input?: { label: string; placeholder?: string; required?: boolean; value?: string; max?: number };
 };
 type Pending = ConfirmOptions & { resolve: (v: string | boolean) => void };
 const Ctx = createContext<(o: ConfirmOptions) => Promise<string | boolean>>(async () => false);
@@ -43,7 +43,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
 }
 function ConfirmDialog({ p, close }: { p: Pending; close: (v: string | boolean) => void }) {
   const box = useRef<HTMLDivElement>(null); const field = useRef<HTMLInputElement>(null); const cancel = useRef<HTMLButtonElement>(null);
-  const [text, setText] = useState('');
+  const [text, setText] = useState(p.input?.value ?? '');
   // a destructive question starts on Cancel, so Enter alone never destroys anything
   useFocusTrap(box, () => close(false), p.input ? field : p.tone === 'danger' ? cancel : undefined);
   const ok = !p.input?.required || text.trim().length > 0;
@@ -54,7 +54,7 @@ function ConfirmDialog({ p, close }: { p: Pending; close: (v: string | boolean) 
         {p.body && <div id="dlg-body" className="dialog-body">{p.body}</div>}
         <form onSubmit={(e) => { e.preventDefault(); if (ok) close(p.input ? text.trim() : true); }}>
           {p.input && <label className="field"><span>{p.input.label}{p.input.required ? '' : ' (optional)'}</span>
-            <input ref={field} value={text} onChange={(e) => setText(e.target.value)} placeholder={p.input.placeholder} required={p.input.required} maxLength={500} /></label>}
+            <input ref={field} value={text} onChange={(e) => setText(e.target.value)} placeholder={p.input.placeholder} required={p.input.required} maxLength={p.input.max ?? 500} /></label>}
           <div className="dialog-actions">
             <button ref={cancel} type="button" className="btn" onClick={() => close(false)}>{p.cancel ?? 'Cancel'}</button>
             <button type="submit" data-confirm className={`btn ${p.tone === 'danger' ? 'danger solid' : 'primary'}`} disabled={!ok}>{p.confirm}</button>

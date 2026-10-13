@@ -1,8 +1,8 @@
 // Project files. The bytes arrive as the request body (the browser sends the file as is, with its type), are checked
 // for size and type, and are stored apart from the list. Downloads are only for signed-in people, and anything that
 // could run in a browser (HTML, SVG, scripts) is only ever sent as a download, never shown inline.
-import { route } from '../lib/http.ts';
-import { q, one, tx } from '../lib/db.ts';
+import { route, type Ctx } from '../lib/http.ts';
+import { q, one, tx, audit } from '../lib/db.ts';
 import { HttpError } from '../pipeline.ts';
 import { parse, z, text, needUuid, isUuid } from '../lib/validate.ts';
 import { act, needProject } from './projects.ts';
@@ -22,21 +22,29 @@ const INLINE = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'a
 const MAGIC: [string, number[]][] = [['image/png', [0x89, 0x50, 0x4e, 0x47]], ['image/jpeg', [0xff, 0xd8, 0xff]], ['image/gif', [0x47, 0x49, 0x46]], ['application/pdf', [0x25, 0x50, 0x44, 0x46]]];
 const safeName = (s: string) => s.replace(/[\u0000-\u001f\u007f/\\]/g, '').replace(/\s+/g, ' ').trim().slice(0, 200) || 'file';
 
-route('POST', '/api/projects/:id/files', 'user', async (c) => {
-  const p = await needProject(c.params.id); const data: Buffer = c.body;
+// the uploaded bytes, checked: allowed type, signature matching the type, a clean name
+export function readUpload(c: Ctx) {
+  const data: Buffer = c.body;
   if (!Buffer.isBuffer(data) || !data.length) throw new HttpError(400, 'The file is empty.');
   const mime = String(c.req.headers['content-type'] ?? 'application/octet-stream').split(';')[0]!.trim().toLowerCase();
   if (!(mime in ALLOWED)) throw new HttpError(415, 'That kind of file cannot be uploaded here. Images, PDFs, documents, spreadsheets, text and zip files can.');
   const magic = MAGIC.find(([m]) => m === mime); if (magic && !magic[1].every((b, i) => data[i] === b)) throw new HttpError(415, 'The file does not match its type.');
-  const sp = c.url.searchParams; const name = safeName(sp.get('name') ?? 'file');
-  const taskId = sp.get('task_id'); const pageId = sp.get('page_id');
-  if (taskId && !(isUuid(taskId) && await one('select 1 from tasks where id=$1 and project_id=$2', [taskId, p.id]))) throw new HttpError(400, 'That task is not on this project.');
-  if (pageId && !(isUuid(pageId) && await one('select 1 from pages where id=$1 and project_id=$2', [pageId, p.id]))) throw new HttpError(400, 'That page is not in this project.');
-  const f = await tx(async (db) => {
-    const f = (await db.query('insert into project_files(project_id,task_id,page_id,name,mime,size,uploaded_by) values($1,$2,$3,$4,$5,$6,$7) returning *', [p.id, taskId || null, pageId || null, name, mime, data.length, c.user!.id])).rows[0];
-    await db.query('insert into file_blobs(file_id,data) values($1,$2)', [f.id, data]);
+  return { data, mime, name: safeName(c.url.searchParams.get('name') ?? 'file') };
+}
+export function storeFile(owner: { project_id?: string | null; task_id?: string | null; page_id?: string | null; wiki_page_id?: string | null }, up: ReturnType<typeof readUpload>, userId: string) {
+  return tx(async (db) => {
+    const f = (await db.query('insert into project_files(project_id,task_id,page_id,wiki_page_id,name,mime,size,uploaded_by) values($1,$2,$3,$4,$5,$6,$7,$8) returning *',
+      [owner.project_id ?? null, owner.task_id ?? null, owner.page_id ?? null, owner.wiki_page_id ?? null, up.name, up.mime, up.data.length, userId])).rows[0];
+    await db.query('insert into file_blobs(file_id,data) values($1,$2)', [f.id, up.data]);
     return f;
   });
+}
+route('POST', '/api/projects/:id/files', 'user', async (c) => {
+  const p = await needProject(c.params.id); const up = readUpload(c); const name = up.name;
+  const sp = c.url.searchParams; const taskId = sp.get('task_id'); const pageId = sp.get('page_id');
+  if (taskId && !(isUuid(taskId) && await one('select 1 from tasks where id=$1 and project_id=$2', [taskId, p.id]))) throw new HttpError(400, 'That task is not on this project.');
+  if (pageId && !(isUuid(pageId) && await one('select 1 from pages where id=$1 and project_id=$2', [pageId, p.id]))) throw new HttpError(400, 'That page is not in this project.');
+  const f = await storeFile({ project_id: p.id, task_id: taskId || null, page_id: pageId || null }, up, c.user!.id);
   await act(p.id, c, 'file_uploaded', { file_id: f.id, name, task_id: taskId || null, title: name });
   return { created: true, ...f, uploaded_by_name: c.user!.name };
 }, { raw: MAX_FILE });
@@ -72,5 +80,6 @@ route('DELETE', '/api/files/:id', 'user', async (c) => {
   if (c.user!.role !== 'admin' && f.uploaded_by !== c.user!.id) throw new HttpError(403, 'Only the person who uploaded this file, or an admin, can delete it.');
   await q('delete from project_files where id=$1', [f.id]);
   await act(f.project_id, c, 'file_removed', { name: f.name, title: f.name });
+  if (f.wiki_page_id) await audit('wiki', f.wiki_page_id, 'file_removed', c.actor, { name: f.name, user_id: c.user?.id ?? null });
   return { deleted: true };
 });
