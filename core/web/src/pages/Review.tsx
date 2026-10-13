@@ -9,7 +9,7 @@ import { actorLabel } from '../ui/chrome.tsx';
 import { countsBus } from '../App.tsx';
 
 type Item = any;
-const DIM: Record<string, string> = { VALUE_PROPOSITION: 'Value proposition', NAVIGATION: 'Navigation', CTA: 'Call to action', MOBILE_UX: 'On a phone', PRODUCT_DISCOVERY: 'Finding products', TRUST: 'Trust', SOCIAL_PROOF: 'Social proof',
+export const DIM: Record<string, string> = { VALUE_PROPOSITION: 'Value proposition', NAVIGATION: 'Navigation', CTA: 'Call to action', MOBILE_UX: 'On a phone', PRODUCT_DISCOVERY: 'Finding products', TRUST: 'Trust', SOCIAL_PROOF: 'Social proof',
   FORMS: 'Forms', CONVERSION_FRICTION: 'Friction', CONTENT: 'Content', SEO_BASICS: 'Search basics', TECHNICAL_SIGNALS: 'Technical', PERFORMANCE_SIGNALS: 'Speed signals', INFORMATION_ARCHITECTURE: 'Structure' };
 
 export function Review() {
