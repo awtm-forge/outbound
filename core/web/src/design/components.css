@@ -1,0 +1,69 @@
+/* Components added in the UI pass: overlays, the confirm dialog, the command palette, breadcrumbs, the theme switch and
+   the phone navigation. Motion only explains a change: an overlay arriving. */
+
+.overlay { position: fixed; inset: 0; z-index: 70; display: grid; place-items: center; padding: var(--s-4); background: var(--scrim); animation: fade var(--t-fast) var(--ease); }
+.overlay.top { place-items: start center; padding-top: 12vh; }
+.dialog { width: min(440px, 100%); background: var(--surface); color: var(--ink); border: 1px solid var(--hairline); border-radius: var(--r-3); box-shadow: var(--shadow-overlay);
+  padding: var(--s-6); display: flex; flex-direction: column; gap: var(--s-3); animation: pop var(--t-base) var(--ease-enter); }
+.dialog h2 { font-size: var(--fs-2); font-weight: 640; }
+.dialog-body { color: var(--ink-muted); }
+.dialog form { display: flex; flex-direction: column; gap: var(--s-4); }
+.dialog-actions { display: flex; justify-content: flex-end; gap: var(--s-2); margin-top: var(--s-2); }
+@keyframes pop { from { transform: translateY(6px) scale(0.98); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .overlay, .dialog, .palette { animation: none; } }
+
+.palette { width: min(560px, 100%); background: var(--surface); border: 1px solid var(--hairline); border-radius: var(--r-3); box-shadow: var(--shadow-overlay); overflow: hidden; animation: pop var(--t-fast) var(--ease-enter); }
+.palette-in { display: flex; align-items: center; gap: var(--s-3); padding: 0 var(--s-4); border-bottom: 1px solid var(--hairline); color: var(--ink-faint); }
+.palette-in input { flex: 1; height: 48px; border: 0; background: transparent; font-size: var(--fs-2); outline: none; color: var(--ink); }
+.palette ul { list-style: none; margin: 0; padding: var(--s-2); max-height: 50vh; overflow-y: auto; }
+.palette li { display: flex; justify-content: space-between; gap: var(--s-3); padding: 9px var(--s-3); border-radius: var(--r-row); cursor: pointer; }
+.palette li.on { background: var(--surface-hover); box-shadow: inset 3px 0 0 var(--accent); }
+.palette li.none { color: var(--ink-faint); cursor: default; }
+
+.crumbs ol { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: var(--fs-0); color: var(--ink-muted); }
+.crumbs li + li::before { content: '/'; margin-right: 6px; color: var(--off); }
+.crumbs a { color: var(--ink-muted); text-decoration: none; }
+.crumbs a:hover { color: var(--ink); text-decoration: underline; }
+.crumbs [aria-current] { color: var(--ink-faint); }
+
+.seg { display: inline-flex; padding: 2px; border: 1px solid var(--hairline); border-radius: var(--r-pill); background: var(--surface-raised); }
+.seg button { height: 26px; padding: 0 10px; border: 0; border-radius: var(--r-pill); background: transparent; color: var(--ink-muted); font-size: 12.5px; font-weight: 560; cursor: pointer; }
+.seg button:hover { color: var(--ink); }
+.seg button.on { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12); }
+.seg.compact { width: 100%; } .seg.compact button { flex: 1; }
+
+.icon-only { width: var(--control-h-sm); padding: 0; }
+.drawer > header .drawer-title { font-size: var(--fs-2); font-weight: 620; margin-right: auto; }
+.page-actions { display: flex; align-items: center; gap: var(--s-2); flex-wrap: wrap; }
+.search-hint { font-size: 12px; color: var(--ink-faint); display: inline-flex; gap: 6px; align-items: center; }
+
+/* the sidebar's search-and-jump button */
+.jump { display: flex; align-items: center; gap: var(--s-2); width: 100%; height: 34px; padding: 0 var(--s-3); border: 1px solid var(--hairline); border-radius: var(--r-row);
+  background: var(--surface-raised); color: var(--ink-muted); font-size: 13.5px; cursor: pointer; }
+.jump:hover { border-color: var(--control); color: var(--ink); }
+.jump kbd { margin-left: auto; }
+
+/* ---------- phones: a top bar with the page name and a Menu button; the full navigation opens as a sheet ---------- */
+.topbar { display: none; }
+@media (max-width: 900px) {
+  .app { flex-direction: column; }
+  .topbar { display: flex; position: sticky; top: 0; z-index: 30; align-items: center; gap: var(--s-3); height: 56px; padding: 0 var(--s-4);
+    background: var(--surface); border-bottom: 1px solid var(--hairline); }
+  .topbar .brand .mark { font-size: 18px; }
+  .topbar .where { font-weight: 600; margin-right: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .side { position: fixed; inset: 0 auto 0 0; z-index: 72; width: min(300px, 86vw); height: 100dvh; flex-direction: column; align-items: stretch; overflow-y: auto;
+    border-right: 1px solid var(--hairline); padding: var(--s-5) var(--s-3); transform: translateX(-102%); transition: transform var(--t-base) var(--ease); box-shadow: var(--shadow-overlay); }
+  .side.open { transform: none; }
+  .side .nav, .side .nav-group { flex-direction: column; }
+  .side .nav-group + .nav-group { margin: var(--s-5) 0 0; padding: 0; border: 0; }
+  .side .nav-title { display: block; }
+  .side .nav a { border-bottom: 0; padding: 10px var(--s-3); min-height: 44px; white-space: normal; }
+  .side .nav a svg { display: inline; }
+  .side .nav a.on::before { left: -12px; }
+  .side .brand .kick, .side-foot .modes { display: flex; }
+  .side .brand .kick { display: none; }
+  .side-foot { margin-top: auto; flex-direction: column; }
+  .side .who a { display: inline; }
+  .side-scrim { position: fixed; inset: 0; z-index: 71; background: var(--scrim); }
+  .main { padding: var(--s-5) var(--s-4) var(--s-10); }
+}

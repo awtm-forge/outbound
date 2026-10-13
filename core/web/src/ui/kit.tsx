@@ -5,7 +5,13 @@ export function Empty({ title, children, action }: { title: string; children?: R
   return <div className="empty"><div className="glyph"><Icon.check /></div><h3>{title}</h3>{children && <p style={{ maxWidth: '46ch' }}>{children}</p>}{action}</div>;
 }
 export function Skeleton({ h = 18, w = '100%' }: { h?: number; w?: number | string }) { return <div className="skeleton" style={{ height: h, width: w }} />; }
-export function Loading({ rows = 4 }: { rows?: number }) { return <div className="col" aria-busy="true">{Array.from({ length: rows }, (_, i) => <Skeleton key={i} h={i === 0 ? 30 : 56} w={i === 0 ? '40%' : '100%'} />)}</div>; }
+// Placeholders shaped like what is coming, so nothing jumps when it arrives. kind: a table, a list of rows, or a page.
+export function Loading({ rows = 4, kind = 'page' }: { rows?: number; kind?: 'page' | 'table' | 'list' }) {
+  if (kind === 'table') return <div className="card flush" aria-busy="true" aria-label="Loading"><div style={{ height: 34, background: 'var(--surface-raised)', borderBottom: '1px solid var(--hairline)' }} />
+    {Array.from({ length: rows }, (_, i) => <div key={i} style={{ display: 'flex', gap: 16, alignItems: 'center', height: 56, padding: '0 12px', borderBottom: '1px solid var(--hairline-soft)' }}><Skeleton h={14} w="22%" /><Skeleton h={14} w="12%" /><Skeleton h={14} w="30%" /><Skeleton h={14} w="14%" /></div>)}</div>;
+  if (kind === 'list') return <div className="col" style={{ gap: 8 }} aria-busy="true" aria-label="Loading">{Array.from({ length: rows }, (_, i) => <Skeleton key={i} h={44} />)}</div>;
+  return <div className="col" aria-busy="true" aria-label="Loading"><Skeleton h={28} w="32%" /><Skeleton h={16} w="52%" />{Array.from({ length: Math.max(1, rows - 1) }, (_, i) => <Skeleton key={i} h={72} />)}</div>;
+}
 export function Failure({ error, retry }: { error: string; retry?: () => void }) {
   return <div className="banner err"><span>{error}</span>{retry && <button className="btn sm right" onClick={retry}>Try again</button>}</div>;
 }
@@ -32,16 +38,19 @@ export function inr(paise: string | number | null | undefined) {
   const rupees = (a / 100n).toString(); const last3 = rupees.slice(-3); const rest = rupees.slice(0, -3);
   return `${neg ? '-' : ''}₹${rest ? rest.replace(/\B(?=(\d{2})+(?!\d))/g, ',') + ',' : ''}${last3}`;
 }
-export const pct = (v: number | null | undefined) => (v == null ? '·' : `${v}%`);
+export const pct = (v: number | null | undefined) => (v == null ? 'None yet' : v > 100 ? 'Over 100%' : `${v}%`);
 
-const STATUS: Record<string, { label: string; tone?: 'ember' | 'solid' | 'warn' | 'dim' }> = {
-  NEW: { label: 'New' }, QUALIFYING: { label: 'Scoring' }, RESEARCHING: { label: 'Researching' }, RESEARCH_FURTHER: { label: 'Research further' },
-  QUALIFIED: { label: 'Qualified', tone: 'ember' }, REJECTED: { label: 'Not a fit', tone: 'dim' }, EMAIL_DRAFTED: { label: 'Drafted' },
-  PENDING_APPROVAL: { label: 'Awaiting review', tone: 'solid' }, APPROVED: { label: 'Approved', tone: 'ember' }, SYNCED: { label: 'Queued to send', tone: 'ember' },
-  CONTACTED: { label: 'Contacted' }, REPLIED: { label: 'Replied', tone: 'solid' }, MEETING: { label: 'Meeting', tone: 'solid' }, PROPOSAL: { label: 'Proposal', tone: 'solid' },
-  WON: { label: 'Won', tone: 'solid' }, LOST: { label: 'Closed', tone: 'dim' }, SUPPRESSED: { label: 'Do not contact', tone: 'warn' },
+// Status is a word plus a coloured dot, never colour alone. warning = waiting on you; success = done well; danger = stopped.
+export type Tone = 'neutral' | 'info' | 'warning' | 'success' | 'danger';
+const STATUS: Record<string, { label: string; tone: Tone }> = {
+  NEW: { label: 'New', tone: 'neutral' }, QUALIFYING: { label: 'Scoring', tone: 'info' }, RESEARCHING: { label: 'Researching', tone: 'info' }, RESEARCH_FURTHER: { label: 'Research further', tone: 'warning' },
+  QUALIFIED: { label: 'Qualified', tone: 'info' }, REJECTED: { label: 'Not a fit', tone: 'neutral' }, EMAIL_DRAFTED: { label: 'Drafted', tone: 'info' },
+  PENDING_APPROVAL: { label: 'Awaiting review', tone: 'warning' }, APPROVED: { label: 'Approved', tone: 'success' }, SYNCED: { label: 'Queued to send', tone: 'info' },
+  CONTACTED: { label: 'Contacted', tone: 'info' }, REPLIED: { label: 'Replied', tone: 'warning' }, MEETING: { label: 'Meeting', tone: 'info' }, PROPOSAL: { label: 'Proposal', tone: 'info' },
+  WON: { label: 'Won', tone: 'success' }, LOST: { label: 'Closed', tone: 'neutral' }, SUPPRESSED: { label: 'Do not contact', tone: 'danger' },
 };
-export function Status({ s }: { s: string }) { const m = STATUS[s] ?? { label: s }; return <span className={`tag ${m.tone ?? ''}`}>{m.label}</span>; }
+export function Badge({ tone = 'neutral', children }: { tone?: Tone; children: React.ReactNode }) { return <span className={`tag tone-${tone}`}>{children}</span>; }
+export function Status({ s }: { s: string }) { const m = STATUS[s] ?? { label: s, tone: 'neutral' as Tone }; return <Badge tone={m.tone}>{m.label}</Badge>; }
 export const statusLabel = (s: string) => STATUS[s]?.label ?? s;
 const CLASS: Record<string, string> = { POSITIVE: 'Interested', VALUE_REQUEST: 'Asked for the two things', PRICE: 'Asked about price', TIMING: 'Not now', WRONG_PERSON: 'Wrong person', REFERRAL: 'Referred someone', OBJECTION: 'Objection', NOT_INTERESTED: 'Not interested', UNSUBSCRIBE: 'Asked to stop', OTHER: 'Needs a read' };
 export const classLabel = (c?: string | null) => (c ? CLASS[c] ?? c : 'Not read yet');
@@ -50,8 +59,8 @@ export const problemLabel = (p?: string | null) => (p ? PROBLEM[p] ?? p : 'Not f
 const CAP: Record<string, string> = { WEB: 'Web and digital experience', PRODUCT: 'Product and technology', BRAND: 'Brand and growth' };
 export const capLabel = (c?: string | null) => (c ? CAP[c] ?? c : 'Not matched yet');
 export function ProofTag({ label }: { label: string }) {
-  const tone = label === 'VERIFIED' ? 'ember' : label === 'PRIVATE' ? 'warn' : 'dim';
-  return <span className={`tag ${tone}`}>{label === 'VERIFIED' ? 'Verified' : label === 'STATED' ? 'Stated, not usable' : label === 'TO_CONFIRM' ? 'To confirm' : label === 'PRIVATE' ? 'Private' : label.toLowerCase()}</span>;
+  const tone: Tone = label === 'VERIFIED' ? 'success' : label === 'PRIVATE' ? 'danger' : label === 'TO_CONFIRM' ? 'warning' : 'neutral';
+  return <Badge tone={tone}>{label === 'VERIFIED' ? 'Verified' : label === 'STATED' ? 'Stated, not usable' : label === 'TO_CONFIRM' ? 'To confirm' : label === 'PRIVATE' ? 'Private' : label.charAt(0) + label.slice(1).toLowerCase()}</Badge>;
 }
 export function useNow(ms = 60_000) { const [n, setN] = useState(Date.now()); useEffect(() => { const t = setInterval(() => setN(Date.now()), ms); return () => clearInterval(t); }, [ms]); return n; }
 export async function copy(text: string) { try { await navigator.clipboard.writeText(text); return true; } catch { return false; } }
