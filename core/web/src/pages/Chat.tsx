@@ -8,6 +8,7 @@ import { inline } from '../ui/markdown.tsx';
 import { useMe, useTeam } from '../session.tsx';
 import { channelLabel, useChat, type Channel, type ChatMessage } from '../chat.tsx';
 import { useActive } from '../active.ts';
+import { useConfirm } from '../ui/overlay.tsx';
 
 const IST = { timeZone: 'Asia/Kolkata' } as const;
 const time = (ts: string) => new Date(ts).toLocaleTimeString('en-IN', { ...IST, hour: 'numeric', minute: '2-digit' });
@@ -45,8 +46,8 @@ function Sidebar({ channels, current, reload, live }: { channels: Channel[]; cur
     try { const c = await api.post('/api/chat/direct', { user_id: userId }); setAdding(null); await reload(); go(`/chat/${c.id}`); } catch (e: any) { toast(e.message, { err: true }); }
   };
   const item = (c: Channel) => <Link key={c.id} to={`/chat/${c.id}`} className={`chan${c.id === current ? ' on' : ''}${c.unread ? ' unread' : ''}`} aria-current={c.id === current ? 'page' : undefined}>
-    {c.kind === 'DIRECT' ? <span className="avatar sm">{initials(c.other?.name)}</span> : <span className="hash">#</span>}<span className="ellipsis">{c.kind === 'DIRECT' ? c.other?.name ?? 'Former teammate' : c.name}</span>
-    {c.unread > 0 && c.id !== current && <span className="count">{c.unread}</span>}</Link>;
+    {c.kind === 'DIRECT' ? <span className="avatar sm" aria-hidden="true">{initials(c.other?.name)}</span> : <span className="hash" aria-hidden="true">#</span>}<span className="ellipsis">{c.kind === 'DIRECT' ? c.other?.name ?? 'Former teammate' : c.name}</span>
+    {c.unread > 0 && c.id !== current && <span className="count"><span className="sr">, </span>{c.unread}<span className="sr"> unread</span></span>}</Link>;
   return (
     <aside className="chat-side" aria-label="Conversations">
       <div className="row between"><span className="kick">Channels</span><button className="btn sm ghost" onClick={() => setAdding(adding === 'channel' ? null : 'channel')} aria-label="New channel"><Icon.plus size={14} /></button></div>
@@ -56,13 +57,13 @@ function Sidebar({ channels, current, reload, live }: { channels: Channel[]; cur
       {adding === 'direct' && <select className="input" autoFocus defaultValue="" onChange={(e) => startDirect(e.target.value)} aria-label="Message someone"><option value="" disabled>Message someone…</option>{team.filter((u) => u.id !== me.id).map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}</select>}
       <nav className="col" style={{ gap: 2 }}>{direct.length ? direct.map(item) : <span className="faint" style={{ fontSize: 'var(--fs-0)', padding: '4px 8px' }}>No conversations yet.</span>}</nav>
       {archived.length > 0 && <><button className="btn sm ghost" style={{ marginTop: 'var(--s-4)', justifyContent: 'flex-start' }} onClick={() => setShowArchived(!showArchived)}>{showArchived ? 'Hide' : 'Show'} archived ({archived.length})</button>{showArchived && <nav className="col" style={{ gap: 2, opacity: 0.7 }}>{archived.map(item)}</nav>}</>}
-      <div className="live faint" title={live ? 'Messages arrive as they are sent' : active ? 'Reconnecting' : 'Resumes when you are back'}><span className={`dot ${live ? 'hot' : ''}`} />{live ? 'Live' : active ? 'Reconnecting…' : 'Paused while you are away'}</div>
+      <div className="live faint" role="status" title={live ? 'Messages arrive as they are sent' : active ? 'Reconnecting' : 'Resumes when you are back'}><span className={`dot ${live ? 'hot' : ''}`} />{live ? 'Live' : active ? 'Reconnecting…' : 'Paused while you are away'}</div>
     </aside>
   );
 }
 
 function Conversation({ id, channel }: { id: string; channel: Channel | null }) {
-  const me = useMe(); const toast = useToast(); const { listen, reloadChannels } = useChat();
+  const me = useMe(); const toast = useToast(); const ask = useConfirm(); const { listen, reloadChannels } = useChat();
   const [msgs, setMsgs] = useState<Map<string, ChatMessage>>(new Map()); const [more, setMore] = useState(false);
   const [error, setError] = useState<string | null>(null); const [loading, setLoading] = useState(true);
   const [draft, setDraft] = useState(''); const [editing, setEditing] = useState<string | null>(null);
@@ -95,7 +96,10 @@ function Conversation({ id, channel }: { id: string; channel: Channel | null }) 
     catch (e: any) { setMsgs((m) => { const n = new Map(m); n.delete(temp.id); return n; }); setDraft(body); toast(e.message, { err: true }); }
   };
   const saveEdit = async (m: ChatMessage, body: string) => { setEditing(null); if (body.trim() === m.body) return; try { merge([await api.patch<ChatMessage>(`/api/chat/messages/${m.id}`, { body })]); } catch (e: any) { toast(e.message, { err: true }); } };
-  const remove = async (m: ChatMessage) => { if (!confirm('Delete this message for everyone?')) return; try { await api.del(`/api/chat/messages/${m.id}`); merge([{ ...m, body: '', deleted: true }]); } catch (e: any) { toast(e.message, { err: true }); } };
+  const remove = async (m: ChatMessage) => {
+    const quote = m.body.length > 90 ? `${m.body.slice(0, 90)}…` : m.body;
+    if (!(await ask({ title: 'Delete this message?', body: <><p className="quote">{quote}</p><p>It is removed for everyone in the conversation.</p></>, confirm: 'Delete message', tone: 'danger' }))) return;
+    try { await api.del(`/api/chat/messages/${m.id}`); merge([{ ...m, body: '', deleted: true }]); toast('Message deleted.'); } catch (e: any) { toast(e.message, { err: true }); } };
   const title = channel ? channelLabel(channel) : '';
   if (error && !sorted.length) return <div className="conv"><Failure error={error} retry={() => load()} /></div>;
   return (
@@ -117,16 +121,16 @@ function Conversation({ id, channel }: { id: string; channel: Channel | null }) 
                   {!grouped && <div className="who-line"><b>{m.author_name ?? 'Former teammate'}</b><span className="faint mono">{time(m.created_at)}</span></div>}
                   {m.deleted ? <p className="faint" style={{ fontStyle: 'italic' }}>Message deleted</p>
                     : editing === m.id ? <EditBox m={m} onSave={(b) => saveEdit(m, b)} onCancel={() => setEditing(null)} />
-                    : <p className="body">{renderBody(m.body, me.user)}{m.edited_at && <span className="faint" style={{ fontSize: 11 }}> (edited)</span>}</p>}
+                    : <p className="body">{renderBody(m.body, me.user)}{m.edited_at && <span className="faint" style={{ fontSize: 12 }}> (edited)</span>}</p>}
                 </div>
                 {!m.deleted && !m.pending && (mine || me.role === 'admin') && editing !== m.id && <div className="msg-tools">
-                  {mine && <button className="btn sm ghost" onClick={() => setEditing(m.id)} aria-label="Edit"><Icon.edit size={14} /></button>}
-                  <button className="btn sm ghost danger" onClick={() => remove(m)} aria-label="Delete"><Icon.trash size={14} /></button></div>}
+                  {mine && <button className="btn sm ghost" onClick={() => setEditing(m.id)} aria-label="Edit message"><Icon.edit size={14} /></button>}
+                  <button className="btn sm ghost danger" onClick={() => remove(m)} aria-label="Delete message"><Icon.trash size={14} /></button></div>}
               </div>
             </Fragment>;
           })}
       </div>
-      {channel?.archived ? <p className="faint" style={{ padding: 'var(--s-4)' }}>This channel is archived; it can be read but not written in.</p> :
+      {channel?.archived ? <p className="faint" style={{ padding: 'var(--s-4)' }}>This channel is archived. You can read it, but nobody can write in it.</p> :
         <form className="composer-chat" onSubmit={(e) => { e.preventDefault(); send(); }}>
           <textarea ref={box} rows={1} value={draft} maxLength={4000} placeholder={`Message ${title}`} aria-label={`Message ${title}`} onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); send(); } }} />
