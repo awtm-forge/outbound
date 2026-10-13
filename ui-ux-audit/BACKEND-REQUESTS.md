@@ -11,7 +11,7 @@ works without it.
 - **Why it matters**: people see `IND-WEB-ELECTRONICS` instead of "DTC ecommerce: electronics". Every other screen
   already gets a name and now shows it.
 - **If never done**: those two screens keep showing the code, in small faint type so it reads as a reference rather
-  than a title.
+  than a title. (The CRM company page says "In outbound" followed by the code.)
 
 ## 2. A reply rate that cannot pass 100%
 
@@ -19,8 +19,8 @@ works without it.
   was never recorded (manual delivery, the demo), so the fixture shows "300%" and "Positive 200%".
 - **Helps**: Today (campaign table), Campaigns.
 - **Why it matters**: an impossible number makes every other number on the screen doubtful.
-- **If never done**: the UI shows rates above 100% as "More replies than recorded sends" with the raw counts, instead
-  of a percentage.
+- **If never done**: the UI shows any rate above 100% as "Over 100%" (hovering says "More replies than recorded
+  sends, so the rate is not meaningful yet"), and Today hides the rate for campaigns with nothing sent.
 
 ## 3. Display names on activity and notes
 

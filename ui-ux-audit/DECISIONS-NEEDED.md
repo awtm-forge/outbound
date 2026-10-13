@@ -37,3 +37,17 @@ defaults change what the app sends to the server.
 |---|---|---|---|
 | **Menu sheet (built)** | A top bar with the page name and a Menu button; the full navigation opens as a sheet. | All 14 destinations are one tap away; today 12 are hidden in a sideways strip. | One extra tap to switch screens. |
 | Bottom tab bar | Five fixed tabs (Today, Inbox, Projects, Chat, Menu). | Faster for the five most used. | Needs a decision on which five; the rest stay behind Menu. |
+
+## 6. Long tables: scroll inside the card, or with the page
+
+| Option | What it is | Why it matters | If chosen |
+|---|---|---|---|
+| **Inside the card (built)** | On screens wider than a phone, a wide table scrolls within its card, which is at most the height of the window. | The header row stays in view while reading down the pipeline or CRM. | Two scroll areas on long lists; the mouse wheel scrolls the table first. |
+| With the page, as before | The whole page scrolls; the header row scrolls away. | One scroll area. | Past the first screen of rows, the columns are unlabelled. |
+
+## 7. The navigation label for meetings and proposals
+
+| Option | What it is | Why it matters | If chosen |
+|---|---|---|---|
+| **"Meetings" (built)** | The sidebar says Meetings; the page title stays "Meetings and deals". | The full name wrapped onto two lines in the sidebar. | Proposals live on a page whose sidebar name does not mention them. |
+| "Deals" | Matches the address (/deals). | Short. | Can be confused with CRM opportunities, which are also deals. |
