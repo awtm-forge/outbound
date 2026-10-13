@@ -24,6 +24,8 @@ import { People, Person } from './pages/People.tsx';
 import { ChatProvider, useChat } from './chat.tsx';
 import { isActive, onActiveChange } from './active.ts';
 import { MeContext } from './session.tsx';
+import { ConfirmProvider } from './ui/overlay.tsx';
+import { CommandPalette, ThemeSwitch, type PaletteItem } from './ui/chrome.tsx';
 
 export function App() {
   const [me, setMe] = useState<Me | null | undefined>(undefined);
@@ -33,7 +35,7 @@ export function App() {
   }, []);
   if (me === undefined) return null;
   const refresh = () => api.get<Me>('/api/me').then(setMe).catch(() => setMe(null));
-  return <RouterProvider><ToastProvider><MeContext.Provider value={me}>{!me ? <Login onIn={refresh} /> : me.must_change_password ? <Account me={me} forced onChanged={refresh} /> : <ChatProvider><Shell me={me} onSignOut={() => setMe(null)} onMeChanged={refresh} /></ChatProvider>}</MeContext.Provider></ToastProvider></RouterProvider>;
+  return <RouterProvider><ToastProvider><ConfirmProvider><MeContext.Provider value={me}>{!me ? <Login onIn={refresh} /> : me.must_change_password ? <Account me={me} forced onChanged={refresh} /> : <ChatProvider><Shell me={me} onSignOut={() => setMe(null)} onMeChanged={refresh} /></ChatProvider>}</MeContext.Provider></ConfirmProvider></ToastProvider></RouterProvider>;
 }
 
 type Counts = { drafts: number; replies: number; teardowns: number; needs_contact: number; meetings: number; proposals: number; replies_high: number; todos_due: number };
@@ -41,6 +43,10 @@ export const countsBus = new EventTarget(); // pages poke this after an action s
 function Shell({ me, onSignOut, onMeChanged }: { me: Me; onSignOut: () => void; onMeChanged: () => void }) {
   const { path } = useRouter(); const chat = useChat();
   const [counts, setCounts] = useState<Counts | null>(null);
+  // phones: the navigation is a sheet behind a Menu button; it closes when a screen is chosen
+  const [menu, setMenu] = useState(false);
+  useEffect(() => setMenu(false), [path]);
+  useEffect(() => { if (!menu) return; const k = (e: KeyboardEvent) => { if (e.key === 'Escape') setMenu(false); }; addEventListener('keydown', k); return () => removeEventListener('keydown', k); }, [menu]);
   useEffect(() => {
     const load = () => api.get<{ counts: Counts }>('/api/overview').then((o) => setCounts(o.counts)).catch(() => {});
     // paused while nobody is at the tab; fresh the moment they come back
@@ -89,25 +95,39 @@ function Shell({ me, onSignOut, onMeChanged }: { me: Me; onSignOut: () => void; 
   else if (path.startsWith('/people')) page = <People />;
   else if (path.startsWith('/account')) page = <Account me={me} onChanged={onMeChanged} />;
   else if (path.startsWith('/team') && me.role === 'admin') page = <Team />;
-  else page = <div className="page"><div className="head"><div><h1>Nothing here</h1><p>This address does not lead anywhere. <Link to="/">Back to today</Link>.</p></div></div></div>;
-  const mode = (v: string, live: string) => <b className={v === live ? 'live' : ''}>{v}</b>;
+  else page = <div className="page"><div className="head"><div><h1>Nothing here</h1><p>This address does not lead to a screen{path.startsWith('/team') ? ' you can open; managing the team is for admins' : ''}.</p></div></div><div><Link className="btn" to="/">Go to Today</Link></div></div>;
+  // what is live and what is simulated, in plain words
+  const WORDS: Record<string, string> = { mock: 'Simulated', gemini: 'Gemini', anthropic: 'Claude', real: 'Live', serper: 'Live', google_cse: 'Live' };
+  const mode = (v: string, live: string[]) => <b className={live.includes(v) ? 'live' : ''}>{WORDS[v] ?? v}</b>;
+  const here = groups.flatMap((g) => g.items).find((n) => n.on(path))?.label ?? (path.startsWith('/account') ? 'Your account' : 'awtm forge');
+  const palette: PaletteItem[] = [...groups.flatMap((g) => g.items.map((n) => ({ label: n.label, to: n.to, group: g.title }))),
+    { label: 'My tasks', to: '/projects?view=mine', group: 'Workspace', hint: 'to-dos' }, { label: 'New wiki page', to: '/wiki/new', group: 'Workspace', hint: 'write' },
+    { label: 'Leave', to: '/people?tab=leave', group: 'Workspace', hint: 'holiday time off' }, { label: 'Opportunities', to: '/crm?tab=opportunities', group: 'Workspace', hint: 'deals' },
+    { label: 'Your account', to: '/account', group: 'You', hint: 'password theme' }];
   return (
     <div className="app">
-      <aside className="side">
+      <a href="#main" className="skip">Skip to content</a>
+      <header className="topbar"><button className="btn sm" onClick={() => setMenu(true)} aria-expanded={menu} aria-controls="side-nav"><Icon.pipeline size={16} />Menu</button>
+        <span className="where">{here}</span><button className="btn sm ghost icon-only" onClick={() => dispatchEvent(new Event('open-palette'))} aria-label="Go to a screen"><Icon.find size={16} /></button></header>
+      {menu && <div className="side-scrim" onClick={() => setMenu(false)} />}
+      <aside className={`side${menu ? ' open' : ''}`} id="side-nav">
         <Link to="/" className="brand" aria-label="awtm forge ops, today"><div className="mark">awtm <b>forge</b></div><span className="kick">Ops</span></Link>
+        <button className="jump" onClick={() => dispatchEvent(new Event('open-palette'))}><Icon.find size={14} />Go to<kbd>{/Mac/.test(navigator.platform) ? '⌘K' : 'Ctrl K'}</kbd></button>
         <nav className="nav" aria-label="Main">{groups.map((g) => <div key={g.title} className="nav-group" role="group" aria-label={g.title}><span className="nav-title">{g.title}</span>{g.items.map((n) => { const I = Icon[n.icon]; return (
           <Link key={n.to} to={n.to} className={n.on(path) ? 'on' : ''} aria-current={n.on(path) ? 'page' : undefined}><I /><span>{n.label}</span>{!!n.n && <span className={`count${n.quiet ? ' quiet' : ''}`}>{n.n}</span>}</Link>); })}</div>)}</nav>
         <div className="side-foot">
           <Working />
           <div className="modes" title="What is live and what is simulated">
-            <div className="mode"><span>AI</span>{mode(me.ai_provider, 'anthropic')}</div>
-            <div className="mode"><span>Sending</span>{mode(me.saleshandy, 'real')}</div>
-            <div className="mode"><span>Search</span>{mode(me.discovery_source, 'serper')}</div>
+            <div className="mode"><span>AI</span>{mode(me.ai_provider, ['anthropic', 'gemini'])}</div>
+            <div className="mode"><span>Sending</span>{mode(me.saleshandy, ['real'])}</div>
+            <div className="mode"><span>Search</span>{mode(me.discovery_source, ['serper', 'google_cse'])}</div>
           </div>
+          <ThemeSwitch compact />
           <div className="who"><Link to="/account" className={path.startsWith('/account') ? 'on' : ''} title="Your account">{me.name}</Link><button className="btn sm ghost" onClick={signOut}>Sign out</button></div>
         </div>
       </aside>
-      <main className="main" id="main">{page}</main>
+      <main className="main" id="main" tabIndex={-1}>{page}</main>
+      <CommandPalette items={palette} />
     </div>
   );
 }
@@ -122,5 +142,5 @@ function Working() {
   }, []);
   if (!q || (!q.running && !q.waiting)) return null;
   const n = (q.running ? 1 : 0) + q.waiting;
-  return <div className="modes" style={{ borderColor: 'var(--accent-line)' }} aria-live="polite"><div className="mode" style={{ alignItems: 'center', gap: 8 }}><span className="spinner" style={{ width: 12, height: 12, color: 'var(--accent)' }} /><b className="live" style={{ marginRight: 'auto' }}>AI working</b><span>{n} {n === 1 ? 'task' : 'tasks'}</span></div></div>;
+  return <div className="modes" aria-live="polite"><div className="mode" style={{ alignItems: 'center', gap: 8 }}><span className="spinner" style={{ width: 12, height: 12, color: 'var(--ink-muted)' }} /><b style={{ marginRight: 'auto' }}>AI working</b><span>{n} {n === 1 ? 'task' : 'tasks'}</span></div></div>;
 }
