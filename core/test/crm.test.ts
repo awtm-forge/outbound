@@ -66,3 +66,20 @@ test('crm: opportunities move their prospect forward only, lost needs a reason, 
   const acts = await db.q(`select action from activities where entity_type='opportunity' and entity_id=$1 order by created_at`, [o.body.id]);
   assert.deepEqual(acts.map((a) => a.action), ['opened', 'stage_changed', 'stage_changed', 'stage_changed', 'deal_recorded', 'deal_updated']);
 });
+
+test('one opportunity per prospect: a reply then a booked meeting, or two meetings, never make a second', async () => {
+  const { company, prospect } = await P.ingest({ company: { name: 'Once Co', website: 'once.example' }, campaign_code: 'IND-WEB-ELECTRONICS' });
+  await db.q(`insert into opportunities(prospect_id,company_id,campaign_id,stage) values($1,$2,$3,'REPLIED')`, [prospect.id, company.id, prospect.campaign_id]);
+  const m1 = await P.createMeeting(prospect.id); const m2 = await P.createMeeting(prospect.id);
+  assert.equal(m1.opportunity_id, m2.opportunity_id);
+  const opps = await db.q('select stage from opportunities where prospect_id=$1', [prospect.id]); assert.equal(opps.length, 1); assert.equal(opps[0].stage, 'MEETING_BOOKED');
+  assert.equal((await db.q('select 1 from meetings where opportunity_id=$1', [m1.opportunity_id])).length, 2, 'both meetings sit on the one opportunity');
+  await assert.rejects(db.q(`insert into opportunities(prospect_id,company_id,stage) values($1,$2,'REPLIED')`, [prospect.id, company.id]), /unique|duplicate/);
+});
+test('adding a decision maker checks the email\'s own domain against the do-not-contact list, not only the company\'s', async () => {
+  const s = await t.signIn();
+  await db.q(`insert into suppression_list(domain,reason,source) values('gone-elsewhere.example','test','test') on conflict do nothing`);
+  const { prospect } = await P.ingest({ company: { name: 'Fresh Co', website: 'fresh.example' }, campaign_code: 'IND-WEB-ELECTRONICS' });
+  assert.equal((await s.call('POST', `/api/prospects/${prospect.id}/contact`, { full_name: 'Moved Person', email: 'moved@gone-elsewhere.example' })).status, 409);
+  assert.equal((await s.call('POST', `/api/prospects/${prospect.id}/contact`, { full_name: 'Fine Person', email: 'fine@fresh.example' })).status, 200);
+});

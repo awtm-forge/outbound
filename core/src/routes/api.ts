@@ -4,7 +4,7 @@ import { suppress, isSuppressed } from '../lib/suppression.ts';
 import { saleshandy } from '../adapters/saleshandy.ts';
 import { scoringConfig } from '../lib/config.ts';
 import { env } from '../lib/env.ts';
-import { firstName } from '../lib/normalize.ts';
+import { firstName, emailDomain } from '../lib/normalize.ts';
 import * as P from '../pipeline.ts';
 import { HttpError } from '../pipeline.ts';
 import { enqueue, getJob } from '../jobs.ts';
@@ -117,7 +117,8 @@ route('POST', '/api/prospects/:id/contact', 'api', async (c) => {
   const full_name = String(c.body.full_name ?? '').trim(); if (full_name.length < 2) throw new HttpError(400, 'A name is needed.');
   const email = c.body.email ? String(c.body.email).trim().toLowerCase() : null;
   if (email && !/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(email)) throw new HttpError(400, 'That email does not look right.');
-  if (email && (await isSuppressed(email, p.company.domain)).suppressed) throw new HttpError(409, 'This person or domain is on the suppression list.');
+  // the address, its own domain, and the company's domain: any one on the list refuses it (same rule as the CRM)
+  if (email && ((await isSuppressed(email, emailDomain(email))).suppressed || (await isSuppressed(null, p.company.domain)).suppressed)) throw new HttpError(409, 'This person or domain is on the suppression list.');
   const parts = full_name.split(/\s+/);
   const ct = email
     ? await one(`insert into contacts(company_id,first_name,last_name,full_name,job_title,email,linkedin_url,is_decision_maker,source) values($1,$2,$3,$4,$5,$6,$7,true,'manual')

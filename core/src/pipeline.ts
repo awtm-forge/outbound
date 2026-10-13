@@ -230,7 +230,7 @@ export async function classifyReply(replyId: string, opts: { workflowRunId?: str
   await q(`update replies set classification=$2, confidence=$3, recommended_next_action=$4, suggested_reply=$5, priority=$6, owner=$7, status='CLASSIFIED', ai_run_id=$8 where id=$1`, [r.id, o.classification, o.confidence, o.recommended_next_action, o.suggested_reply, o.priority, o.owner, res.runId]);
   if (o.classification === 'UNSUBSCRIBE' && r.from_email) { await suppress({ email: r.from_email, reason: 'reply asked to stop', source: 'reply_classification' }); await q(`update replies set status='ACTIONED' where id=$1`, [r.id]); }
   if (p && ['POSITIVE', 'VALUE_REQUEST', 'PRICE', 'REFERRAL'].includes(o.classification)) {
-    await q(`insert into opportunities(prospect_id,company_id,campaign_id,stage,owner) select $1,$2,$3,'REPLIED',$4 where not exists (select 1 from opportunities where prospect_id=$1)`, [p.id, p.company.id, p.campaign_id, o.owner]);
+    await q(`insert into opportunities(prospect_id,company_id,campaign_id,stage,owner) values($1,$2,$3,'REPLIED',$4) on conflict (prospect_id) do nothing`, [p.id, p.company.id, p.campaign_id, o.owner]);
   }
   if (p && o.classification === 'NOT_INTERESTED') await setStatus(p.id, 'LOST', { close: true });
   await audit('reply', r.id, 'classified', 'system', { classification: o.classification, runId: res.runId });
@@ -262,7 +262,7 @@ export async function decideTeardown(id: string, action: 'APPROVE' | 'EDIT' | 'R
 // ---------- 12 meeting brief ----------
 export async function createMeeting(prospectId: string, scheduled_at?: string) {
   const p = await loadProspect(prospectId);
-  const opp = (await one(`insert into opportunities(prospect_id,company_id,campaign_id,stage,owner) values($1,$2,$3,'MEETING_BOOKED',$4) on conflict do nothing returning id`, [p.id, p.company.id, p.campaign_id, p.owner])) ?? (await one('select id from opportunities where prospect_id=$1', [p.id]))!;
+  const opp = (await one(`insert into opportunities(prospect_id,company_id,campaign_id,stage,owner) values($1,$2,$3,'MEETING_BOOKED',$4) on conflict (prospect_id) do nothing returning id`, [p.id, p.company.id, p.campaign_id, p.owner])) ?? (await one('select id from opportunities where prospect_id=$1', [p.id]))!;
   await q(`update opportunities set stage='MEETING_BOOKED' where id=$1 and stage='REPLIED'`, [opp.id]);
   const m = (await one('insert into meetings(opportunity_id,scheduled_at) values($1,$2) returning id', [opp.id, scheduled_at ?? null]))!;
   await setStatus(p.id, 'MEETING');

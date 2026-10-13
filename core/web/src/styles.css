@@ -287,7 +287,8 @@ table.t { width: 100%; border-collapse: collapse; }
 
 /* ---------- prospect ---------- */
 .prospect-grid { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(300px, 1fr); gap: var(--s-5); align-items: start; }
-@media (max-width: 1100px) { .prospect-grid { grid-template-columns: 1fr; } }
+/* minmax(0, ...) so a wide table scrolls inside its card instead of pushing the page sideways on a phone */
+@media (max-width: 1100px) { .prospect-grid { grid-template-columns: minmax(0, 1fr); } }
 .kv { display: grid; grid-template-columns: 140px 1fr; gap: 8px var(--s-4); font-size: var(--fs-0); }
 .kv dt { color: var(--ink-faint); font-family: var(--mono); font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; padding-top: 2px; }
 .kv dd { margin: 0; }
