@@ -65,7 +65,7 @@ a { text-underline-offset: 3px; }
 .btn[aria-busy='true'] { cursor: progress; }
 .btn.primary[aria-busy='true'] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
 kbd { font-family: var(--mono); font-size: 11px; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 3px; border: 1px solid currentColor; opacity: 1; line-height: 1; display: inline-grid; place-items: center; }
-.btn kbd { opacity: 0.85; }
+.btn kbd { opacity: 1; color: inherit; background: transparent; }
 
 /* ---------- fields ---------- */
 .field { gap: 6px; }
@@ -296,3 +296,6 @@ mark { background: var(--warning-bg); color: var(--ink); }
 .drawer:focus { outline: none; }
 /* A wide table scrolls inside its card, so its header row can stay in view while reading down a long list. */
 @media (min-width: 641px) { .card.scrollx { max-height: max(420px, calc(100dvh - 180px)); overflow: auto; overscroll-behavior: contain; } }
+/* numbers line up on the right in tables, and read left to right again once rows stack on phones */
+.t th.num, .t td.num { text-align: right; }
+@media (max-width: 640px) { .t.stack td.num { text-align: left; } }

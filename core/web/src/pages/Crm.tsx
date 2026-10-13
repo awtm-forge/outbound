@@ -107,8 +107,8 @@ function Opportunities() {
   };
   return (
     <>
-      <div className="tiles">{['REPLIED', 'MEETING_BOOKED', 'MEETING_HELD', 'PROPOSAL_SENT', 'NEGOTIATION'].map((s) => { const xs = open.filter((o) => o.stage === s); return (
-        <div key={s} className={`tile${xs.length ? '' : ' zero'}`} style={{ minHeight: 0 }}><span className="lbl">{STAGE[s]}</span><span className="n">{xs.length}</span><span className="hint num">{xs.length ? inr(sum(xs)) : 'None'}</span></div>); })}</div>
+      <div className="tiles" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(118px, 1fr))' }}>{['REPLIED', 'MEETING_BOOKED', 'MEETING_HELD', 'PROPOSAL_SENT', 'NEGOTIATION'].map((s) => { const xs = open.filter((o) => o.stage === s); return (
+        <div key={s} className={`tile${xs.length ? '' : ' zero'}`} style={{ minHeight: 0 }}><span className="lbl">{STAGE[s]}</span><span className="n">{xs.length}</span><span className="hint num">{!xs.length ? 'None' : sum(xs) === '0' ? 'No value set' : inr(sum(xs))}</span></div>); })}</div>
       <div className="card flush scrollx"><table className="t stack">
         <thead><tr><th>Company</th><th>Stage</th><th className="num">Value</th><th>Owner</th><th>Deal</th><th>Moved</th></tr></thead>
         <tbody>{data!.map((o) => <tr key={o.id}>
