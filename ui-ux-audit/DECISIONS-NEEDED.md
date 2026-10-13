@@ -7,8 +7,8 @@ defaults change what the app sends to the server.
 
 | Option | What it is | Why it matters | If chosen |
 |---|---|---|---|
-| **Follow the system (built)** | Light or dark from the operating system, switchable in the sidebar and on Your account. | Most people's machines already say what they prefer. | Someone on a light Mac sees the new light theme the first time; one click returns them to dark. |
-| Dark by default | Dark unless the person picks light. | The app has always been dark; nobody is surprised. | The light theme exists but most people never find it. |
+| Follow the system | Light or dark from the operating system. | Most people's machines already say what they prefer. | Someone on a light Mac sees the light theme first. |
+| **Dark by default (built, since the dashboard rebuild)** | Dark unless the person picks Light or System in the profile menu or on Your account. | The dashboard and sign-in references are dark, cinematic designs. | The light theme still works everywhere, but most people never see it. |
 
 ## 2. Restoring an old wiki version
 
@@ -51,3 +51,18 @@ defaults change what the app sends to the server.
 |---|---|---|---|
 | **"Meetings" (built)** | The sidebar says Meetings; the page title stays "Meetings and deals". | The full name wrapped onto two lines in the sidebar. | Proposals live on a page whose sidebar name does not mention them. |
 | "Deals" | Matches the address (/deals). | Short. | Can be confused with CRM opportunities, which are also deals. |
+
+## 8. Campaign names on Today
+
+| Option | What it is | Why it matters | If chosen |
+|---|---|---|---|
+| **Code first, vertical underneath (built, as in the dashboard reference)** | IND-WEB-ELECTRONICS, then "DTC ecommerce: electronics". | Matches the reference and how the team talks about campaigns. | Newcomers read codes first. |
+| Vertical first, code underneath | The UI pass's earlier choice. | Plain words lead. | Differs from the reference. |
+
+## 9. Decorative curves on the KPI cards
+
+| Option | What it is | Why it matters | If chosen |
+|---|---|---|---|
+| **Decorative curves (built)** | A gentle line under each number, the same shape family on every card, hidden from screen readers. | The reference has them; there is no history to plot yet. | Someone may read a trend into a drawn shape. |
+| Real sparklines | A 14-day series per card. | Honest trend at a glance. | Needs daily counts kept on the server (the daily metrics snapshot covers campaigns only). |
+| No curves | Numbers only. | Nothing to misread. | Differs from the reference. |

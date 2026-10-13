@@ -1,0 +1,43 @@
+{
+ "flow": "pipeline",
+ "role": "admin",
+ "steps": [
+  {
+   "step": "open",
+   "writes": [],
+   "reads": [
+    "GET /api/campaigns",
+    "GET /api/prospects?view=active"
+   ]
+  },
+  {
+   "step": "filter qualified",
+   "writes": [],
+   "reads": [
+    "GET /api/prospects?status=QUALIFIED"
+   ]
+  },
+  {
+   "step": "search",
+   "writes": [],
+   "reads": [
+    "GET /api/prospects?q=kav&status=QUALIFIED"
+   ]
+  },
+  {
+   "step": "open a company",
+   "writes": [],
+   "reads": [
+    "GET /api/prospects/:id",
+    "GET /api/prospects?q=kav&view=active"
+   ]
+  }
+ ],
+ "background": [
+  "GET /api/chat/channels",
+  "GET /api/chat/poll?after=#&wait=#",
+  "GET /api/chat/poll?wait=#",
+  "GET /api/me",
+  "GET /api/overview"
+ ]
+}

@@ -23,3 +23,15 @@ in some runs and not in others, on both builds (`tools/chatcheck.mjs`, four runs
 harness therefore records it with the other feed-driven requests, as a set per flow, and the chat delete step waits
 6 seconds for the feed to settle. Both `before/` (served from the `main` build) and `after/` were recorded with the
 final harness.
+
+## Dashboard and sign-in rebuild (`dashboard/`)
+
+Replayed against `after/` with the same harness (the to-do step opens the new Add task dialog). Differences, all
+intended and all against endpoints and fields that already exist:
+
+- Today reads two more endpoints when it opens: `GET /api/campaigns` (campaign status for the table) and
+  `GET /api/deals` (meetings for the week strip). Both are existing reads used by other screens.
+- Adding a to-do sends `priority` as well, because the dialog has a Priority field; `POST /api/todos` already
+  accepted it.
+
+Everything else (19 flows, 86 steps, 50 step mutations) matches.

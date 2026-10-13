@@ -44,11 +44,12 @@ function CalendarPanel({ meetings, loading, error }: { meetings?: any[]; loading
         <button type="button" className="cal-nav" onClick={() => shift(-1)} aria-label="Previous week"><Icon.left size={16} /></button>
         <button type="button" className="cal-nav" onClick={() => shift(1)} aria-label="Next week"><Icon.right size={16} /></button>
         <Link to="/deals" className="link-accent">View all</Link></div>
-      <div className="cal-grid" role="grid" aria-label={`Week of ${cells[0]!.label} ${title}`}>
-        {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((d) => <span key={d} className="dow" role="columnheader">{d}</span>)}
-        {cells.map((c) => <span key={c.key} role="gridcell" className={`day${c.out ? ' out' : ''}${c.key === today ? ' today' : ''}${!c.out && booked.has(c.key) ? ' has' : ''}`}
-          aria-current={c.key === today ? 'date' : undefined} aria-label={!c.out && booked.has(c.key) ? `${c.label}, a meeting` : undefined}><span>{c.label}</span></span>)}
-      </div>
+      <div className="cal-grid" aria-hidden="true">{['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((d) => <span key={d} className="dow">{d}</span>)}</div>
+      <ol className="cal-grid cal-days" aria-label={`Week of ${cells[0]!.label} ${title}`}>
+        {cells.map((c) => { const full = new Date(c.key + 'T00:00:00Z').toLocaleDateString('en-IN', { timeZone: 'UTC', weekday: 'long', day: 'numeric', month: 'long' });
+          return <li key={c.key} className={`day${c.key === today ? ' today' : ''}${booked.has(c.key) ? ' has' : ''}`} aria-current={c.key === today ? 'date' : undefined}
+            aria-label={`${full}${c.key === today ? ', today' : ''}${booked.has(c.key) ? ', a meeting booked' : ''}`}><span aria-hidden="true">{c.label}</span></li>; })}
+      </ol>
       {loading ? <p className="cal-empty">Loading meetings…</p>
         : error ? <p className="cal-empty">Meetings could not be loaded. {error}</p>
         : upcoming.length ? <ul className="cal-events">{upcoming.map((x, i) => { const at = new Date(x.scheduled_at); return (

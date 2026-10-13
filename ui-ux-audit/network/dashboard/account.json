@@ -1,0 +1,25 @@
+{
+ "flow": "account",
+ "role": "admin",
+ "steps": [
+  {
+   "step": "open",
+   "writes": [],
+   "reads": []
+  },
+  {
+   "step": "save profile",
+   "writes": [
+    "POST /api/me/profile {email,name}"
+   ],
+   "reads": []
+  }
+ ],
+ "background": [
+  "GET /api/chat/channels",
+  "GET /api/chat/poll?after=#&wait=#",
+  "GET /api/chat/poll?wait=#",
+  "GET /api/me",
+  "GET /api/overview"
+ ]
+}

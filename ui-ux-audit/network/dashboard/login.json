@@ -1,0 +1,30 @@
+{
+ "flow": "login",
+ "role": "signed-out",
+ "steps": [
+  {
+   "step": "open",
+   "writes": [],
+   "reads": []
+  },
+  {
+   "step": "sign in",
+   "writes": [
+    "POST /auth/login {password,user}"
+   ],
+   "reads": [
+    "GET /api/campaigns",
+    "GET /api/deals",
+    "GET /api/team",
+    "GET /api/todos"
+   ]
+  }
+ ],
+ "background": [
+  "GET /api/chat/channels",
+  "GET /api/chat/poll?after=#&wait=#",
+  "GET /api/chat/poll?wait=#",
+  "GET /api/me",
+  "GET /api/overview"
+ ]
+}

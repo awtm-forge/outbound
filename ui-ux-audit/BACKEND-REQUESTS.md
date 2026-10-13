@@ -46,3 +46,51 @@ works without it.
 - **Why it matters**: Today could say "3 unread messages" without the chat feed.
 - **If never done**: Today does not mention chat; the Chat item in the navigation keeps its own count from the live
   feed, as now.
+
+## Dashboard and sign-in rebuild
+
+These came from rebuilding Today and the sign-in page to the supplied references. Each control below is in the
+interface, says honestly what it can do today, and would become fully live with the server change.
+
+## 6. Team presence
+
+- **What**: record when each person was last active (the app already knows when a tab is in use, see `active.ts`)
+  and return it with `GET /api/team`, so Today can show Online, In a meeting and Offline.
+- **Helps**: the Team card on Today (the reference shows "Team online, 3/5 online").
+- **If never done**: the card lists the team with their role and a message button, and does not claim who is online.
+
+## 7. "Keep me signed in" as a real choice
+
+- **What**: accept `remember: boolean` on `POST /auth/login`; without it, issue a session cookie with no `Max-Age`
+  (ends when the browser closes); with it, today's 12-hour cookie.
+- **Helps**: the sign-in card.
+- **If never done**: the box is shown ticked and fixed, with a note that sessions last 12 hours on the device.
+
+## 8. Password reset by email
+
+- **What**: an email provider for account mail, a `password_resets` table (hashed single-use token, 30-minute expiry),
+  `POST /auth/reset-request` that always answers the same way whether or not the address exists, and
+  `POST /auth/reset` that sets the new password and bumps `session_version`.
+- **Helps**: Forgot your password.
+- **If never done**: the screen explains the real route (an admin sets a temporary password from Team) and sends
+  nothing.
+
+## 9. Google and Microsoft sign-in
+
+- **What**: OAuth (OpenID Connect) for Google Workspace and Microsoft Entra, matched to existing users by email,
+  plus `GET /auth/providers` so the page knows which are configured.
+- **Helps**: the two buttons on the sign-in card.
+- **If never done**: both buttons are shown as not set up and do nothing.
+
+## 10. Calendar events beyond the app's own meetings
+
+- **What**: a calendar connection (Google Calendar) or a duration and video link on `meetings`.
+- **Helps**: the week strip and upcoming list on Today, which the reference shows with durations and "Google Meet".
+- **If never done**: the strip marks days with meetings booked in the app and lists the next three, with company and
+  contact but no duration or platform.
+
+## 11. Campaign status and new campaigns from the app
+
+- **What**: `PATCH /api/campaigns/:code` for status, and a create endpoint (campaigns live in `core/config` today).
+- **Helps**: "Update campaign status" in the AI card and "New campaign" in Quick actions.
+- **If never done**: both are shown as not available yet, with the reason.
