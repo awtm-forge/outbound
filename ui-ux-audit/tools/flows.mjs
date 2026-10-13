@@ -13,6 +13,7 @@ const keys = (o, pre = '') => !o || typeof o !== 'object' || Array.isArray(o) ? 
 const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
 
 async function flow(name, role, steps) {
+  if (process.env.ONLY && !process.env.ONLY.split(',').includes(name)) return; // re-run some flows only
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, permissions: ['clipboard-read', 'clipboard-write'], extraHTTPHeaders: { 'x-forwarded-for': `10.66.${Math.floor(Math.random() * 250)}.${Math.floor(Math.random() * 250)}` } });
   const page = await ctx.newPage(); let cur = null; const rec = { flow: name, role, steps: [], background: new Set() }; let inflight = 0;
   page.on('dialog', (d) => d.accept(d.type() === 'prompt' ? 'Chose another studio' : undefined));
@@ -94,7 +95,7 @@ await flow('wiki', 'admin', [['open', go('/wiki')], ['search', async (p) => { aw
 await flow('chat', 'admin', [['open', go(`/chat/${i.general}`)],
   ['send', async (p) => { const box = p.getByLabel(/^Message #general/); await box.fill('Lunch at 1?'); await box.press('Enter'); await p.locator('.msg', { hasText: 'Lunch at 1?' }).first().waitFor(); }],
   ['edit own', async (p) => { const m = p.locator('.msg', { hasText: 'Lunch at 1?' }).first(); await m.hover(); await m.getByRole('button', { name: 'Edit' }).click(); const ed = p.locator('.msg textarea').first(); await ed.fill('Lunch at 1.30?'); await ed.press('Enter'); await p.getByText('Lunch at 1.30?').waitFor(); }],
-  ['delete own', async (p) => { const m = p.locator('.msg', { hasText: 'Lunch at 1.30?' }).first(); await m.hover(); await m.getByRole('button', { name: 'Delete' }).click(); await confirmIt(p); }],
+  ['delete own', async (p) => { const m = p.locator('.msg', { hasText: 'Lunch at 1.30?' }).first(); await m.hover(); await m.getByRole('button', { name: 'Delete' }).click(); await confirmIt(p); await p.waitForTimeout(6000); /* let the live feed deliver the deletion, which marks the channel read */ }],
   ['new channel', async (p) => { await p.getByRole('button', { name: 'New channel' }).click(); await p.getByLabel('New channel name').fill('client-bloom'); await p.getByLabel('New channel name').press('Enter'); await p.waitForURL(/chat\//); }],
   ['message someone', async (p) => { await p.getByRole('button', { name: 'Message someone' }).first().click(); await p.locator('select[aria-label="Message someone"]').selectOption({ label: 'Meera Shah' }); await p.waitForTimeout(800); }]]);
 await flow('crm', 'admin', [['open', go('/crm')],

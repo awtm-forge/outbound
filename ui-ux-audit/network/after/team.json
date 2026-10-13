@@ -1,0 +1,56 @@
+{
+ "flow": "team",
+ "role": "admin",
+ "steps": [
+  {
+   "step": "open",
+   "writes": [],
+   "reads": [
+    "GET /api/users"
+   ]
+  },
+  {
+   "step": "add someone",
+   "writes": [
+    "POST /api/users {email,name,password,role,username}"
+   ],
+   "reads": [
+    "GET /api/users"
+   ]
+  },
+  {
+   "step": "make admin",
+   "writes": [
+    "PATCH /api/users/:id {role}"
+   ],
+   "reads": [
+    "GET /api/users"
+   ]
+  },
+  {
+   "step": "reset password",
+   "writes": [
+    "POST /api/users/:id/password {password}"
+   ],
+   "reads": [
+    "GET /api/users"
+   ]
+  },
+  {
+   "step": "switch off",
+   "writes": [
+    "PATCH /api/users/:id {active}"
+   ],
+   "reads": [
+    "GET /api/users"
+   ]
+  }
+ ],
+ "background": [
+  "GET /api/chat/channels",
+  "GET /api/chat/poll?after=#&wait=#",
+  "GET /api/chat/poll?wait=#",
+  "GET /api/me",
+  "GET /api/overview"
+ ]
+}

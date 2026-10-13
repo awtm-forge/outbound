@@ -1,0 +1,46 @@
+{
+ "flow": "today",
+ "role": "admin",
+ "steps": [
+  {
+   "step": "open",
+   "writes": [],
+   "reads": [
+    "GET /api/team",
+    "GET /api/todos"
+   ]
+  },
+  {
+   "step": "add a to-do",
+   "writes": [
+    "POST /api/todos {assignee_id,due_date,title}"
+   ],
+   "reads": [
+    "GET /api/todos"
+   ]
+  },
+  {
+   "step": "tick it",
+   "writes": [
+    "PATCH /api/tasks/:id {status}"
+   ],
+   "reads": [
+    "GET /api/todos"
+   ]
+  },
+  {
+   "step": "show everyone",
+   "writes": [],
+   "reads": [
+    "GET /api/todos?who=all"
+   ]
+  }
+ ],
+ "background": [
+  "GET /api/chat/channels",
+  "GET /api/chat/poll?after=#&wait=#",
+  "GET /api/chat/poll?wait=#",
+  "GET /api/me",
+  "GET /api/overview"
+ ]
+}

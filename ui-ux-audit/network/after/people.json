@@ -1,0 +1,52 @@
+{
+ "flow": "people",
+ "role": "admin",
+ "steps": [
+  {
+   "step": "open",
+   "writes": [],
+   "reads": [
+    "GET /api/hr/employees"
+   ]
+  },
+  {
+   "step": "add a person",
+   "writes": [
+    "POST /api/hr/employees {department,employment_type,end_date,full_name,job_title,location,manager_id,phone,start_date,status,user_id,work_email}"
+   ],
+   "reads": [
+    "GET /api/hr/employees",
+    "GET /api/hr/employees/:id",
+    "GET /api/team"
+   ]
+  },
+  {
+   "step": "record pay",
+   "writes": [
+    "POST /api/hr/employees/:id/compensation {amount_paise,effective_from,note,period}"
+   ],
+   "reads": [
+    "GET /api/hr/employees/:id"
+   ]
+  },
+  {
+   "step": "leave tab approve",
+   "writes": [
+    "POST /api/hr/leave/:id/decision {action}"
+   ],
+   "reads": [
+    "GET /api/hr/leave",
+    "GET /api/hr/leave?mine=#",
+    "GET /api/hr/me",
+    "GET /api/hr/out"
+   ]
+  }
+ ],
+ "background": [
+  "GET /api/chat/channels",
+  "GET /api/chat/poll?after=#&wait=#",
+  "GET /api/chat/poll?wait=#",
+  "GET /api/me",
+  "GET /api/overview"
+ ]
+}

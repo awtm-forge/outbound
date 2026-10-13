@@ -1,0 +1,44 @@
+{
+ "flow": "deals",
+ "role": "admin",
+ "steps": [
+  {
+   "step": "open",
+   "writes": [],
+   "reads": [
+    "GET /api/deals"
+   ]
+  },
+  {
+   "step": "open a meeting",
+   "writes": [],
+   "reads": []
+  },
+  {
+   "step": "rewrite the brief",
+   "writes": [
+    "POST /api/meetings/:id/brief {force}"
+   ],
+   "reads": [
+    "GET /api/deals"
+   ]
+  },
+  {
+   "step": "approve proposal",
+   "writes": [
+    "POST /api/proposals/:id/decision {action}"
+   ],
+   "reads": [
+    "GET /api/deals"
+   ]
+  }
+ ],
+ "background": [
+  "GET /api/chat/channels",
+  "GET /api/chat/poll?after=#&wait=#",
+  "GET /api/chat/poll?wait=#",
+  "GET /api/jobs/:id",
+  "GET /api/me",
+  "GET /api/overview"
+ ]
+}

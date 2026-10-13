@@ -15,3 +15,9 @@ How it was run (scripts in `ui-ux-audit/tools/`): a fixture database made throug
 `flows.mjs` driving Chromium. `diff.mjs before after` exits non-zero on any difference in method, path, query, body
 field names, mutation order or the set of reads. Running the baseline twice gave no differences, so the harness is
 deterministic.
+
+**One harness change during the pass.** The first after run showed one extra `POST /api/chat/channels/:id/read` in
+the chat "delete own" step. `tools/chatcheck.mjs` showed both builds send exactly that request once the live feed
+delivers the deletion; the old build had simply moved on to the next step before the feed arrived. The step now
+waits 6 seconds for the feed to settle, and both `before/` (served from the `main` build) and `after/` were
+re-recorded with the same harness. Result: `19 flows, 86 steps, 53 mutations compared: no differences`.

@@ -1,0 +1,60 @@
+{
+ "flow": "inbox",
+ "role": "admin",
+ "steps": [
+  {
+   "step": "open",
+   "writes": [],
+   "reads": [
+    "GET /api/inbox"
+   ]
+  },
+  {
+   "step": "draft the teardown",
+   "writes": [
+    "POST /api/replies/:id/teardown"
+   ],
+   "reads": [
+    "GET /api/inbox"
+   ]
+  },
+  {
+   "step": "teardowns tab",
+   "writes": [],
+   "reads": [
+    "GET /api/proof-assets"
+   ]
+  },
+  {
+   "step": "approve teardown",
+   "writes": [
+    "POST /api/teardowns/:id/decision {action,body}"
+   ],
+   "reads": [
+    "GET /api/inbox"
+   ]
+  },
+  {
+   "step": "replies tab",
+   "writes": [],
+   "reads": []
+  },
+  {
+   "step": "mark handled",
+   "writes": [
+    "POST /api/replies/:id/handled"
+   ],
+   "reads": [
+    "GET /api/inbox"
+   ]
+  }
+ ],
+ "background": [
+  "GET /api/chat/channels",
+  "GET /api/chat/poll?after=#&wait=#",
+  "GET /api/chat/poll?wait=#",
+  "GET /api/jobs/:id",
+  "GET /api/me",
+  "GET /api/overview"
+ ]
+}

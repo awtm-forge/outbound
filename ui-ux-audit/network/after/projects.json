@@ -1,0 +1,84 @@
+{
+ "flow": "projects",
+ "role": "admin",
+ "steps": [
+  {
+   "step": "open",
+   "writes": [],
+   "reads": [
+    "GET /api/projects"
+   ]
+  },
+  {
+   "step": "new project",
+   "writes": [
+    "POST /api/projects {description,due_date,name,owner_id}"
+   ],
+   "reads": [
+    "GET /api/projects",
+    "GET /api/projects/:id",
+    "GET /api/team"
+   ]
+  },
+  {
+   "step": "quick add task",
+   "writes": [
+    "POST /api/projects/:id/tasks {status,title}"
+   ],
+   "reads": [
+    "GET /api/projects/:id"
+   ]
+  },
+  {
+   "step": "open task",
+   "writes": [],
+   "reads": [
+    "GET /api/tasks/:id/comments"
+   ]
+  },
+  {
+   "step": "set status doing",
+   "writes": [
+    "PATCH /api/tasks/:id {status}"
+   ],
+   "reads": [
+    "GET /api/projects/:id"
+   ]
+  },
+  {
+   "step": "comment",
+   "writes": [
+    "POST /api/tasks/:id/comments {body}"
+   ],
+   "reads": [
+    "GET /api/projects/:id",
+    "GET /api/tasks/:id/comments"
+   ]
+  },
+  {
+   "step": "delete task",
+   "writes": [
+    "DELETE /api/tasks/:id"
+   ],
+   "reads": [
+    "GET /api/projects/:id"
+   ]
+  },
+  {
+   "step": "project status",
+   "writes": [
+    "PATCH /api/projects/:id {status}"
+   ],
+   "reads": [
+    "GET /api/projects/:id"
+   ]
+  }
+ ],
+ "background": [
+  "GET /api/chat/channels",
+  "GET /api/chat/poll?after=#&wait=#",
+  "GET /api/chat/poll?wait=#",
+  "GET /api/me",
+  "GET /api/overview"
+ ]
+}

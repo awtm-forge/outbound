@@ -1,0 +1,64 @@
+{
+ "flow": "chat",
+ "role": "admin",
+ "steps": [
+  {
+   "step": "open",
+   "writes": [
+    "POST /api/chat/channels/:id/read {seq}"
+   ],
+   "reads": [
+    "GET /api/chat/channels/:id/messages",
+    "GET /api/team"
+   ]
+  },
+  {
+   "step": "send",
+   "writes": [
+    "POST /api/chat/channels/:id/messages {body}",
+    "POST /api/chat/channels/:id/read {seq}"
+   ],
+   "reads": []
+  },
+  {
+   "step": "edit own",
+   "writes": [
+    "PATCH /api/chat/messages/:id {body}",
+    "POST /api/chat/channels/:id/read {seq}"
+   ],
+   "reads": []
+  },
+  {
+   "step": "delete own",
+   "writes": [
+    "DELETE /api/chat/messages/:id"
+   ],
+   "reads": []
+  },
+  {
+   "step": "new channel",
+   "writes": [
+    "POST /api/chat/channels {name}"
+   ],
+   "reads": [
+    "GET /api/chat/channels/:id/messages"
+   ]
+  },
+  {
+   "step": "message someone",
+   "writes": [
+    "POST /api/chat/direct {user_id}"
+   ],
+   "reads": [
+    "GET /api/chat/channels/:id/messages"
+   ]
+  }
+ ],
+ "background": [
+  "GET /api/chat/channels",
+  "GET /api/chat/poll?after=#&wait=#",
+  "GET /api/chat/poll?wait=#",
+  "GET /api/me",
+  "GET /api/overview"
+ ]
+}
