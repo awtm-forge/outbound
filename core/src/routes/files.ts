@@ -31,10 +31,10 @@ export function readUpload(c: Ctx) {
   const magic = MAGIC.find(([m]) => m === mime); if (magic && !magic[1].every((b, i) => data[i] === b)) throw new HttpError(415, 'The file does not match its type.');
   return { data, mime, name: safeName(c.url.searchParams.get('name') ?? 'file') };
 }
-export function storeFile(owner: { project_id?: string | null; task_id?: string | null; page_id?: string | null; wiki_page_id?: string | null }, up: ReturnType<typeof readUpload>, userId: string) {
+export function storeFile(owner: { project_id?: string | null; task_id?: string | null; page_id?: string | null; wiki_page_id?: string | null; employee_id?: string | null }, up: ReturnType<typeof readUpload>, userId: string) {
   return tx(async (db) => {
-    const f = (await db.query('insert into project_files(project_id,task_id,page_id,wiki_page_id,name,mime,size,uploaded_by) values($1,$2,$3,$4,$5,$6,$7,$8) returning *',
-      [owner.project_id ?? null, owner.task_id ?? null, owner.page_id ?? null, owner.wiki_page_id ?? null, up.name, up.mime, up.data.length, userId])).rows[0];
+    const f = (await db.query('insert into project_files(project_id,task_id,page_id,wiki_page_id,employee_id,name,mime,size,uploaded_by) values($1,$2,$3,$4,$5,$6,$7,$8,$9) returning *',
+      [owner.project_id ?? null, owner.task_id ?? null, owner.page_id ?? null, owner.wiki_page_id ?? null, owner.employee_id ?? null, up.name, up.mime, up.data.length, userId])).rows[0];
     await db.query('insert into file_blobs(file_id,data) values($1,$2)', [f.id, up.data]);
     return f;
   });

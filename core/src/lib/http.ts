@@ -6,7 +6,7 @@ import { env } from './env.ts';
 import { one, q } from './db.ts';
 import { log } from './log.ts';
 import { HttpError } from '../pipeline.ts';
-import { loadUser, publicUser, type SessionUser } from './auth.ts';
+import { loadUser, publicUser, touchSeen, type SessionUser } from './auth.ts';
 import { markActivity } from './activity.ts';
 
 // user: the signed-in person, or null for X-Api-Key callers. actor: who the audit trail names (the username for a person).
@@ -55,7 +55,8 @@ export async function sessionUser(req: IncomingMessage): Promise<SessionUser | n
   // a cookie from before personal logins carries no uid and is simply not a session any more
   if (!(s.exp > Date.now()) || typeof s.uid !== 'string' || !/^[0-9a-f-]{36}$/.test(s.uid)) return null;
   const u = await loadUser(s.uid);
-  return u && u.active && u.session_version === s.sv ? publicUser(u) : null;
+  if (!(u && u.active && u.session_version === s.sv)) return null;
+  touchSeen(u.id); return publicUser(u);
 }
 
 async function authenticate(req: IncomingMessage, kind: Route['auth']): Promise<{ actor: string; user: SessionUser | null } | null> {

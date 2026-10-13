@@ -14,6 +14,7 @@ import './routes/notifications.ts';
 import './routes/chat.ts';
 import './routes/crm-views.ts';
 import './routes/crm.ts';
+import './routes/people.ts';
 import './routes/hr.ts';
 import { releaseAll } from './lib/wakeup.ts';
 import { migrate } from './migrate.ts';

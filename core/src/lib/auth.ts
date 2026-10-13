@@ -37,6 +37,12 @@ type Cached = SessionUser & { active: boolean; session_version: number };
 // Every signed-in request checks the person is still active and the session still current. A few seconds of cache keeps
 // chat polling from turning into a user lookup per request; changes made here clear it at once (one process).
 const cache = new Map<string, { u: Cached | null; t: number }>();
+// When each person last used the app: written at most once a minute per person, never blocking the request.
+const seen = new Map<string, number>();
+export function touchSeen(id: string) {
+  const now = Date.now(); if ((seen.get(id) ?? 0) > now - 60_000) return; seen.set(id, now);
+  q('update users set last_seen_at=now() where id=$1', [id]).catch(() => seen.delete(id));
+}
 export const forgetUser = (id: string) => cache.delete(id);
 export async function loadUser(id: string): Promise<Cached | null> {
   const c = cache.get(id); if (c && Date.now() - c.t < 5000) return c.u;
