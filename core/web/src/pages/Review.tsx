@@ -4,7 +4,8 @@ import { Link, useRouter } from '../router.tsx';
 import { useKeys, useLoad } from '../ui/hooks.ts';
 import { Icon } from '../ui/icons.tsx';
 import { useToast } from '../ui/toast.tsx';
-import { Empty, Failure, Loading, Ring, ScoreBars, Spinner, ProofTag, problemLabel, capLabel, ago } from '../ui/kit.tsx';
+import { Badge, Empty, Failure, Loading, Ring, ScoreBars, Spinner, ProofTag, problemLabel, capLabel, ago } from '../ui/kit.tsx';
+import { actorLabel } from '../ui/chrome.tsx';
 import { countsBus } from '../App.tsx';
 
 type Item = any;
@@ -60,11 +61,11 @@ function Draft({ item, criteria, pos, total, prev, next, done, approvedTab }: { 
     setBusy(action);
     try {
       await api.post(`/api/drafts/${item.id}/decision`, { action: action === 'APPROVE' && edited ? 'EDIT' : action, subject, body, reason: reason || undefined });
-      toast(action === 'REJECT' ? `Rejected. ${item.company} is closed.` : action === 'RESEARCH_MORE' ? `${item.company} goes back for more research.` : `Approved. ${item.company} will be queued in Saleshandy.`);
+      toast(action === 'REJECT' ? `Rejected. ${item.company} is closed.` : action === 'RESEARCH_MORE' ? `Sent back for research. ${item.company} leaves the queue.` : `Approved. ${item.company} will be queued in Saleshandy.`);
       done();
     } catch (e: any) { toast(e.message, { err: true }); setBusy(null); }
   };
-  const sync = async () => { setBusy('SYNC'); try { const r = await api.post(`/api/drafts/${item.id}/sync`); toast(r.mode === 'mock' ? 'Queued in the Saleshandy simulator. Nothing was sent.' : 'Queued in Saleshandy.'); done(); } catch (e: any) { toast(e.message, { err: true }); setBusy(null); } };
+  const sync = async () => { setBusy('SYNC'); try { const r = await api.post(`/api/drafts/${item.id}/sync`); toast(r.mode === 'mock' ? 'Sent to the Saleshandy simulator. No email went out.' : 'Sent to Saleshandy. It goes out on the campaign schedule.'); done(); } catch (e: any) { toast(e.message, { err: true }); setBusy(null); } };
   useKeys({ a: () => (approvedTab ? sync() : decide('APPROVE')), r: () => !approvedTab && decide('REJECT'), m: () => !approvedTab && decide('RESEARCH_MORE'), e: () => bodyRef.current?.focus(), j: next, k: prev, ArrowRight: next, ArrowLeft: prev }, !busy);
 
   const site = item.website; const b = item.score_breakdown ?? {};
@@ -73,13 +74,13 @@ function Draft({ item, criteria, pos, total, prev, next, done, approvedTab }: { 
       <div className="ctx">
         <div className="row between wrap">
           <div className="queue-nav"><button className="btn sm" onClick={prev} disabled={pos === 0} aria-label="Previous email"><Icon.left size={16} /></button><span className="pos">{pos + 1} of {total}</span><button className="btn sm" onClick={next} disabled={pos === total - 1} aria-label="Next email"><Icon.right size={16} /></button></div>
-          <Link to={`/prospects/${item.prospect_id}`} className="btn sm ghost">Full profile <Icon.arrow size={14} /></Link>
+          <Link to={`/prospects/${item.prospect_id}`} className="btn sm ghost">Full profile</Link>
         </div>
         <div>
           <div className="co-name">{item.company}</div>
           <div className="co-meta">
             <a className="tag" href={item.website ?? `https://${item.domain}`} target="_blank" rel="noreferrer">{item.domain} <Icon.out size={12} /></a>
-            {item.platform && <span className="tag">{item.platform}</span>}{item.city && <span className="tag">{item.city}</span>}<span className="tag ember">{item.campaign}</span>
+            {item.platform && <span className="tag">{item.platform}</span>}{item.city && <span className="tag">{item.city}</span>}<span className="tag" title={item.campaign}>{item.campaign_name ?? item.campaign}</span>
           </div>
         </div>
         <div className="notice">
@@ -103,23 +104,23 @@ function Draft({ item, criteria, pos, total, prev, next, done, approvedTab }: { 
       </div>
 
       <div className="composer" aria-label="Email draft">
-        <div className="to"><span className="k">To</span><span className="grow">{item.contact_name ? <b style={{ fontWeight: 600 }}>{item.contact_name}</b> : <span className="faint">No name</span>}{item.contact_title && <span className="muted">, {item.contact_title}</span>}<br /><span className="mono faint" style={{ fontSize: 12 }}>{item.contact_email ?? 'no email yet'}</span></span>
-          {item.email_verification_status && <span className={`tag ${item.email_verification_status === 'VALID' ? 'ember' : 'dim'}`}>{item.email_verification_status === 'VALID' ? 'Verified' : item.email_verification_status === 'UNVERIFIED' ? 'Not verified yet' : item.email_verification_status.toLowerCase()}</span>}</div>
+        <div className="to"><span className="k">To</span><span className="grow">{item.contact_name ? <b style={{ fontWeight: 600 }}>{item.contact_name}</b> : <span className="faint">No name</span>}{item.contact_title && <span className="muted">, {item.contact_title}</span>}<br /><span className="mono faint" style={{ fontSize: 12 }}>{item.contact_email ?? 'No email yet'}</span></span>
+          {item.email_verification_status && <Badge tone={item.email_verification_status === 'VALID' ? 'success' : item.email_verification_status === 'UNVERIFIED' ? 'neutral' : 'warning'}>{item.email_verification_status === 'VALID' ? 'Address verified' : item.email_verification_status === 'UNVERIFIED' ? 'Not verified yet' : item.email_verification_status === 'INVALID' ? 'Address bounced' : item.email_verification_status === 'RISKY' ? 'Address risky' : item.email_verification_status === 'CATCH_ALL' ? 'Accepts any address' : 'Address unclear'}</Badge>}</div>
         <label className="sr" htmlFor="subject">Subject</label>
         <input id="subject" className="subject" value={subject} onChange={(e) => setSubject(e.target.value)} readOnly={approvedTab} />
         <label className="sr" htmlFor="body">Email</label>
         <textarea id="body" ref={bodyRef} className="body" value={body} onChange={(e) => setBody(e.target.value)} readOnly={approvedTab} spellCheck />
-        {reasonFor && <div className="reason"><input className="input" autoFocus placeholder={reasonFor === 'REJECT' ? 'Why is this not a fit? (optional)' : 'What should research look at? (optional)'} value={reason} onChange={(e) => setReason(e.target.value)}
+        {reasonFor && <div className="reason"><input className="input" autoFocus aria-label={reasonFor === 'REJECT' ? 'Why is this not a fit (optional)' : 'What should research look at (optional)'} placeholder={reasonFor === 'REJECT' ? 'Why is this not a fit? (optional)' : 'What should research look at? (optional)'} value={reason} onChange={(e) => setReason(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') decide(reasonFor); if (e.key === 'Escape') setReasonFor(null); }} /><button className={`btn ${reasonFor === 'REJECT' ? 'danger' : ''}`} onClick={() => decide(reasonFor)}>{reasonFor === 'REJECT' ? 'Reject' : 'Send back'}</button><button className="btn ghost" onClick={() => setReasonFor(null)}>Cancel</button></div>}
         <div className="foot">
           {approvedTab ? <>
-            <span className="faint" style={{ fontSize: 'var(--fs-0)' }}>Approved by {item.approver} · {ago(item.approved_at)}</span>
+            <span className="faint" style={{ fontSize: 'var(--fs-0)' }}>Approved by {actorLabel(item.approver)} · {ago(item.approved_at)}</span>
             <button className="btn primary right" onClick={sync} disabled={!!busy}>{busy === 'SYNC' ? <Spinner /> : <Icon.send size={16} />}Send to Saleshandy now <kbd>A</kbd></button>
           </> : <>
             <button className="btn primary" onClick={() => decide('APPROVE')} disabled={!!busy}>{busy === 'APPROVE' ? <Spinner /> : <Icon.check size={16} />}{edited ? 'Approve with my edits' : 'Approve'} <kbd>A</kbd></button>
             <button className="btn" onClick={() => decide('RESEARCH_MORE')} disabled={!!busy}><Icon.redo size={16} />Research again <kbd>M</kbd></button>
             <button className="btn danger" onClick={() => decide('REJECT')} disabled={!!busy}><Icon.x size={16} />Reject <kbd>R</kbd></button>
-            <span className={`right mono ${words > 120 ? '' : 'faint'}`} style={{ fontSize: 11, color: words > 120 ? 'var(--danger)' : undefined }}>{words} words{edited ? ' · edited' : ''}</span>
+            <span className={`right ${words > 120 ? '' : 'faint'}`} style={{ fontSize: 'var(--fs-0)', fontVariantNumeric: 'tabular-nums', color: words > 120 ? 'var(--danger)' : undefined }}>{words} words{words > 120 ? ', over 120' : ''}{edited ? ' · edited' : ''}</span>
           </>}
         </div>
       </div>

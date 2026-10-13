@@ -4,7 +4,10 @@ import { Link, useRouter } from '../router.tsx';
 import { useKeys, useLoad } from '../ui/hooks.ts';
 import { Icon } from '../ui/icons.tsx';
 import { useToast } from '../ui/toast.tsx';
-import { Empty, Failure, Loading, Spinner, ago, classLabel, copy, ProofTag } from '../ui/kit.tsx';
+import { Badge, Empty, Failure, Loading, Spinner, ago, classLabel, copy, ProofTag } from '../ui/kit.tsx';
+import { actorLabel } from '../ui/chrome.tsx';
+
+const PRIORITY: Record<string, string> = { HIGH: 'High priority', MEDIUM: 'Medium priority', LOW: 'Low priority' };
 import { countsBus } from '../App.tsx';
 
 export function Inbox() {
@@ -17,8 +20,8 @@ export function Inbox() {
     <div className="page">
       <div className="head"><div><h1>Inbox</h1><p>Replies from Saleshandy, already read and sorted. Nothing here is sent for you: copy the suggested answer, change it, send it yourself.</p></div>
         <div className="tabs" role="tablist">
-          <button role="tab" aria-selected={tab === 'replies'} className={tab === 'replies' ? 'on' : ''} onClick={() => go('/inbox', true)}>Replies {replies.length > 0 && <span className="tag solid" style={{ height: 18 }}>{replies.length}</span>}</button>
-          <button role="tab" aria-selected={tab === 'teardowns'} className={tab === 'teardowns' ? 'on' : ''} onClick={() => go('/inbox?tab=teardowns', true)}>Teardowns {teardowns.length > 0 && <span className="tag solid" style={{ height: 18 }}>{teardowns.length}</span>}</button>
+          <button role="tab" aria-selected={tab === 'replies'} className={tab === 'replies' ? 'on' : ''} onClick={() => go('/inbox', true)}>Replies {replies.length > 0 && <span className="tab-n">{replies.length}</span>}</button>
+          <button role="tab" aria-selected={tab === 'teardowns'} className={tab === 'teardowns' ? 'on' : ''} onClick={() => go('/inbox?tab=teardowns', true)}>Teardowns {teardowns.length > 0 && <span className="tab-n">{teardowns.length}</span>}</button>
         </div></div>
       {loading && !data ? <Loading rows={5} /> : error ? <Failure error={error} retry={reload} /> : tab === 'replies'
         ? <Replies items={replies} changed={changed} openTeardowns={() => go('/inbox?tab=teardowns')} />
@@ -39,8 +42,8 @@ function Replies({ items, changed, openTeardowns }: { items: any[]; changed: () 
     try {
       if (what === 'teardown') { await api.run(`/api/replies/${r.id}/teardown`); toast('Teardown drafted. Read it before it goes.', { action: { label: 'Open', run: openTeardowns } }); }
       if (what === 'handled') { await api.post(`/api/replies/${r.id}/handled`); toast('Marked as handled.'); }
-      if (what === 'classify') { await api.run(`/api/replies/${r.id}/classify`); toast('Reply read again.'); }
-      if (what === 'meeting') { const m = await api.post(`/api/prospects/${r.prospect_id}/meeting`, {}); await api.run(`/api/meetings/${m.meeting_id}/brief`); await api.post(`/api/replies/${r.id}/handled`); toast('Meeting created and the brief is ready.', { action: { label: 'Open', run: () => go('/deals') } }); }
+      if (what === 'classify') { await api.run(`/api/replies/${r.id}/classify`); toast('Read again. The suggestion is updated.'); }
+      if (what === 'meeting') { const m = await api.post(`/api/prospects/${r.prospect_id}/meeting`, {}); await api.run(`/api/meetings/${m.meeting_id}/brief`); await api.post(`/api/replies/${r.id}/handled`); toast('Call booked. The meeting and its brief are in Deals.', { action: { label: 'Open', run: () => go('/deals') } }); }
       changed();
     } catch (e: any) { toast(e.message, { err: true }); } finally { setBusy(null); }
   };
@@ -48,24 +51,24 @@ function Replies({ items, changed, openTeardowns }: { items: any[]; changed: () 
     <div className="split">
       <div className="list" role="listbox" aria-label="Replies">{items.map((x) => (
         <button key={x.id} role="option" aria-selected={x.id === id} className={x.id === id ? 'on' : ''} onClick={() => setId(x.id)}>
-          <div className="row"><span className={`dot ${x.priority === 'HIGH' ? 'hot' : x.priority === 'MEDIUM' ? 'mid' : ''}`} /><b className="grow ellipsis" style={{ fontWeight: 600 }}>{x.company ?? x.from_email}</b><span className="faint mono" style={{ fontSize: 11 }}>{ago(x.received_at)}</span></div>
+          <div className="row"><span className={`dot ${x.priority === 'HIGH' ? 'hot' : x.priority === 'MEDIUM' ? 'mid' : ''}`} aria-hidden="true" /><b className="grow ellipsis" style={{ fontWeight: 600 }}>{x.company ?? x.from_email}</b>{x.priority === 'HIGH' && <span className="sr">High priority</span>}<span className="when">{ago(x.received_at)}</span></div>
           <span className="tag" style={{ alignSelf: 'flex-start' }}>{classLabel(x.classification)}</span>
           <span className="muted ellipsis" style={{ fontSize: 'var(--fs-0)' }}>{x.body}</span>
         </button>))}</div>
       {r && <div className="col" style={{ gap: 'var(--s-4)' }}>
         <div className="card col">
           <div className="row between wrap"><div><div className="co-name" style={{ fontSize: 'var(--fs-4)' }}>{r.company ?? 'Unknown sender'}</div><p className="muted" style={{ marginTop: 4 }}>{r.contact_name ? `${r.contact_name} · ` : ''}{r.from_email} · {ago(r.received_at)}</p></div>
-            {r.prospect_id && <Link className="btn sm ghost" to={`/prospects/${r.prospect_id}`}>Profile <Icon.arrow size={14} /></Link>}</div>
+            {r.prospect_id && <Link className="btn sm ghost" to={`/prospects/${r.prospect_id}`}>Open profile</Link>}</div>
           {r.subject && <p className="faint">{r.subject}</p>}
           <div className="quote">{r.body}</div>
         </div>
         <div className="card col">
-          <div className="row wrap"><span className="tag solid">{classLabel(r.classification)}</span>{r.confidence != null && <span className="faint mono" style={{ fontSize: 11 }}>{Math.round(Number(r.confidence) * 100)}% sure</span>}<span className="tag right">{r.priority ?? 'MEDIUM'} priority</span>{r.owner && <span className="tag">For {r.owner}</span>}</div>
+          <div className="row wrap"><Badge tone="info">{classLabel(r.classification)}</Badge>{r.confidence != null && <span className="faint" style={{ fontSize: 'var(--fs-0)' }}>{Math.round(Number(r.confidence) * 100)}% sure</span>}<span className="right" /><Badge tone={r.priority === 'HIGH' ? 'warning' : 'neutral'}>{PRIORITY[r.priority ?? 'MEDIUM'] ?? 'Medium priority'}</Badge>{r.owner && <Badge>For {actorLabel(r.owner)}</Badge>}</div>
           <div><p className="kick" style={{ marginBottom: 6 }}>Next step</p><p style={{ fontSize: 'var(--fs-2)', fontWeight: 600 }}>{r.recommended_next_action ?? 'Read it and decide.'}</p></div>
           {r.suggested_reply && <div><div className="row between" style={{ marginBottom: 6 }}><p className="kick">Suggested answer, not sent</p><button className="btn sm" onClick={async () => toast((await copy(r.suggested_reply)) ? 'Copied.' : 'Could not copy.')}><Icon.copy size={14} />Copy</button></div><div className="quote" style={{ borderLeftColor: 'var(--hairline)' }}>{r.suggested_reply}</div></div>}
           <hr className="divider" />
           <div className="row wrap">
-            {r.classification === 'VALUE_REQUEST' && (r.teardown_id ? <button className="btn primary" onClick={openTeardowns}><Icon.arrow size={16} />Teardown is drafted</button>
+            {r.classification === 'VALUE_REQUEST' && (r.teardown_id ? <button className="btn primary" onClick={openTeardowns}>Open the teardown</button>
               : <button className="btn primary" onClick={() => act('teardown')} disabled={!!busy}>{busy === 'teardown' ? <Spinner /> : <Icon.spark size={16} />}Draft the two-point teardown</button>)}
             {r.prospect_id && ['POSITIVE', 'PRICE', 'REFERRAL', 'VALUE_REQUEST'].includes(r.classification) && <button className={`btn ${r.classification === 'VALUE_REQUEST' ? '' : 'primary'}`} onClick={() => act('meeting')} disabled={!!busy}>{busy === 'meeting' ? <Spinner /> : <Icon.deals size={16} />}They booked a call</button>}
             {!r.classification && <button className="btn" onClick={() => act('classify')} disabled={!!busy}>Read it again</button>}
@@ -88,10 +91,10 @@ function Teardown({ t, changed }: { t: any; changed: () => void }) {
   return (
     <div className="review">
       <div className="ctx">
-        <div><div className="co-name" style={{ fontSize: 'var(--fs-4)' }}>{t.company}</div><p className="muted" style={{ marginTop: 4 }}>{t.contact_name ?? ''} · {t.domain} · drafted {ago(t.created_at)}</p></div>
+        <div><div className="co-name" style={{ fontSize: 'var(--fs-4)' }}>{t.company}</div><p className="muted" style={{ marginTop: 4 }}>{[t.contact_name, t.domain, `drafted ${ago(t.created_at)}`].filter(Boolean).join(' · ')}</p></div>
         {t.reply_body && <div><p className="kick" style={{ marginBottom: 6 }}>They wrote</p><div className="quote">{t.reply_body}</div></div>}
         {(t.findings as any[]).map((f, i) => <div key={i} className="notice"><p className="kick ember" style={{ marginBottom: 8 }}>Finding {i + 1}</p><p className="obs" style={{ fontSize: 'var(--fs-2)' }}>{f.observation}</p>
-          <p className="why"><b style={{ fontWeight: 600, color: 'var(--ink)' }}>Why it matters.</b> {f.why_it_matters}</p><p className="why"><b style={{ fontWeight: 600, color: 'var(--ink)' }}>What we would test.</b> {f.what_we_would_test}</p><p className="faint mono" style={{ fontSize: 11, marginTop: 8 }}>Evidence: {f.evidence}</p></div>)}
+          <p className="why"><b style={{ fontWeight: 600, color: 'var(--ink)' }}>Why it matters.</b> {f.why_it_matters}</p><p className="why"><b style={{ fontWeight: 600, color: 'var(--ink)' }}>What we would test.</b> {f.what_we_would_test}</p><p className="faint" style={{ fontSize: 'var(--fs-0)', marginTop: 8 }}>Evidence: {f.evidence}</p></div>)}
         {t.proof_ids?.length > 0 && <div className="card col"><h2>Proof used</h2>{t.proof_ids.map((id: string) => { const p = proofs.data?.find((x) => x.id === id); return p ? <div key={id} className="proof"><div className="row between"><b style={{ fontWeight: 600 }}>{p.title}</b><ProofTag label={p.label} /></div></div> : null; })}</div>}
       </div>
       <div className="composer">
@@ -100,7 +103,7 @@ function Teardown({ t, changed }: { t: any; changed: () => void }) {
         <div className="foot">
           <button className="btn primary" onClick={() => decide('APPROVE')} disabled={!!busy}>{busy === 'APPROVE' ? <Spinner /> : <Icon.check size={16} />}{body !== t.body_original ? 'Approve with my edits and copy' : 'Approve and copy'}</button>
           <button className="btn danger" onClick={() => decide('REJECT')} disabled={!!busy}><Icon.x size={16} />Reject</button>
-          <span className="right faint mono" style={{ fontSize: 11 }}>{body.trim().split(/\s+/).length} words</span>
+          <span className="right faint" style={{ fontSize: 'var(--fs-0)', fontVariantNumeric: 'tabular-nums' }}>{body.trim().split(/\s+/).filter(Boolean).length} words</span>
         </div>
       </div>
     </div>
