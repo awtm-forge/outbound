@@ -70,6 +70,13 @@ export function describe(a: { action: string; detail: any }): { verb: string; wh
     case 'file_uploaded': return { verb: 'uploaded', what: d.name, icon: 'file', tone: 'p' };
     case 'file_renamed': return { verb: 'renamed a file', what: `${d.from} to ${d.to}`, icon: 'file', tone: 'p' };
     case 'file_removed': return { verb: 'deleted the file', what: d.name, icon: 'trash', tone: 'r' };
+    case 'file_moved': return { verb: 'moved', what: t, note: d.to ? `to ${d.to}` : undefined, icon: 'folder', tone: 'p' };
+    case 'file_replaced': return { verb: 'uploaded a new version of', what: t, note: d.version ? `version ${d.version}` : undefined, icon: 'upload', tone: 'p' };
+    case 'file_downloaded': return { verb: 'downloaded', what: t, icon: 'download', tone: 'c' };
+    case 'file_comment': return { verb: 'commented on the file', what: t, note: d.excerpt ? `“${d.excerpt}”` : undefined, icon: 'message', tone: 'c' };
+    case 'folder_added': return { verb: 'created the folder', what: t, icon: 'folder', tone: 'g' };
+    case 'folder_renamed': return { verb: 'renamed the folder', what: `${d.from} to ${t}`, icon: 'folder', tone: 'p' };
+    case 'folder_removed': return { verb: 'deleted the folder', what: t, note: d.files ? `${d.files} ${d.files === 1 ? 'file' : 'files'} moved up` : undefined, icon: 'trash', tone: 'r' };
     case 'page_created': return { verb: 'created the page', what: t, icon: 'wiki', tone: 'g' };
     case 'page_edited': return { verb: 'edited the page', what: t, icon: 'wiki', tone: 'c' };
     case 'page_moved': return { verb: 'moved the page', what: t, icon: 'wiki', tone: 'c' };

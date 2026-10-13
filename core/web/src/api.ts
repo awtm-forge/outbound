@@ -16,8 +16,9 @@ export const api = {
   put: <T = any>(p: string, b: unknown = {}) => call<T>('PUT', p, b),
   del: <T = any>(p: string, b?: unknown) => call<T>('DELETE', p, b),
   // a file as the request body, with its type; progress from 0 to 1 while it goes up
-  upload: <T = any>(p: string, file: Blob, onProgress?: (f: number) => void) => new Promise<T>((ok, fail) => {
+  upload: <T = any>(p: string, file: Blob, onProgress?: (f: number) => void, signal?: AbortSignal) => new Promise<T>((ok, fail) => {
     const x = new XMLHttpRequest(); x.open('POST', p); x.withCredentials = true;
+    if (signal) { if (signal.aborted) return fail(new ApiError(0, 'Cancelled.')); signal.addEventListener('abort', () => x.abort()); x.onabort = () => fail(new ApiError(0, 'Cancelled.')); }
     x.setRequestHeader('content-type', file.type || 'application/octet-stream'); x.setRequestHeader('idempotency-key', crypto.randomUUID());
     x.upload.onprogress = (e) => { if (e.lengthComputable) onProgress?.(e.loaded / e.total); };
     x.onload = () => { let d: any = null; try { d = JSON.parse(x.responseText); } catch { /* not json */ }

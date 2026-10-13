@@ -33,6 +33,8 @@ export const env = {
   aiTemperature: Number(process.env.AI_TEMPERATURE ?? 0.2),
   aiMaxRetries: Number(process.env.AI_MAX_RETRIES ?? 3),
   aiRetryBaseMs: Number(process.env.AI_RETRY_BASE_MS ?? 5000),
+  // optional cap on what one project's files may take, in MB; 0 means no cap (none is set unless configured)
+  projectStorageLimitMb: Math.max(0, Number(process.env.PROJECT_STORAGE_LIMIT_MB || 0)),
   aiCacheTtlHours: Number(process.env.AI_CACHE_TTL_HOURS ?? 720),
   saleshandyMode: (process.env.SALESHANDY_MODE ?? 'mock') as 'real' | 'mock',
   saleshandyKey: process.env.SALESHANDY_API_KEY ?? '',
