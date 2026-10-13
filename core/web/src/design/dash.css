@@ -518,3 +518,10 @@ code { font-family: var(--mono); font-size: 0.92em; padding: 1px 5px; border-rad
 .ctable .c-name .co-av, .ctable .c-name .av { display: grid; max-width: none; }
 .find-fields { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1.1fr) minmax(0, 1fr) minmax(0, 0.95fr) auto; }
 @media (max-width: 640px) { .hero-row .quote-card { display: none; } .camp-bar .tb-search { flex-basis: 100%; max-width: none; } }
+/* cards that open on a click anywhere, not only on their arrow */
+[data-card-open] { cursor: pointer; }
+[data-card-open] :is(p, h2, h3, b, span, dd, dt) { cursor: inherit; }
+.camp[data-card-open], .pcard2[data-card-open] { transition: border-color var(--t-fast) var(--ease), transform var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease); }
+.camp[data-card-open]:hover { transform: translateY(-2px); border-color: rgba(var(--tone-rgb), 0.75); }
+.pcard2[data-card-open]:hover { transform: translateY(-2px); border-color: rgba(var(--pa-rgb), 0.7); }
+@media (prefers-reduced-motion: reduce) { .camp[data-card-open]:hover, .pcard2[data-card-open]:hover { transform: none; } }

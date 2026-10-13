@@ -6,7 +6,7 @@ import { Icon, Dots } from '../../ui/icons.tsx';
 import { Menu, MenuItem } from '../../ui/menu.tsx';
 import { Modal, useConfirm } from '../../ui/overlay.tsx';
 import { useToast } from '../../ui/toast.tsx';
-import { Empty, Failure, Skeleton, ago } from '../../ui/kit.tsx';
+import { Empty, Failure, Skeleton, ago, cardOpen } from '../../ui/kit.tsx';
 import { useMe } from '../../session.tsx';
 import { fileSize } from './shared.tsx';
 import type { WS } from './Workspace.tsx';
@@ -52,7 +52,7 @@ export function Files({ ws }: { ws: WS }) {
       {loading && !data ? <div className="fgrid">{[0, 1, 2, 3].map((i) => <Skeleton key={i} h={190} />)}</div> : error ? <Failure error={error} retry={reload} /> :
         <div className={`fgrid${over ? ' over' : ''}`}>
           {list.map((f) => { const k = kindOf(f.mime); const [label, color] = KIND[k]!; return (
-            <article key={f.id} className="fcard">
+            <article key={f.id} className="fcard" {...cardOpen(() => previewable(f.mime) ? setView(f) : window.open(`/api/files/${f.id}/content?download=1`))}>
               <button type="button" className="fthumb" onClick={() => previewable(f.mime) ? setView(f) : window.open(`/api/files/${f.id}/content?download=1`)} aria-label={`${previewable(f.mime) ? 'Preview' : 'Download'} ${f.name}`}>
                 {k === 'image' && f.mime !== 'image/svg+xml' ? <img src={`/api/files/${f.id}/content`} alt="" loading="lazy" /> : <span className="ftype" style={{ color, borderColor: color }}>{label === 'File' ? (f.name.split('.').pop() ?? 'FILE').slice(0, 4).toUpperCase() : label === 'Document' ? 'DOC' : label.toUpperCase()}</span>}</button>
               <div className="fmeta"><b title={f.name}>{f.name}</b><span>{label} · {fileSize(f.size)}</span><span>{f.uploaded_by_name ?? 'Someone'} · {ago(f.created_at)}</span>

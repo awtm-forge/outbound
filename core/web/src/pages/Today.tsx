@@ -4,7 +4,7 @@ import { Link, useRouter } from '../router.tsx';
 import { useLoad } from '../ui/hooks.ts';
 import { Icon, Dots } from '../ui/icons.tsx';
 import { Menu, MenuItem } from '../ui/menu.tsx';
-import { Failure, Skeleton, ago, pct } from '../ui/kit.tsx';
+import { Failure, Skeleton, ago, pct, cardOpen } from '../ui/kit.tsx';
 import { Todos } from './Todos.tsx';
 import { Rail } from './TodayRail.tsx';
 
@@ -113,7 +113,7 @@ function Campaigns({ data, error, retry }: { data?: any; error?: string | null; 
         : <div className="scrollx"><table className="ctable">
           <thead><tr><th>Campaign</th><th className="num">Found</th><th className="num">Sent</th><th className="num">Replies</th><th className="num">Positive</th><th className="num">Meetings</th><th className="num">Won</th><th>Status</th><th><span className="sr">Actions</span></th></tr></thead>
           <tbody>{list.map((x, i) => { const m = x.metrics ?? {}; const I = Icon[CAMPAIGN_ICON(x)]; return (
-            <tr key={x.code}>
+            <tr key={x.code} className="click" title={`Open the companies in ${x.code}`} {...cardOpen(`/pipeline?campaign=${x.code}&view=active`, go)}>
               <td><div className="c-name"><span className={`c-ic${i % 2 ? ' o' : ''}`} aria-hidden="true"><I size={15} /></span><div><b>{x.code}</b><span title={x.vertical}>{x.vertical}</span></div></div></td>
               <td className="num">{m.accounts_found ?? 0}</td><td className="num">{m.emails_sent ?? 0}</td>
               <td className="num">{m.replies ?? 0}{m.emails_sent > 0 && m.reply_rate != null && <span style={{ color: 'var(--ink-faint)' }}> ({pct(m.reply_rate).toLowerCase()})</span>}</td>

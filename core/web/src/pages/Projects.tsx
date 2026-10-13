@@ -6,7 +6,7 @@ import { Icon, Dots } from '../ui/icons.tsx';
 import { Menu, MenuItem } from '../ui/menu.tsx';
 import { Modal } from '../ui/overlay.tsx';
 import { useToast } from '../ui/toast.tsx';
-import { Badge, Empty, Failure, Skeleton, Spinner, ago, dayLabel, isLate, rowOpen, type Tone } from '../ui/kit.tsx';
+import { Badge, Empty, Failure, Skeleton, Spinner, ago, dayLabel, isLate, rowOpen, cardOpen, type Tone } from '../ui/kit.tsx';
 import { useMe, useTeam } from '../session.tsx';
 import { countsBus } from '../App.tsx';
 import { ColorPicker, ProjectMark, accentVars } from '../ui/color.tsx';
@@ -64,7 +64,7 @@ function ProjectCard({ p, onPatched }: { p: any; onPatched: (p: any) => void }) 
   const save = async (patch: object, msg: string) => { setBusy(true); try { const r = await api.patch(`/api/projects/${p.id}`, patch); onPatched(r); toast(msg); return true; } catch (e: any) { toast(e.message, { err: true }); return false; } finally { setBusy(false); } };
   const last = p.last_activity; const d = last ? describe(last) : null;
   return (
-    <article className="pcard2" style={accentVars(color)} aria-labelledby={`pc-${p.id}`}>
+    <article className="pcard2" style={accentVars(color)} aria-labelledby={`pc-${p.id}`} {...cardOpen(`/projects/${p.id}`, go)}>
       <div className="pc-top">
         <Menu label={`Colour of ${p.name}`} className="pc-mark" kind="dialog" place="left" button={<ProjectMark name={p.name} color={color} size={48} />}>{(close) =>
           <ColorPicker value={p.color} name={p.name} busy={busy} onPreview={setPreview}

@@ -5,7 +5,7 @@ import { useLoad } from '../ui/hooks.ts';
 import { Icon, Dots } from '../ui/icons.tsx';
 import { Menu, MenuItem } from '../ui/menu.tsx';
 import { useToast } from '../ui/toast.tsx';
-import { Failure, Loading, Spinner, ago, inr, pct } from '../ui/kit.tsx';
+import { Failure, Loading, Spinner, ago, inr, pct, cardOpen } from '../ui/kit.tsx';
 import { actorLabel } from '../ui/chrome.tsx';
 
 const CAMPAIGN_STATUS: Record<string, string> = { ACTIVE: 'Active', DRAFT: 'Draft', PAUSED: 'Paused', STOPPED: 'Stopped' };
@@ -89,7 +89,7 @@ function CampaignCard({ c }: { c: any }) {
   const curve = CURVES[c.code.length % CURVES.length]!;
   const copy = async () => { try { await navigator.clipboard.writeText(c.code); toast(`Copied ${c.code}.`); } catch { toast('Could not copy. The browser blocked the clipboard.', { err: true }); } };
   return (
-    <article className="camp" style={{ '--tone-rgb': c.tone } as React.CSSProperties} aria-labelledby={`camp-${c.code}`}>
+    <article className="camp" style={{ '--tone-rgb': c.tone } as React.CSSProperties} aria-labelledby={`camp-${c.code}`} {...cardOpen(`/pipeline?campaign=${c.code}&view=active`, go)}>
       <div className="camp-top"><span className="camp-code">{c.code}</span><span className={`state ${c.status}`}>{CAMPAIGN_STATUS[c.status] ?? c.status}</span>
         <Menu label={`Actions for ${c.vertical}`} className="icon-btn" button={<Dots vertical size={16} />}>{(close) => <>
           <MenuItem onSelect={() => { close(); go(`/pipeline?campaign=${c.code}&view=active`); }}><Icon.arrow size={15} />Open companies</MenuItem>
