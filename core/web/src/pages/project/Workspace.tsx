@@ -40,6 +40,8 @@ export function Workspace({ id, view = '', sub }: { id: string; view?: string; s
   const open = search.get('task');
   const openTask = (tid: string | null, tab?: string) => { const p = new URLSearchParams(search); p.delete('tab'); if (tid) { p.set('task', tid); if (tab) p.set('tab', tab); } else p.delete('task'); go(`${location.pathname}${p.toString() ? '?' + p : ''}`, true); };
   const wide = useMedia('(min-width: 1200px)');
+  // opening a task clears the alerts that pointed at it, so the counter only shows what is still new
+  useEffect(() => { if (open) api.post('/api/notifications/read', { task_id: open }).then((r: any) => { if (r?.read) unreadChanged(); }).catch(() => {}); }, [open]);
   const ws: WS | null = useMemo(() => data ? { p: data, reload: () => reload(true), setP: setData, openTask, addTask: (preset = {}) => setAdding(preset) } : null, [data, search.toString()]); // eslint-disable-line react-hooks/exhaustive-deps
   if (loading && !data) return <div className="pws"><Skeleton h={60} w="50%" /><Skeleton h={90} /><Skeleton h={420} /></div>;
   if (error || !data || !ws) return <div className="pws"><Crumbs items={[{ to: '/projects', label: 'Projects' }, { label: 'Project' }]} /><Failure error={error ?? 'Project not found'} retry={reload} /></div>;
@@ -50,8 +52,6 @@ export function Workspace({ id, view = '', sub }: { id: string; view?: string; s
   const base = `/projects/${id}`;
   const withRail = view === '' || view === 'board';
   const tabParam = search.get('tab');
-  // opening a task clears the alerts that pointed at it, so the counter only shows what is still new
-  useEffect(() => { if (open) api.post('/api/notifications/read', { task_id: open }).then((r: any) => { if (r?.read) unreadChanged(); }).catch(() => {}); }, [open]);
   const docked = !!open && wide && (view === 'list' || view === 'timeline') && tabParam !== 'full';
   return (
     <div className="pws" style={accentVars(color)}>
