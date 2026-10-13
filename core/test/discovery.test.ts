@@ -80,3 +80,10 @@ test('discovery over the session API: searches listed, results carry candidates 
   assert.equal(volt.status, 'ADDED'); assert.ok(volt.prospect_status); assert.equal(volt.display_name, 'VoltHome'); assert.ok(volt.emails.includes('sales@volthome.in'));
   assert.equal((await sess.call('GET', '/api/discovery/quota')).body.used_today, 3);
 });
+test('discovery stats count candidates, analysed sites, detected platforms and emails, with this week alongside', async () => {
+  const sess = await t.signIn(); const r = await sess.call('GET', '/api/discovery/stats'); assert.equal(r.status, 200);
+  const [row] = await db.q(`select count(*)::int n, count(*) filter (where enriched_at is not null)::int e, count(platform)::int pl, coalesce(sum(cardinality(emails)),0)::int em from discovery_candidates`);
+  assert.deepEqual([r.body.companies_found, r.body.sites_analysed, r.body.platforms_detected, r.body.emails_found], [row.n, row.e, row.pl, row.em]);
+  assert.ok(r.body.companies_found > 0 && r.body.companies_found_7d === r.body.companies_found, 'everything in the test database is from this week');
+  assert.ok(r.body.platforms_detected >= 1 && r.body.emails_found >= 2);
+});

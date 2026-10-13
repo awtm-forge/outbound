@@ -40,6 +40,8 @@ export function App() {
 }
 
 export const countsBus = new EventTarget(); // pages poke this after an action so the sidebar badges stay true
+// pages that sit on the planet artwork, besides Today
+const ART = ['/find', '/pipeline', '/campaigns'];
 function Shell({ me, onSignOut, onMeChanged }: { me: Me; onSignOut: () => void; onMeChanged: () => void }) {
   const { path } = useRouter(); const chat = useChat();
   const [counts, setCounts] = useState<Counts | null>(null);
@@ -120,7 +122,7 @@ function Shell({ me, onSignOut, onMeChanged }: { me: Me; onSignOut: () => void; 
           <Profile me={me} onSignOut={signOut} modes={modes} />
         </div>
       </aside>
-      <div className={`workspace${path === '/' ? ' is-today' : ''}`}>
+      <div className={`workspace${path === '/' ? ' is-today' : ART.some((p) => path.startsWith(p)) ? ' is-art' : ''}`}>
         <Workbar me={me} counts={counts} unread={chat.unread} today={path === '/'} />
         <main className="main" id="main" tabIndex={-1}>{page}</main>
       </div>

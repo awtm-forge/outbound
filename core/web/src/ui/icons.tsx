@@ -53,6 +53,9 @@ export const Icon = {
   eye: (p: { size?: number }) => <I {...p} d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Zm10 3a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />,
   eyeOff: (p: { size?: number }) => <I {...p} d="M3 3l18 18M10.6 5.1A9.6 9.6 0 0 1 12 5c6.5 0 10 7 10 7a17 17 0 0 1-3.2 4.2M6.6 6.6C3.7 8.5 2 12 2 12s3.5 7 10 7c1.6 0 3-.4 4.3-1M9.9 9.9a3 3 0 0 0 4.2 4.2" />,
   chart: (p: { size?: number }) => <I {...p} d="M6 20V11m6 9V5m6 15v-6" />,
+  grid: (p: { size?: number }) => <I {...p} d="M4 4h7v7H4zm9 0h7v7h-7zM4 13h7v7H4zm9 0h7v7h-7z" />,
+  list: (p: { size?: number }) => <I {...p} d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01" />,
+  palette: (p: { size?: number }) => <I {...p} d="M12 3a9 9 0 0 0 0 18c1.1 0 1.7-.8 1.7-1.7 0-.5-.2-.9-.5-1.2-.3-.3-.5-.7-.5-1.2 0-.9.8-1.7 1.7-1.7H16a5 5 0 0 0 5-5c0-4-4-7.2-9-7.2ZM7.5 12h.01M10 7.5h.01M15 7.5h.01" />,
 };
 // Three dots, for menus. Filled circles read better than stroked ones at this size.
 export function Dots({ size = 18, vertical = false }: { size?: number; vertical?: boolean }) {
