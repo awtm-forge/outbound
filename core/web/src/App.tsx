@@ -61,7 +61,7 @@ function Shell({ me, onSignOut, onMeChanged }: { me: Me; onSignOut: () => void; 
     { to: '/review', label: 'Review emails', icon: 'review', n: counts?.drafts, on: (p) => p.startsWith('/review') },
     { to: '/inbox', label: 'Inbox', icon: 'inbox', n: (counts?.replies ?? 0) + (counts?.teardowns ?? 0), on: (p) => p.startsWith('/inbox') },
     { to: '/pipeline', label: 'Pipeline', icon: 'pipeline', n: counts?.needs_contact, quiet: true, on: (p) => p.startsWith('/pipeline') || p.startsWith('/prospects') },
-    { to: '/deals', label: 'Meetings and deals', icon: 'deals', n: (counts?.meetings ?? 0) + (counts?.proposals ?? 0), quiet: true, on: (p) => p.startsWith('/deals') },
+    { to: '/deals', label: 'Meetings', icon: 'deals', n: (counts?.meetings ?? 0) + (counts?.proposals ?? 0), quiet: true, on: (p) => p.startsWith('/deals') },
     { to: '/campaigns', label: 'Campaigns', icon: 'campaigns', on: (p) => p.startsWith('/campaigns') },
   ];
   const workspace: Item[] = [

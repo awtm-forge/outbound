@@ -150,9 +150,10 @@ table.t { font-size: 14px; }
   .t.stack thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
   .t.stack, .t.stack tbody, .t.stack tr, .t.stack td { display: block; width: 100%; }
   .t.stack tr { padding: 10px 14px; border-bottom: 1px solid var(--hairline); }
-  .t.stack td { padding: 3px 0; border: 0; position: static !important; box-shadow: none !important; background: transparent !important; min-width: 0 !important; max-width: none !important; }
-  .t.stack td[data-label]::before { content: attr(data-label); display: block; font-size: 12px; font-weight: 560; color: var(--ink-faint); }
-  .t.stack td:first-child { padding-bottom: 6px; }
+  .t.stack td { padding: 4px 0 4px 108px; border: 0; position: relative !important; left: auto !important; box-shadow: none !important; background: transparent !important; min-width: 0 !important; max-width: none !important; min-height: 26px; }
+  .t.stack td[data-label]::before { content: attr(data-label); position: absolute; left: 0; top: 6px; width: 96px; font-size: 12px; font-weight: 560; color: var(--ink-faint); }
+  .t.stack td:first-child { padding: 0 0 8px; }
+  .t.stack td:first-child::before { display: none; }
   .scrollx:has(.t.stack) { overflow-x: visible; }
 }
 
@@ -286,3 +287,12 @@ mark { background: var(--warning-bg); color: var(--ink); }
 .drawer-back { background: var(--scrim); }
 .drawer { background: var(--surface); border-left: 1px solid var(--hairline); box-shadow: var(--shadow-overlay); border-radius: var(--r-3) 0 0 var(--r-3); }
 .drawer > header { border-bottom-color: var(--hairline); }
+
+/* phones: a page's search and filter controls take the full width instead of pushing the page sideways */
+@media (max-width: 640px) {
+  .head > .row { width: 100%; flex-wrap: wrap; }
+  .head > .row > .input, .head > .row > select, .row.wrap > .input[aria-label^='Search'] { flex: 1 1 100%; width: 100% !important; }
+}
+.drawer:focus { outline: none; }
+/* A wide table scrolls inside its card, so its header row can stay in view while reading down a long list. */
+@media (min-width: 641px) { .card.scrollx { max-height: max(420px, calc(100dvh - 180px)); overflow: auto; overscroll-behavior: contain; } }

@@ -66,7 +66,8 @@ function ConfirmDialog({ p, close }: { p: Pending; close: (v: string | boolean) 
 export function Drawer({ label, onClose, actions, children }: { label: string; onClose: () => void; actions?: ReactNode; children: ReactNode }) {
   const ref = useRef<HTMLElement>(null);
   // Escape in a field leaves the field first (the drawer saves on blur), a second Escape closes
-  useFocusTrap(ref, () => { const a = document.activeElement as HTMLElement | null; if (a?.matches('input, textarea, select') && ref.current?.contains(a)) ref.current.focus(); else onClose(); });
+  // focus starts on the panel itself, so neither Enter nor a stray key lands on Delete
+  useFocusTrap(ref, () => { const a = document.activeElement as HTMLElement | null; if (a?.matches('input, textarea, select') && ref.current?.contains(a)) ref.current.focus(); else onClose(); }, ref);
   return (
     <>
       <div className="drawer-back" onClick={onClose} />
