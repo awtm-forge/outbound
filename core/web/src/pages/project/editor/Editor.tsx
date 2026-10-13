@@ -16,7 +16,7 @@ import { Placeholder } from '@tiptap/extensions';
 import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
 import { createLowlight, common } from 'lowlight';
 import { Icon } from '../../../ui/icons.tsx';
-import { Bookmark, BlockMoves, Callout, FileAttachment, Mention, PageRef, TaskRef, Toc } from './nodes.tsx';
+import { Bookmark, BlockMoves, Callout, FileAttachment, LinkedTasks, Mention, PageRef, TaskRef, Toc } from './nodes.tsx';
 
 const lowlight = createLowlight(common);
 export type Hooks = {
@@ -42,6 +42,9 @@ function slashItems(h: { current: Hooks }): Item[] {
     { title: 'Toggle list', hint: 'Hide details under a line', icon: 'toggle', keys: 'toggle details collapse', run: set((c) => c.setDetails()) },
     { title: 'Quote', hint: 'Someone’s words', icon: 'quote', keys: 'quote blockquote', run: set((c) => c.toggleBlockquote()) },
     { title: 'Callout', hint: 'A note that stands out', icon: 'info', keys: 'callout note info warning', run: set((c) => c.insertContent({ type: 'callout', attrs: { tone: 'info' }, content: [{ type: 'paragraph' }] })) },
+    { title: 'Objective', hint: 'The goal, in an orange callout', icon: 'target', keys: 'objective goal aim', run: set((c) => c.insertContent({ type: 'callout', attrs: { tone: 'goal' }, content: [{ type: 'paragraph' }] })) },
+    { title: 'Open questions', hint: 'Undecided things, as a list', icon: 'info', keys: 'questions open undecided', run: set((c) => c.insertContent({ type: 'callout', attrs: { tone: 'ask' }, content: [{ type: 'bulletList', content: [{ type: 'listItem', content: [{ type: 'paragraph' }] }] }] })) },
+    { title: 'Linked tasks', hint: 'A live table of project tasks', icon: 'checkSquare', keys: 'linked tasks table todo', run: set((c) => c.insertContent({ type: 'linkedTasks', attrs: { ids: '' } })) },
     { title: 'Divider', hint: 'A line between sections', icon: 'minus', keys: 'divider hr line rule', run: set((c) => c.setHorizontalRule()) },
     { title: 'Code', hint: 'Code with highlighting', icon: 'code', keys: 'code snippet pre', run: set((c) => c.toggleCodeBlock()) },
     { title: 'Table', hint: 'Rows and columns', icon: 'table', keys: 'table grid', run: set((c) => c.insertTable({ rows: 3, cols: 3, withHeaderRow: true })) },
@@ -94,7 +97,7 @@ export function NoteEditor({ content, editable, onChange, hooks, onEditor }: { c
     Highlight.configure({ multicolor: true }), TextStyle, Color, Image.configure({ allowBase64: false }),
     CodeBlockLowlight.configure({ lowlight, defaultLanguage: null }),
     Placeholder.configure({ placeholder: ({ node }) => node.type.name === 'heading' ? 'Heading' : 'Type / for blocks, @ for people', includeChildren: false }),
-    Callout, PageRef, TaskRef, Mention, Bookmark, FileAttachment, Toc, BlockMoves,
+    Callout, PageRef, TaskRef, Mention, Bookmark, FileAttachment, Toc, BlockMoves, LinkedTasks,
     suggest('slash', '/', (q) => items.filter((i) => !q || i.title.toLowerCase().includes(q.toLowerCase()) || i.keys.includes(q.toLowerCase())).slice(0, 12), 'slash', menuApi),
     suggest('mentionSuggest', '@', (q) => (h.current?.people ?? []).filter((u) => u.name.toLowerCase().includes(q.toLowerCase()) || (u.username ?? '').includes(q.toLowerCase())).slice(0, 8)
       .map((u) => ({ title: u.name, hint: u.username ? `@${u.username}` : '', icon: 'user', run: (e: Editor, r: Range) => e.chain().focus().deleteRange(r).insertContent([{ type: 'mention', attrs: { id: u.id, label: u.username ?? u.name } }, { type: 'text', text: ' ' }]).run() })), 'mention', menuApi),
@@ -164,4 +167,42 @@ function DragHandle({ editor }: { editor: Editor }) {
     onDragStart={(e) => { if (!at) return; select(); const sel = editor.state.selection as NodeSelection; (editor.view as any).dragging = { slice: sel.content(), move: true };
       const node = editor.view.nodeDOM(at.pos) as HTMLElement; if (node) e.dataTransfer.setDragImage(node, 0, 0); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', ''); }}>
     <Icon.grip size={16} /></div>;
+}
+
+// The toolbar above a page: block type, headings, lists, quote, callout, table, link, image, divider, undo and redo.
+// It follows the cursor, so the active styles light up.
+export function FixedToolbar({ editor, hooks }: { editor: Editor | null; hooks: Hooks }) {
+  const [, tick] = useState(0);
+  useEffect(() => { if (!editor) return; const h = () => tick((n) => n + 1); editor.on('transaction', h); return () => { editor.off('transaction', h); }; }, [editor]);
+  if (!editor) return <div className="nb-fixed" aria-hidden="true" />;
+  const c = () => editor.chain().focus();
+  const b = (label: string, on: boolean, run: () => void, child: React.ReactNode, dis = false) => <button type="button" className={on ? 'on' : ''} aria-pressed={on} aria-label={label} title={label} disabled={dis} onMouseDown={(e) => e.preventDefault()} onClick={run}>{child}</button>;
+  const kind = editor.isActive('heading', { level: 1 }) ? 'h1' : editor.isActive('heading', { level: 2 }) ? 'h2' : editor.isActive('heading', { level: 3 }) ? 'h3' : editor.isActive('codeBlock') ? 'code' : editor.isActive('blockquote') ? 'quote' : 'p';
+  return <div className="nb-fixed" role="toolbar" aria-label="Formatting">
+    <select aria-label="Block type" value={kind} onChange={(e) => { const v = e.target.value; const ch = c(); (v === 'p' ? ch.setParagraph() : v === 'h1' ? ch.setHeading({ level: 1 }) : v === 'h2' ? ch.setHeading({ level: 2 }) : v === 'h3' ? ch.setHeading({ level: 3 }) : v === 'code' ? ch.toggleCodeBlock() : ch.toggleBlockquote()).run(); }}>
+      <option value="p">Paragraph</option><option value="h1">Heading 1</option><option value="h2">Heading 2</option><option value="h3">Heading 3</option><option value="quote">Quote</option><option value="code">Code</option></select>
+    <span className="sep" />
+    {b('Heading 1', editor.isActive('heading', { level: 1 }), () => c().toggleHeading({ level: 1 }).run(), <b>H1</b>)}
+    {b('Heading 2', editor.isActive('heading', { level: 2 }), () => c().toggleHeading({ level: 2 }).run(), <b>H2</b>)}
+    {b('Heading 3', editor.isActive('heading', { level: 3 }), () => c().toggleHeading({ level: 3 }).run(), <b>H3</b>)}
+    <span className="sep" />
+    {b('Bold', editor.isActive('bold'), () => c().toggleBold().run(), <Icon.bold size={15} />)}
+    {b('Italic', editor.isActive('italic'), () => c().toggleItalic().run(), <Icon.italic size={15} />)}
+    {b('Underline', editor.isActive('underline'), () => c().toggleUnderline().run(), <Icon.underline size={15} />)}
+    {b('Strikethrough', editor.isActive('strike'), () => c().toggleStrike().run(), <Icon.strike size={15} />)}
+    {b('Inline code', editor.isActive('code'), () => c().toggleCode().run(), <Icon.code size={15} />)}
+    <span className="sep" />
+    {b('Checklist', editor.isActive('taskList'), () => c().toggleTaskList().run(), <Icon.checkSquare size={15} />)}
+    {b('Bulleted list', editor.isActive('bulletList'), () => c().toggleBulletList().run(), <Icon.list size={15} />)}
+    {b('Numbered list', editor.isActive('orderedList'), () => c().toggleOrderedList().run(), <Icon.listOl size={15} />)}
+    {b('Quote', editor.isActive('blockquote'), () => c().toggleBlockquote().run(), <Icon.quote size={15} />)}
+    {b('Callout', editor.isActive('callout'), () => c().insertContent({ type: 'callout', attrs: { tone: 'goal' }, content: [{ type: 'paragraph' }] }).run(), <Icon.info size={15} />)}
+    {b('Table', editor.isActive('table'), () => c().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(), <Icon.table size={15} />)}
+    {b('Link', editor.isActive('link'), async () => { if (editor.isActive('link')) { c().unsetLink().run(); return; } const url = await hooks.askLink(); if (!url) return; if (editor.state.selection.empty) c().insertContent({ type: 'bookmark', attrs: { url, title: '' } }).run(); else c().extendMarkRange('link').setLink({ href: url }).run(); }, <Icon.link size={15} />)}
+    {b('Image', false, async () => { const f = await pickFile('image/png,image/jpeg,image/gif,image/webp'); if (!f) return; const u = await hooks.upload(f); if (u) c().setImage({ src: `/api/files/${u.id}/content`, alt: u.name }).run(); }, <Icon.image size={15} />)}
+    {b('Divider', false, () => c().setHorizontalRule().run(), <Icon.minus size={15} />)}
+    <span className="sep" />
+    {b('Undo', false, () => c().undo().run(), <Icon.back size={15} />, !editor.can().undo())}
+    {b('Redo', false, () => c().redo().run(), <Icon.redo size={15} />, !editor.can().redo())}
+  </div>;
 }

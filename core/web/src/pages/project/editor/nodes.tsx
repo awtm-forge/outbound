@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Node, Extension, mergeAttributes } from '@tiptap/core';
 import { NodeViewWrapper, NodeViewContent, ReactNodeViewRenderer, type NodeViewProps } from '@tiptap/react';
 import { NodeSelection, TextSelection } from '@tiptap/pm/state';
@@ -6,7 +7,11 @@ import { fileSize } from '../shared.tsx';
 
 // Notes blocks the starter kit does not have. Each one stores only plain attributes, which the server checks again.
 // Navigation inside NodeViews goes through this hook so a click on a page or task link opens it in the app.
-export const nav: { page: (id: string) => void; task: (id: string) => void } = { page: () => {}, task: () => {} };
+export type LinkedTask = { id: string; title: string; status: string; priority: string; assignee_name: string | null; due_date: string | null };
+export const nav: { page: (id: string) => void; task: (id: string) => void; tasks: () => LinkedTask[]; pickTask: () => Promise<{ id: string; title: string } | null>; newTask: () => Promise<{ id: string } | null> } =
+  { page: () => {}, task: () => {}, tasks: () => [], pickTask: async () => null, newTask: async () => null };
+// the project's tasks change outside the editor; linked-task tables listen for this to redraw
+export const tasksChanged = new EventTarget();
 
 export const Callout = Node.create({
   name: 'callout', group: 'block', content: 'block+', defining: true,
@@ -15,7 +20,7 @@ export const Callout = Node.create({
   renderHTML: ({ HTMLAttributes }) => ['div', mergeAttributes(HTMLAttributes, { 'data-callout': '', class: 'nb-callout' }), 0],
   addNodeView() { return ReactNodeViewRenderer(CalloutView); },
 });
-const TONES = { info: ['💡', 'Note'], warn: ['⚠️', 'Watch out'], ok: ['✅', 'Decision'], idea: ['✨', 'Idea'] } as const;
+const TONES = { info: ['💡', 'Note'], goal: ['🎯', 'Objective'], ask: ['❓', 'Open questions'], warn: ['⚠️', 'Watch out'], ok: ['✅', 'Decision'], idea: ['✨', 'Idea'] } as const;
 function CalloutView({ node, updateAttributes, editor }: NodeViewProps) {
   const t = (node.attrs.tone in TONES ? node.attrs.tone : 'info') as keyof typeof TONES;
   return <NodeViewWrapper className={`nb-callout tone-${t}`} data-callout="">
@@ -95,3 +100,35 @@ export const BlockMoves = Extension.create({
   },
 });
 export { NodeSelection };
+
+// A table of project tasks inside a page: the tasks themselves, live, not a copy. Link one, add a new one, open one.
+const ST: Record<string, [string, string]> = { TODO: ['To do', '#3B82F6'], DOING: ['In progress', '#FF922E'], REVIEW: ['In review', '#A855F7'], DONE: ['Done', '#22C55E'] };
+const PR: Record<string, [string, string]> = { URGENT: ['Urgent', '#F43F5E'], HIGH: ['High', '#F87171'], MEDIUM: ['Medium', '#F59E0B'], LOW: ['Low', '#94A3B8'], NONE: ['No priority', '#64748B'] };
+export const LinkedTasks = Node.create({
+  name: 'linkedTasks', group: 'block', atom: true, draggable: true,
+  addAttributes: () => ({ ids: { default: '' } }),
+  parseHTML: () => [{ tag: 'div[data-linked-tasks]', getAttrs: (el) => ({ ids: (el as HTMLElement).getAttribute('data-linked-tasks') ?? '' }) }],
+  renderHTML: ({ node }) => ['div', { 'data-linked-tasks': node.attrs.ids, class: 'nb-ltasks' }, 'Linked tasks'],
+  addNodeView() { return ReactNodeViewRenderer(LinkedTasksView); },
+});
+function LinkedTasksView({ node, updateAttributes, editor }: NodeViewProps) {
+  const [, setN] = useState(0);
+  useEffect(() => { const h = () => setN((n) => n + 1); tasksChanged.addEventListener('changed', h); return () => tasksChanged.removeEventListener('changed', h); }, []);
+  const ids: string[] = String(node.attrs.ids ?? '').split(',').filter(Boolean);
+  const all = nav.tasks(); const rows = ids.map((id) => all.find((t) => t.id === id) ?? { id, title: '', status: '', priority: '', assignee_name: null, due_date: null, gone: true } as LinkedTask & { gone?: boolean });
+  const add = (id: string) => { if (!ids.includes(id)) updateAttributes({ ids: [...ids, id].join(',') }); };
+  const today = new Date().toLocaleDateString('en-CA'); const can = editor.isEditable;
+  return <NodeViewWrapper className="nb-ltasks" data-linked-tasks={node.attrs.ids} contentEditable={false}>
+    <div className="lt-h"><b><Icon.link size={15} />Linked tasks</b>{can && <span className="row" style={{ gap: 6 }}><button type="button" className="btn tiny" onClick={async () => { const t = await nav.pickTask(); if (t) add(t.id); }}>Link a task</button>
+      <button type="button" className="btn tiny" onClick={async () => { const t = await nav.newTask(); if (t) add(t.id); }}><Icon.plus size={12} />New task</button></span>}</div>
+    {rows.length ? <table className="lt-t"><thead><tr><th>Task</th><th>Status</th><th>Priority</th><th>Assignee</th><th>Due date</th>{can && <th><span className="sr">Remove</span></th>}</tr></thead>
+      <tbody>{rows.map((t: any) => t.gone ? <tr key={t.id}><td colSpan={5} className="faint">A task that was deleted or archived.</td>{can && <td><button type="button" className="icon-btn" onClick={() => updateAttributes({ ids: ids.filter((x) => x !== t.id).join(',') })} aria-label="Remove it from this table"><Icon.x size={13} /></button></td>}</tr>
+        : <tr key={t.id} className={t.status === 'DONE' ? 'done' : ''}><td><button type="button" className="link-btn" onClick={() => nav.task(t.id)}>{t.title}<Icon.out size={12} /></button></td>
+          <td><span className="lt-st" style={{ '--s': ST[t.status]?.[1] } as React.CSSProperties}><i />{ST[t.status]?.[0] ?? t.status}</span></td>
+          <td><span className="lt-pr" style={{ color: PR[t.priority]?.[1] }}><i style={{ background: PR[t.priority]?.[1] }} />{PR[t.priority]?.[0] ?? ''}</span></td>
+          <td>{t.assignee_name ?? <span className="faint">Unassigned</span>}</td>
+          <td className={t.due_date && t.due_date < today && t.status !== 'DONE' ? 'late' : ''}>{t.due_date ? new Date(t.due_date + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : <span className="faint">No date</span>}</td>
+          {can && <td><button type="button" className="icon-btn" onClick={() => updateAttributes({ ids: ids.filter((x) => x !== t.id).join(',') })} aria-label={`Unlink ${t.title}`}><Icon.x size={13} /></button></td>}</tr>)}</tbody></table>
+      : <p className="faint lt-empty">No tasks linked yet. Link an existing task or add a new one; it shows on the board and the list too.</p>}
+  </NodeViewWrapper>;
+}

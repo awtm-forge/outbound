@@ -133,7 +133,7 @@ export function Rail({ ws }: { ws: WS }) {
       </section>
       <section className="panel rnext" aria-labelledby="nm-h"><h2 id="nm-h"><Icon.target size={17} />Next milestone</h2>
         {next ? <Link to={`/projects/${p.id}`} className="rn-row"><span className="ms-dot" aria-hidden="true" /><b>{next.name}</b><span className={next.target_date && next.target_date < todayIST() ? 'late' : ''}>{next.target_date ? shortDay(next.target_date) : 'No date'}</span><Icon.right size={14} /></Link>
-          : <p className="faint">No open milestones.</p>}</section>
+          : <div className="rn-empty"><p className="faint">No open milestones.</p><button type="button" className="btn tiny" onClick={() => setAddMs(true)}><Icon.plus size={13} />Add milestone</button></div>}</section>
       <section className="panel" aria-labelledby="tb-h"><h2 id="tb-h" className="rail-h">Task breakdown</h2>
         <div className="donut"><svg viewBox="0 0 80 80" aria-hidden="true"><circle cx="40" cy="40" r={R} className="rt" />{p.tasks > 0 && by.map(([s, n]) => { const len = (n / p.tasks) * C; const el = <circle key={s} cx="40" cy="40" r={R} fill="none" stroke={STATUS_COLOR[s]} strokeWidth="8" strokeDasharray={`${Math.max(0, len - 2)} ${C}`} strokeDashoffset={-acc} transform="rotate(-90 40 40)" />; acc += len; return el; })}</svg>
           <ul>{by.map(([s, n]) => <li key={s}><i style={{ background: STATUS_COLOR[s] }} aria-hidden="true" />{n} {TASK_STATUS[s]}<span>{p.tasks ? Math.round((n / p.tasks) * 100) : 0}%</span></li>)}</ul></div></section>
@@ -145,6 +145,9 @@ export function Rail({ ws }: { ws: WS }) {
           <button type="button" onClick={() => setAddMs(true)}><Icon.target size={16} />Add milestone<Icon.right size={14} /></button>
           <button type="button" onClick={async () => { try { await navigator.clipboard.writeText(`${location.origin}/projects/${p.id}`); toast('Link copied. Everyone signed in can open it.'); } catch { toast('Could not copy the link.', { err: true }); } }}><Icon.share size={16} />Share project link<Icon.right size={14} /></button>
           <button type="button" onClick={() => go(`/projects/${p.id}/files?upload=1`)}><Icon.upload size={16} />Upload file<Icon.right size={14} /></button>
+          <button type="button" onClick={() => go(`/projects/${p.id}/notes?new=1`)}><Icon.wiki size={16} />Add project note<Icon.right size={14} /></button>
+          {(p as any).company_id && <button type="button" onClick={() => go(`/crm/companies/${(p as any).company_id}`)}><Icon.crm size={16} />View the client in CRM<Icon.right size={14} /></button>}
+          <button type="button" onClick={() => go(`/projects/${p.id}/settings`)}><Icon.settings size={16} />Project settings<Icon.right size={14} /></button>
         </div></section>
       {addMs && <MilestoneForm ws={ws} onClose={() => setAddMs(false)} />}
     </aside>

@@ -93,7 +93,7 @@ export function Board({ ws }: { ws: WS }) {
                 {sort === 'manual' && i > 0 && <MenuItem onSelect={() => { close(); move(t.id, col.id, i - 1); }}><Icon.left size={15} />Move up</MenuItem>}
                 {sort === 'manual' && i < shown.length - 1 && <MenuItem onSelect={() => { close(); move(t.id, col.id, i + 2); }}><Icon.right size={15} />Move down</MenuItem>}</>} /></li>)}
             {drop?.col === col.id && drop.index >= shown.length && drag && <li><div className="drop-line" aria-hidden="true" /></li>}</ol>
-          {!list.length && <div className="bempty"><span><Icon.find size={18} /></span><b>{col.status === 'REVIEW' ? 'Ready for review' : col.status === 'DONE' ? 'Nothing done yet' : 'Nothing here'}</b><p>{col.status === 'REVIEW' ? 'Move a task here when it is ready for feedback.' : 'Drag a task here or add one.'}</p></div>}
+          {!list.length && <div className={`bempty s-${col.status}`}><span>{col.status === 'DONE' ? <Icon.check size={18} /> : <Icon.more size={18} />}</span><b>{col.status === 'REVIEW' ? 'Ready for review' : col.status === 'DONE' ? 'Nothing done yet' : 'Nothing here'}</b><p>{col.status === 'REVIEW' ? 'Move a task here when it is ready for feedback.' : 'Drag a task here or add one.'}</p></div>}
           {list.length > 0 && !shown.length && <p className="bempty-f">Every task here is hidden by the filters.</p>}
           <QuickAdd ws={ws} col={col} />
         </section>); })}</div>

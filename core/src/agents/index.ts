@@ -2,3 +2,4 @@ export { accountResearch, decisionMaker, websiteAnalysis, problemDetection, capa
 export { qualification } from './qualify.ts';
 export { emailGeneration, replyClassification, teardown } from './outreach.ts';
 export { meetingIntelligence, postMeeting, proposalDraft, campaignAnalytics } from './deal.ts';
+export { notesAssist } from './notes.ts';

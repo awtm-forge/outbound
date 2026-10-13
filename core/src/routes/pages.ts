@@ -7,9 +7,12 @@ import { HttpError } from '../pipeline.ts';
 import { parse, z, uuid, text, needUuid, isUuid } from '../lib/validate.ts';
 import { act, needProject, mentions } from './projects.ts';
 import { notify } from './notifications.ts';
+import { enqueue } from '../jobs.ts';
+import { runAgent } from '../lib/ai.ts';
+import { notesAssist, NOTES_ACTIONS } from '../agents/notes.ts';
 
 const NODES = new Set(['doc', 'paragraph', 'text', 'heading', 'bulletList', 'orderedList', 'listItem', 'taskList', 'taskItem', 'blockquote', 'codeBlock', 'horizontalRule', 'hardBreak',
-  'image', 'table', 'tableRow', 'tableHeader', 'tableCell', 'details', 'detailsSummary', 'detailsContent', 'callout', 'pageRef', 'taskRef', 'mention', 'bookmark', 'fileAttachment', 'toc', 'mathBlock', 'mathInline']);
+  'image', 'table', 'tableRow', 'tableHeader', 'tableCell', 'details', 'detailsSummary', 'detailsContent', 'callout', 'pageRef', 'taskRef', 'mention', 'bookmark', 'fileAttachment', 'toc', 'mathBlock', 'mathInline', 'linkedTasks']);
 const MARKS = new Set(['bold', 'italic', 'underline', 'strike', 'code', 'link', 'highlight', 'textStyle', 'subscript', 'superscript']);
 const SAFE_URL = /^(https?:\/\/|mailto:|\/(?!\/))/i;
 const FILE_SRC = /^\/api\/files\/[0-9a-f-]{36}\/content$/i;
@@ -28,6 +31,8 @@ export function clean(doc: any) {
       if (n.type === 'image' && !(typeof a.src === 'string' && (FILE_SRC.test(a.src) || /^https:\/\//i.test(a.src)))) return null;
       if (n.type === 'bookmark' && !(typeof a.url === 'string' && /^https?:\/\//i.test(a.url))) return null;
       if ((n.type === 'pageRef' || n.type === 'taskRef' || n.type === 'fileAttachment') && !(typeof a.id === 'string' && isUuid(a.id))) return null;
+      // a linked-tasks table: a comma-separated list of task ids, each one checked
+      if (n.type === 'linkedTasks') { const ids = String(a.ids ?? '').split(',').map((x) => x.trim()).filter((x) => isUuid(x)).slice(0, 50); a.ids = ids.join(','); for (const x of ids) tasks.add(x); }
       if (n.type === 'pageRef') pages.add(a.id); if (n.type === 'taskRef') tasks.add(a.id); if (n.type === 'mention' && typeof a.id === 'string' && isUuid(a.id)) people.add(a.id);
       out.attrs = a;
     }
@@ -56,22 +61,27 @@ async function relink(pageId: string, projectId: string, pages: string[], tasks:
   if (tasks.length) await q('insert into page_task_refs(page_id,task_id) select $1, id from tasks where id = any($2) and project_id=$3 on conflict do nothing', [pageId, tasks, projectId]);
 }
 
-const PageIn = z.object({ title: text(200).optional(), icon: z.string().max(16).nullable().optional(), parent_id: uuid.nullable().optional(), content: z.any().optional() });
+const PageIn = z.object({ title: text(200).optional(), icon: z.string().max(16).nullable().optional(), parent_id: uuid.nullable().optional(), content: z.any().optional(), kind: z.enum(['page', 'folder']).optional(), from_template: uuid.optional() });
 route('GET', '/api/projects/:id/pages', 'user', async (c) => {
   const p = await needProject(c.params.id); const archived = c.url.searchParams.get('archived') === '1';
-  return q(`select g.id, g.parent_id, g.title, g.icon, g.position, g.archived_at, g.updated_at, g.created_by, u.name updated_by_name, (s.user_id is not null) starred
+  return q(`select g.id, g.parent_id, g.title, g.icon, g.kind, g.position, g.archived_at, g.created_at, g.updated_at, g.created_by, u.name updated_by_name, (s.user_id is not null) starred
     from pages g left join users u on u.id=g.updated_by left join page_stars s on s.page_id=g.id and s.user_id=$2
-    where g.project_id=$1 and (g.archived_at is null) = not $3 order by g.position, g.created_at`, [p.id, c.user!.id, archived]);
+    where g.project_id=$1 and not g.is_template and (g.archived_at is null) = not $3 order by g.position, g.created_at`, [p.id, c.user!.id, archived]);
 });
 route('POST', '/api/projects/:id/pages', 'user', async (c) => {
   const p = await needProject(c.params.id); const b = parse(PageIn, c.body);
   if (b.parent_id && !(await one('select 1 from pages where id=$1 and project_id=$2', [b.parent_id, p.id]))) throw new HttpError(400, 'The parent page is not in this project.');
+  // starting from a saved template: its content and icon, under the title given or its own
+  if (b.from_template) {
+    const tp = await one('select title, icon, content from pages where id=$1 and is_template', [b.from_template]); if (!tp) throw new HttpError(400, 'That template does not exist.');
+    b.content = tp.content; if (b.icon === undefined) b.icon = tp.icon; if (!b.title) b.title = tp.title;
+  }
   const body = b.content ? clean(b.content) : { doc: EMPTY_DOC, text: '', pages: [] as string[], tasks: [] as string[], people: [] as string[] };
   if (JSON.stringify(body.doc).length > 1_500_000) throw new HttpError(413, 'That page is too large.');
   const g = await tx(async (db) => {
-    const g = (await db.query(`insert into pages(project_id,parent_id,title,icon,content,text_content,position,created_by,updated_by)
-      values($1,$2,$3,$4,$5,$6,(select coalesce(max(position),0)+1 from pages where project_id=$1 and parent_id is not distinct from $2),$7,$7) returning *`,
-      [p.id, b.parent_id ?? null, b.title ?? '', b.icon ?? null, body.doc, body.text, c.user!.id])).rows[0];
+    const g = (await db.query(`insert into pages(project_id,parent_id,title,icon,content,text_content,position,created_by,updated_by,kind)
+      values($1,$2,$3,$4,$5,$6,(select coalesce(max(position),0)+1 from pages where project_id=$1 and parent_id is not distinct from $2),$7,$7,$8) returning *`,
+      [p.id, b.parent_id ?? null, b.title ?? '', b.icon ?? null, body.doc, body.text, c.user!.id, b.kind ?? 'page'])).rows[0];
     await db.query('insert into page_revisions(page_id,version,title,content,author_id) values($1,1,$2,$3,$4)', [g.id, g.title, g.content, c.user!.id]);
     return g;
   });
@@ -125,7 +135,7 @@ route('PUT', '/api/pages/:id', 'user', async (c) => {
 // move (new parent, new place among siblings), archive and restore, star
 route('PATCH', '/api/pages/:id', 'user', async (c) => {
   const g = await needPage(c.params.id);
-  const b = parse(z.object({ parent_id: uuid.nullable().optional(), position: z.number().finite().optional(), archived: z.boolean().optional(), starred: z.boolean().optional() }), c.body);
+  const b = parse(z.object({ parent_id: uuid.nullable().optional(), position: z.number().finite().optional(), archived: z.boolean().optional(), starred: z.boolean().optional(), title: text(200).optional(), icon: z.string().max(16).nullable().optional() }), c.body);
   if (b.parent_id) {
     if (!(await one('select 1 from pages where id=$1 and project_id=$2', [b.parent_id, g.project_id]))) throw new HttpError(400, 'The new parent is not in this project.');
     const loop = await one(`with recursive up(id, parent_id) as (select id, parent_id from pages where id=$1 union select p.id, p.parent_id from pages p join up on p.id=up.parent_id) select 1 from up where id=$2`, [b.parent_id, g.id]);
@@ -141,12 +151,18 @@ route('PATCH', '/api/pages/:id', 'user', async (c) => {
     await act(g.project_id, c, b.archived ? 'page_archived' : 'page_restored', { page_id: g.id, title: g.title || 'Untitled' });
   }
   if (b.starred !== undefined) await q(b.starred ? 'insert into page_stars(page_id,user_id) values($1,$2) on conflict do nothing' : 'delete from page_stars where page_id=$1 and user_id=$2', [g.id, c.user!.id]);
+  // a rename or a new icon from the page list: no version bump, so it never collides with someone typing in the page
+  if (b.title !== undefined || b.icon !== undefined) {
+    await q('update pages set title=coalesce($2,title), icon=case when $3::boolean then $4 else icon end where id=$1', [g.id, b.title ?? null, b.icon !== undefined, b.icon ?? null]);
+    if (b.title !== undefined && b.title !== g.title) await act(g.project_id, c, 'page_renamed', { page_id: g.id, title: b.title || 'Untitled', from: g.title || 'Untitled' });
+  }
   return { ok: true };
 });
 route('POST', '/api/pages/:id/duplicate', 'user', async (c) => {
-  const g = await needPage(c.params.id);
-  const d = (await one(`insert into pages(project_id,parent_id,title,icon,content,text_content,position,created_by,updated_by) values($1,$2,$3,$4,$5,$6,$7,$8,$8) returning *`,
-    [g.project_id, g.parent_id, `${g.title || 'Untitled'} (copy)`, g.icon, g.content, g.text_content, g.position + 0.5, c.user!.id]))!;
+  const g = await needPage(c.params.id); const b = parse(z.object({ as_template: z.boolean().optional(), title: text(200).optional() }), c.body ?? {});
+  const d = (await one(`insert into pages(project_id,parent_id,title,icon,content,text_content,position,created_by,updated_by,kind,is_template) values($1,$2,$3,$4,$5,$6,$7,$8,$8,$9,$10) returning *`,
+    [g.project_id, b.as_template ? null : g.parent_id, b.title || `${g.title || 'Untitled'}${b.as_template ? '' : ' (copy)'}`, g.icon, g.content, g.text_content, g.position + 0.5, c.user!.id, g.kind, !!b.as_template]))!;
+  if (b.as_template) { await act(g.project_id, c, 'template_saved', { page_id: g.id, title: d.title }); return { created: true, ...d }; }
   await q('insert into page_revisions(page_id,version,title,content,author_id) values($1,1,$2,$3,$4)', [d.id, d.title, d.content, c.user!.id]);
   await q('insert into page_links(from_page,to_page) select $1, to_page from page_links where from_page=$2 on conflict do nothing', [d.id, g.id]);
   await q('insert into page_task_refs(page_id,task_id) select $1, task_id from page_task_refs where page_id=$2 on conflict do nothing', [d.id, g.id]);
@@ -167,16 +183,49 @@ route('GET', '/api/pages/:id/revisions/:v', 'user', async (c) => {
   const r = await one('select r.*, u.name author_name from page_revisions r left join users u on u.id=r.author_id where r.page_id=$1 and r.version=$2', [needUuid(c.params.id, 'page'), Number(c.params.v) || 0]);
   if (!r) throw new HttpError(404, 'revision not found'); return r;
 });
-route('GET', '/api/pages/:id/comments', 'user', async (c) => q('select k.id, k.body, k.created_at, k.author_id, u.name author_name from page_comments k left join users u on u.id=k.author_id where k.page_id=$1 order by k.created_at', [(await needPage(c.params.id)).id]));
+route('GET', '/api/pages/:id/comments', 'user', async (c) => q('select k.id, k.body, k.created_at, k.edited_at, k.parent_id, k.author_id, u.name author_name from page_comments k left join users u on u.id=k.author_id where k.page_id=$1 order by k.created_at', [(await needPage(c.params.id)).id]));
 route('POST', '/api/pages/:id/comments', 'user', async (c) => {
-  const g = await needPage(c.params.id); const b = parse(z.object({ body: text(5000).min(1) }), c.body);
-  const k = (await one('insert into page_comments(page_id,author_id,body) values($1,$2,$3) returning id, body, created_at, author_id', [g.id, c.user!.id, b.body]))!;
+  const g = await needPage(c.params.id); const b = parse(z.object({ body: text(5000).min(1), parent_id: uuid.nullable().optional() }), c.body);
+  // a reply hangs off a top-level comment on the same page
+  if (b.parent_id && !(await one('select 1 from page_comments where id=$1 and page_id=$2 and parent_id is null', [b.parent_id, g.id]))) throw new HttpError(400, 'That comment is not on this page.');
+  const k = (await one('insert into page_comments(page_id,author_id,body,parent_id) values($1,$2,$3,$4) returning id, body, created_at, author_id, parent_id', [g.id, c.user!.id, b.body, b.parent_id ?? null]))!;
   await act(g.project_id, c, 'page_comment', { page_id: g.id, title: g.title || 'Untitled', excerpt: b.body.slice(0, 140) });
   await mentions(b.body, c, `${c.user!.name} mentioned you on the page “${g.title || 'Untitled'}”`, `/projects/${g.project_id}/notes/${g.id}`);
   return { created: true, ...k, author_name: c.user!.name };
+});
+route('PATCH', '/api/page-comments/:id', 'user', async (c) => {
+  const b = parse(z.object({ body: text(5000).min(1) }), c.body);
+  const k = await one('update page_comments set body=$3, edited_at=now() where id=$1 and author_id=$2 returning id, body, edited_at', [needUuid(c.params.id, 'comment'), c.user!.id, b.body]);
+  if (!k) throw new HttpError(403, 'Only the person who wrote a comment can edit it.'); return k;
 });
 route('DELETE', '/api/page-comments/:id', 'user', async (c) => {
   const k = await one('delete from page_comments where id=$1 and (author_id=$2 or $3) returning id', [needUuid(c.params.id, 'comment'), c.user!.id, c.user!.role === 'admin']);
   if (!k) throw new HttpError(403, 'Only the person who wrote a comment, or an admin, can delete it.');
   return { deleted: true };
+});
+
+// templates saved from any project's pages, for New page
+route('GET', '/api/page-templates', 'user', async () => q(`select g.id, g.title, g.icon, g.created_at, u.name created_by_name, p.name project_name from pages g left join users u on u.id=g.created_by
+  join projects p on p.id=g.project_id where g.is_template and g.archived_at is null order by g.created_at desc limit 100`));
+// search one project's pages by title and text, with the matching words marked (\u0001 and \u0002 around each)
+route('GET', '/api/projects/:id/pages/search', 'user', async (c) => {
+  const p = await needProject(c.params.id); const term = (c.url.searchParams.get('q') ?? '').trim().slice(0, 100); if (term.length < 2) return [];
+  const like = `%${term.replace(/[\\%_]/g, (m) => '\\' + m)}%`;
+  return q(`select g.id, g.parent_id, coalesce(nullif(g.title,''),'Untitled') title, g.icon, g.updated_at,
+      case when g.text_content ilike $2 or g.search @@ plainto_tsquery('simple', $3) then ts_headline('simple', g.text_content, plainto_tsquery('simple', $3), 'StartSel=\u0001, StopSel=\u0002, MaxWords=22, MinWords=8, MaxFragments=1') end snippet
+    from pages g where g.project_id=$1 and not g.is_template and g.archived_at is null and (g.title ilike $2 or g.text_content ilike $2 or g.search @@ plainto_tsquery('simple', $3))
+    order by (g.title ilike $2) desc, g.updated_at desc limit 30`, [p.id, like, term]);
+});
+// the notes assistant: a preview only, run as a job because a model can take longer than the host allows a request
+route('POST', '/api/pages/:id/assist', 'user', async (c) => {
+  const g = await needPage(c.params.id); const b = parse(z.object({ action: z.enum(NOTES_ACTIONS) }), c.body);
+  const p = (await one('select name, description from projects where id=$1', [g.project_id]))!;
+  const [tasks, ms, members] = await Promise.all([
+    q('select title from tasks where project_id=$1 and archived_at is null order by position limit 80', [g.project_id]),
+    q(`select name || coalesce(' (' || to_char(target_date, 'DD Mon YYYY') || ')', '') name from milestones where project_id=$1 order by target_date nulls last limit 30`, [g.project_id]),
+    q('select u.name from project_members m join users u on u.id=m.user_id where m.project_id=$1 limit 30', [g.project_id]),
+  ]);
+  const input = { action: b.action, title: g.title || 'Untitled', text: String(g.text_content ?? '').slice(0, 30_000), project: { name: p.name, description: p.description ?? '', tasks: tasks.map((t) => t.title), milestones: ms.map((m) => m.name), members: members.map((m) => m.name) } };
+  const job = enqueue(`Notes: ${b.action.replace('_', ' ')} on “${g.title || 'Untitled'}”`, async () => (await runAgent(notesAssist, input)).output);
+  return { job_id: job.id, status: job.status };
 });
