@@ -1,0 +1,33 @@
+{
+ "flow": "member-today",
+ "role": "member",
+ "steps": [
+  {
+   "step": "open",
+   "writes": [],
+   "reads": [
+    "GET /api/team",
+    "GET /api/todos"
+   ]
+  },
+  {
+   "step": "team is admin only",
+   "writes": [],
+   "reads": []
+  },
+  {
+   "step": "crm",
+   "writes": [],
+   "reads": [
+    "GET /api/crm/companies"
+   ]
+  }
+ ],
+ "background": [
+  "GET /api/chat/channels",
+  "GET /api/chat/poll?after=#&wait=#",
+  "GET /api/chat/poll?wait=#",
+  "GET /api/me",
+  "GET /api/overview"
+ ]
+}

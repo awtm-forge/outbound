@@ -1,0 +1,40 @@
+{
+ "flow": "campaigns",
+ "role": "admin",
+ "steps": [
+  {
+   "step": "open",
+   "writes": [],
+   "reads": [
+    "GET /api/campaigns",
+    "GET /api/suppression"
+   ]
+  },
+  {
+   "step": "read the numbers",
+   "writes": [
+    "POST /api/analytics/weekly"
+   ],
+   "reads": [
+    "GET /api/campaigns"
+   ]
+  },
+  {
+   "step": "do not contact",
+   "writes": [
+    "POST /api/suppression {domain,reason}"
+   ],
+   "reads": [
+    "GET /api/suppression"
+   ]
+  }
+ ],
+ "background": [
+  "GET /api/chat/channels",
+  "GET /api/chat/poll?after=#&wait=#",
+  "GET /api/chat/poll?wait=#",
+  "GET /api/jobs/:id",
+  "GET /api/me",
+  "GET /api/overview"
+ ]
+}

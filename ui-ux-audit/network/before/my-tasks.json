@@ -1,0 +1,38 @@
+{
+ "flow": "my-tasks",
+ "role": "admin",
+ "steps": [
+  {
+   "step": "open",
+   "writes": [],
+   "reads": [
+    "GET /api/projects",
+    "GET /api/tasks?mine=#",
+    "GET /api/team"
+   ]
+  },
+  {
+   "step": "add task",
+   "writes": [
+    "POST /api/todos {assignee_id,due_date,title}"
+   ],
+   "reads": [
+    "GET /api/tasks?mine=#"
+   ]
+  },
+  {
+   "step": "open a to-do",
+   "writes": [],
+   "reads": [
+    "GET /api/tasks/:id/comments"
+   ]
+  }
+ ],
+ "background": [
+  "GET /api/chat/channels",
+  "GET /api/chat/poll?after=#&wait=#",
+  "GET /api/chat/poll?wait=#",
+  "GET /api/me",
+  "GET /api/overview"
+ ]
+}

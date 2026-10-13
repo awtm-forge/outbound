@@ -1,0 +1,67 @@
+{
+ "flow": "wiki",
+ "role": "admin",
+ "steps": [
+  {
+   "step": "open",
+   "writes": [],
+   "reads": [
+    "GET /api/wiki"
+   ]
+  },
+  {
+   "step": "search",
+   "writes": [],
+   "reads": [
+    "GET /api/wiki?q=leave"
+   ]
+  },
+  {
+   "step": "new page",
+   "writes": [
+    "POST /api/wiki {body,parent_id,title}"
+   ],
+   "reads": [
+    "GET /api/wiki",
+    "GET /api/wiki/invoicing"
+   ]
+  },
+  {
+   "step": "edit and save",
+   "writes": [
+    "PUT /api/wiki/:id {base_version,body,parent_id,title}"
+   ],
+   "reads": [
+    "GET /api/wiki",
+    "GET /api/wiki/invoicing"
+   ]
+  },
+  {
+   "step": "history and restore",
+   "writes": [
+    "PUT /api/wiki/:id {base_version,body,parent_id,title}"
+   ],
+   "reads": [
+    "GET /api/wiki/:id/revisions",
+    "GET /api/wiki/:id/revisions/:n",
+    "GET /api/wiki/invoicing"
+   ]
+  },
+  {
+   "step": "delete page",
+   "writes": [
+    "DELETE /api/wiki/:id"
+   ],
+   "reads": [
+    "GET /api/wiki"
+   ]
+  }
+ ],
+ "background": [
+  "GET /api/chat/channels",
+  "GET /api/chat/poll?after=#&wait=#",
+  "GET /api/chat/poll?wait=#",
+  "GET /api/me",
+  "GET /api/overview"
+ ]
+}

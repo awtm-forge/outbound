@@ -1,0 +1,88 @@
+{
+ "flow": "crm",
+ "role": "admin",
+ "steps": [
+  {
+   "step": "open",
+   "writes": [],
+   "reads": [
+    "GET /api/crm/companies"
+   ]
+  },
+  {
+   "step": "add company",
+   "writes": [
+    "POST /api/crm/companies {city,name,vertical,website}"
+   ],
+   "reads": [
+    "GET /api/crm/companies/:id"
+   ]
+  },
+  {
+   "step": "add note",
+   "writes": [
+    "POST /api/crm/companies/:id/notes {text}"
+   ],
+   "reads": [
+    "GET /api/crm/companies/:id"
+   ]
+  },
+  {
+   "step": "open a deal",
+   "writes": [
+    "POST /api/crm/companies/:id/opportunities {stage}"
+   ],
+   "reads": [
+    "GET /api/crm/companies/:id"
+   ]
+  },
+  {
+   "step": "set value",
+   "writes": [
+    "PATCH /api/crm/opportunities/:id {value_paise}"
+   ],
+   "reads": [
+    "GET /api/crm/companies/:id"
+   ]
+  },
+  {
+   "step": "mark lost",
+   "writes": [
+    "PATCH /api/crm/opportunities/:id {lost_reason,stage}"
+   ],
+   "reads": [
+    "GET /api/crm/companies/:id"
+   ]
+  },
+  {
+   "step": "add contact",
+   "writes": [
+    "POST /api/crm/companies/:id/contacts {email,full_name,is_decision_maker,job_title,linkedin_url}"
+   ],
+   "reads": [
+    "GET /api/crm/companies/:id"
+   ]
+  },
+  {
+   "step": "opportunities tab",
+   "writes": [],
+   "reads": [
+    "GET /api/crm/opportunities"
+   ]
+  },
+  {
+   "step": "people tab",
+   "writes": [],
+   "reads": [
+    "GET /api/crm/contacts"
+   ]
+  }
+ ],
+ "background": [
+  "GET /api/chat/channels",
+  "GET /api/chat/poll?after=#&wait=#",
+  "GET /api/chat/poll?wait=#",
+  "GET /api/me",
+  "GET /api/overview"
+ ]
+}

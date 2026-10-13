@@ -1,0 +1,203 @@
+{
+ "axe": {
+  "login.dark": [],
+  "today.dark": [],
+  "find.dark": [],
+  "review.dark": [
+   {
+    "id": "color-contrast",
+    "impact": "serious",
+    "help": "Elements must meet minimum color contrast ratio thresholds",
+    "nodes": 1,
+    "sample": ".right"
+   }
+  ],
+  "inbox.dark": [
+   {
+    "id": "color-contrast",
+    "impact": "serious",
+    "help": "Elements must meet minimum color contrast ratio thresholds",
+    "nodes": 1,
+    "sample": ".on[role=\"option\"] > .row > .faint.mono"
+   }
+  ],
+  "pipeline.dark": [],
+  "prospect.dark": [],
+  "deals.dark": [],
+  "campaigns.dark": [],
+  "projects.dark": [],
+  "my-tasks.dark": [],
+  "project-board.dark": [],
+  "task-drawer.dark": [],
+  "wiki.dark": [],
+  "wiki-page.dark": [
+   {
+    "id": "button-name",
+    "impact": "critical",
+    "help": "Buttons must have discernible text",
+    "nodes": 1,
+    "sample": ".danger"
+   }
+  ],
+  "wiki-edit.dark": [
+   {
+    "id": "color-contrast",
+    "impact": "serious",
+    "help": "Elements must meet minimum color contrast ratio thresholds",
+    "nodes": 1,
+    "sample": "kbd"
+   }
+  ],
+  "wiki-history.dark": [],
+  "wiki-missing.dark": [],
+  "chat.dark": [],
+  "crm-companies.dark": [],
+  "crm-people.dark": [],
+  "crm-opportunities.dark": [],
+  "crm-company.dark": [],
+  "people.dark": [],
+  "people-leave.dark": [],
+  "person.dark": [],
+  "team.dark": [],
+  "account.dark": [],
+  "not-found.dark": [],
+  "today.member.dark": [],
+  "my-tasks.member.dark": [],
+  "people.member.dark": [],
+  "people-leave.member.dark": [],
+  "person.member.dark": [],
+  "team.member.dark": []
+ },
+ "lighthouse": {
+  "login": {
+   "score": 100,
+   "failing": []
+  },
+  "today": {
+   "score": 100,
+   "failing": []
+  },
+  "find": {
+   "score": 100,
+   "failing": []
+  },
+  "review": {
+   "score": 96,
+   "failing": [
+    "color-contrast"
+   ]
+  },
+  "inbox": {
+   "score": 96,
+   "failing": [
+    "color-contrast"
+   ]
+  },
+  "pipeline": {
+   "score": 100,
+   "failing": []
+  },
+  "prospect": {
+   "score": 100,
+   "failing": []
+  },
+  "deals": {
+   "score": 100,
+   "failing": []
+  },
+  "campaigns": {
+   "score": 100,
+   "failing": []
+  },
+  "projects": {
+   "score": 98,
+   "failing": [
+    "heading-order"
+   ]
+  },
+  "my-tasks": {
+   "score": 100,
+   "failing": []
+  },
+  "project-board": {
+   "score": 100,
+   "failing": []
+  },
+  "task-drawer": {
+   "score": 99,
+   "failing": [
+    "aria-allowed-role"
+   ]
+  },
+  "wiki": {
+   "score": 100,
+   "failing": []
+  },
+  "wiki-page": {
+   "score": 94,
+   "failing": [
+    "button-name"
+   ]
+  },
+  "wiki-edit": {
+   "score": 96,
+   "failing": [
+    "color-contrast"
+   ]
+  },
+  "wiki-history": {
+   "score": 98,
+   "failing": [
+    "heading-order"
+   ]
+  },
+  "wiki-missing": {
+   "score": 100,
+   "failing": []
+  },
+  "chat": {
+   "score": 100,
+   "failing": []
+  },
+  "crm-companies": {
+   "score": 100,
+   "failing": []
+  },
+  "crm-people": {
+   "score": 100,
+   "failing": []
+  },
+  "crm-opportunities": {
+   "score": 100,
+   "failing": []
+  },
+  "crm-company": {
+   "score": 100,
+   "failing": []
+  },
+  "people": {
+   "score": 100,
+   "failing": []
+  },
+  "people-leave": {
+   "score": 100,
+   "failing": []
+  },
+  "person": {
+   "score": 100,
+   "failing": []
+  },
+  "team": {
+   "score": 100,
+   "failing": []
+  },
+  "account": {
+   "score": 100,
+   "failing": []
+  },
+  "not-found": {
+   "score": 100,
+   "failing": []
+  }
+ }
+}

@@ -1,0 +1,63 @@
+{
+ "flow": "review",
+ "role": "admin",
+ "steps": [
+  {
+   "step": "open",
+   "writes": [],
+   "reads": [
+    "GET /api/queue/drafts?status=PENDING_APPROVAL"
+   ]
+  },
+  {
+   "step": "approve",
+   "writes": [
+    "POST /api/drafts/:id/decision {action,body,subject}"
+   ],
+   "reads": [
+    "GET /api/queue/drafts?status=PENDING_APPROVAL"
+   ]
+  },
+  {
+   "step": "reject with a reason",
+   "writes": [
+    "POST /api/drafts/:id/decision {action,body,reason,subject}"
+   ],
+   "reads": [
+    "GET /api/queue/drafts?status=PENDING_APPROVAL"
+   ]
+  },
+  {
+   "step": "send back for research",
+   "writes": [
+    "POST /api/drafts/:id/decision {action,body,reason,subject}"
+   ],
+   "reads": [
+    "GET /api/queue/drafts?status=PENDING_APPROVAL"
+   ]
+  },
+  {
+   "step": "approved tab",
+   "writes": [],
+   "reads": [
+    "GET /api/queue/drafts?status=APPROVED"
+   ]
+  },
+  {
+   "step": "send to saleshandy",
+   "writes": [
+    "POST /api/drafts/:id/sync"
+   ],
+   "reads": [
+    "GET /api/queue/drafts?status=APPROVED"
+   ]
+  }
+ ],
+ "background": [
+  "GET /api/chat/channels",
+  "GET /api/chat/poll?after=#&wait=#",
+  "GET /api/chat/poll?wait=#",
+  "GET /api/me",
+  "GET /api/overview"
+ ]
+}

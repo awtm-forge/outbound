@@ -1,0 +1,50 @@
+{
+ "flow": "find",
+ "role": "admin",
+ "steps": [
+  {
+   "step": "open",
+   "writes": [],
+   "reads": [
+    "GET /api/discovery/quota",
+    "GET /api/discovery/searches"
+   ]
+  },
+  {
+   "step": "open earlier search",
+   "writes": [],
+   "reads": [
+    "GET /api/campaigns",
+    "GET /api/discovery/searches/:id"
+   ]
+  },
+  {
+   "step": "select one and add",
+   "writes": [
+    "POST /api/discovery/candidates/add {campaign_code,candidate_ids,run_chain}"
+   ],
+   "reads": [
+    "GET /api/discovery/searches/:id"
+   ]
+  },
+  {
+   "step": "new search",
+   "writes": [
+    "POST /api/discovery/searches {industry,location,pages}"
+   ],
+   "reads": [
+    "GET /api/campaigns",
+    "GET /api/discovery/quota",
+    "GET /api/discovery/searches",
+    "GET /api/discovery/searches/:id"
+   ]
+  }
+ ],
+ "background": [
+  "GET /api/chat/channels",
+  "GET /api/chat/poll?after=#&wait=#",
+  "GET /api/chat/poll?wait=#",
+  "GET /api/me",
+  "GET /api/overview"
+ ]
+}

@@ -1,0 +1,48 @@
+{
+ "flow": "people-member",
+ "role": "member",
+ "steps": [
+  {
+   "step": "open leave",
+   "writes": [],
+   "reads": [
+    "GET /api/hr/leave?mine=#",
+    "GET /api/hr/me",
+    "GET /api/hr/out"
+   ]
+  },
+  {
+   "step": "ask for leave",
+   "writes": [
+    "POST /api/hr/leave {end_date,half_day,kind,reason,start_date}"
+   ],
+   "reads": [
+    "GET /api/hr/leave?mine=#",
+    "GET /api/hr/out"
+   ]
+  },
+  {
+   "step": "own record",
+   "writes": [],
+   "reads": [
+    "GET /api/hr/employees/:id"
+   ]
+  },
+  {
+   "step": "cancel leave",
+   "writes": [
+    "POST /api/hr/leave/:id/cancel"
+   ],
+   "reads": [
+    "GET /api/hr/employees/:id"
+   ]
+  }
+ ],
+ "background": [
+  "GET /api/chat/channels",
+  "GET /api/chat/poll?after=#&wait=#",
+  "GET /api/chat/poll?wait=#",
+  "GET /api/me",
+  "GET /api/overview"
+ ]
+}
