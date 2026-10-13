@@ -1,10 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { api } from '../api.ts';
-import { Link, useRouter } from '../router.tsx';
+import { useRouter } from '../router.tsx';
 import { useLoad } from '../ui/hooks.ts';
 import { Icon } from '../ui/icons.tsx';
 import { useToast } from '../ui/toast.tsx';
-import { Failure, Loading, Spinner, ago, dayLabel, initials, isLate } from '../ui/kit.tsx';
+import { Badge, Failure, Loading, Spinner, ago, dayLabel, initials, isLate } from '../ui/kit.tsx';
+import { Crumbs } from '../ui/chrome.tsx';
+import { Drawer, useConfirm } from '../ui/overlay.tsx';
 import { useTeam } from '../session.tsx';
 import { PRIORITY, PROJECT_STATUS, TASK_STATUS } from './Projects.tsx';
 
@@ -17,7 +19,7 @@ export function Project({ id }: { id: string }) {
   const open = search.get('task');
   const setOpen = (taskId: string | null) => go(`/projects/${id}${taskId ? `?task=${taskId}` : ''}`, true);
   if (loading && !data) return <div className="page"><Loading rows={5} /></div>;
-  if (error) return <div className="page"><Failure error={error} retry={reload} /></div>;
+  if (error) return <div className="page"><Crumbs items={[{ to: '/projects', label: 'Projects' }, { label: 'Project' }]} /><Failure error={error} retry={reload} /></div>;
   const tasks: any[] = data.task_list;
   // optimistic: the card moves at once and snaps back if the server says no
   const move = async (taskId: string, status: string) => {
@@ -29,7 +31,7 @@ export function Project({ id }: { id: string }) {
   return (
     <div className="page" style={{ maxWidth: 1500 }}>
       <div className="head">
-        <div className="grow"><Link to="/projects" className="kick" style={{ textDecoration: 'none' }}>← Projects</Link>
+        <div className="grow"><Crumbs items={[{ to: '/projects', label: 'Projects' }, { label: data.name }]} />
           <h1 style={{ marginTop: 6 }}>{data.name}</h1>{data.description && <p className="prose">{data.description}</p>}</div>
         <div className="row wrap">
           <label className="field"><span>Status</span><select value={data.status} onChange={(e) => saveProject({ status: e.target.value })}>{Object.entries(PROJECT_STATUS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></label>
@@ -43,13 +45,13 @@ export function Project({ id }: { id: string }) {
           <section key={col} className={`column${over === col ? ' over' : ''}`} aria-label={TASK_STATUS[col]}
             onDragOver={(e) => { e.preventDefault(); setOver(col); }} onDragLeave={() => setOver(null)}
             onDrop={(e) => { e.preventDefault(); setOver(null); setDrag(null); const tid = e.dataTransfer.getData('text/plain'); if (tid) move(tid, col); }}>
-            <div className="row between"><span className="kick">{TASK_STATUS[col]}</span><span className="faint mono" style={{ fontSize: 11 }}>{list.length}</span></div>
+            <div className="row between"><span className="kick">{TASK_STATUS[col]}</span><span className="tab-n" aria-label={`${list.length} ${list.length === 1 ? 'task' : 'tasks'}`}>{list.length}</span></div>
             {list.map((t) => <button key={t.id} className={`tcard${drag === t.id ? ' dragging' : ''}${t.status === 'DONE' ? ' done' : ''}`} draggable
               onDragStart={(e) => { e.dataTransfer.setData('text/plain', t.id); setDrag(t.id); }} onDragEnd={() => setDrag(null)} onClick={() => setOpen(t.id)}>
               <span className="ttl" style={{ fontWeight: 600 }}>{t.title}</span>
               <span className="meta">
-                {t.priority === 'HIGH' && <span className="tag ember">High</span>}
-                {t.due_date && <span className={isLate(t.due_date) && t.status !== 'DONE' ? 'late' : ''}>{dayLabel(t.due_date)}</span>}
+                {t.priority === 'HIGH' && <Badge tone="warning">High</Badge>}
+                {t.due_date && <span className={isLate(t.due_date) && t.status !== 'DONE' ? 'late' : ''}>{isLate(t.due_date) && t.status !== 'DONE' ? `Late, ${dayLabel(t.due_date)}` : dayLabel(t.due_date)}</span>}
                 {t.comments > 0 && <span>{t.comments} {t.comments === 1 ? 'comment' : 'comments'}</span>}
                 {t.assignee_name && <span className="avatar right" style={{ width: 22, height: 22, fontSize: 10 }} title={t.assignee_name}>{initials(t.assignee_name)}</span>}
               </span>
@@ -68,28 +70,23 @@ function QuickAdd({ projectId, status, onAdded }: { projectId: string; status: s
     e.preventDefault(); if (!title.trim()) return; setBusy(true);
     try { await api.post(`/api/projects/${projectId}/tasks`, { title, status }); setTitle(''); onAdded(); } catch (e: any) { toast(e.message, { err: true }); } finally { setBusy(false); }
   };
-  return <form className="quickadd" onSubmit={add}><input className="input" placeholder="Add a task" aria-label={`Add a task to ${TASK_STATUS[status]}`} value={title} onChange={(e) => setTitle(e.target.value)} maxLength={200} />{title && <button className="btn sm" disabled={busy}><Icon.plus size={14} /></button>}</form>;
+  return <form className="quickadd" onSubmit={add}><input className="input" placeholder="Add a task" aria-label={`Add a task to ${TASK_STATUS[status]}`} value={title} onChange={(e) => setTitle(e.target.value)} maxLength={200} />{title && <button className="btn sm" disabled={busy} aria-label="Add task">{busy ? <Spinner /> : <Icon.plus size={14} />}</button>}</form>;
 }
 
 export function TaskDrawer({ taskId, task, onClose, onChanged }: { taskId: string; task: any; onClose: () => void; onChanged: () => void }) {
-  const toast = useToast(); const team = useTeam();
+  const toast = useToast(); const team = useTeam(); const ask = useConfirm();
   const [f, setF] = useState(() => ({ title: task?.title ?? '', description: task?.description ?? '' }));
   const comments = useLoad(() => api.get<any[]>(`/api/tasks/${taskId}/comments`), [taskId]);
   const [reply, setReply] = useState(''); const [busy, setBusy] = useState(false);
-  // Escape in a field leaves the field first (which saves it); a second Escape closes the drawer
-  useEffect(() => { const k = (e: KeyboardEvent) => { if (e.key !== 'Escape') return; const a = document.activeElement as HTMLElement | null; if (a?.matches('input, textarea, select')) a.blur(); else onClose(); }; addEventListener('keydown', k); return () => removeEventListener('keydown', k); }, [onClose]);
   if (!task) return null;
   const save = async (patch: object) => { try { await api.patch(`/api/tasks/${taskId}`, patch); onChanged(); } catch (e: any) { toast(e.message, { err: true }); } };
-  const remove = async () => { if (!confirm('Delete this task and its comments?')) return; try { await api.del(`/api/tasks/${taskId}`); onChanged(); onClose(); toast('Task deleted.'); } catch (e: any) { toast(e.message, { err: true }); } };
+  const remove = async () => { if (!(await ask({ title: `Delete “${task.title}”?`, body: 'Its comments go with it. This cannot be undone.', confirm: 'Delete task', tone: 'danger' }))) return; try { await api.del(`/api/tasks/${taskId}`); onChanged(); onClose(); toast('Task deleted.'); } catch (e: any) { toast(e.message, { err: true }); } };
   const comment = async (e: React.FormEvent) => {
     e.preventDefault(); if (!reply.trim()) return; setBusy(true);
     try { await api.post(`/api/tasks/${taskId}/comments`, { body: reply }); setReply(''); comments.reload(true); onChanged(); } catch (e: any) { toast(e.message, { err: true }); } finally { setBusy(false); }
   };
   return (
-    <>
-      <div className="drawer-back" onClick={onClose} />
-      <aside className="drawer" role="dialog" aria-label="Task">
-        <header><span className="kick">Task</span><button className="btn sm ghost right danger" onClick={remove}><Icon.trash size={14} />Delete</button><button className="btn sm ghost" onClick={onClose} aria-label="Close"><Icon.x size={16} /></button></header>
+    <Drawer label="Task" onClose={onClose} actions={<button className="btn sm ghost right danger" onClick={remove}><Icon.trash size={14} />Delete</button>}>
         <div className="body">
           <input className="input" style={{ fontSize: 'var(--fs-3)', fontWeight: 650 }} aria-label="Title" value={f.title} maxLength={200} onChange={(e) => setF({ ...f, title: e.target.value })} onBlur={() => f.title.trim() && f.title !== task.title && save({ title: f.title })} />
           <div className="grid-form">
@@ -103,12 +100,11 @@ export function TaskDrawer({ taskId, task, onClose, onChanged }: { taskId: strin
           <div className="col">
             <span className="kick">Comments</span>
             {(comments.data ?? []).map((k) => <div key={k.id} className="comment"><div className="avatar">{initials(k.author_name)}</div><div><div className="who-line"><b style={{ fontWeight: 600 }}>{k.author_name ?? 'Former teammate'}</b><span className="faint">{ago(k.created_at)}</span></div><p className="prose">{k.body}</p></div></div>)}
-            <form className="col" onSubmit={comment}><textarea className="textarea" rows={3} placeholder="Write a comment" value={reply} onChange={(e) => setReply(e.target.value)} maxLength={5000} />
+            <form className="col" onSubmit={comment}><textarea className="textarea" rows={3} aria-label="Write a comment" placeholder="Write a comment" value={reply} onChange={(e) => setReply(e.target.value)} maxLength={5000} />
               <div><button className="btn sm primary" disabled={busy || !reply.trim()}>{busy && <Spinner />}Comment</button></div></form>
           </div>
           <p className="faint" style={{ fontSize: 'var(--fs-0)' }}>Added {ago(task.created_at)}{task.completed_at ? ` · done ${ago(task.completed_at)}` : ''}</p>
         </div>
-      </aside>
-    </>
+    </Drawer>
   );
 }

@@ -4,7 +4,7 @@ import { Link, useRouter } from '../router.tsx';
 import { useLoad } from '../ui/hooks.ts';
 import { Icon } from '../ui/icons.tsx';
 import { useToast } from '../ui/toast.tsx';
-import { Empty, Failure, Loading, Spinner, dayLabel, isLate } from '../ui/kit.tsx';
+import { Badge, Empty, Failure, Loading, Spinner, dayLabel, isLate, rowOpen, type Tone } from '../ui/kit.tsx';
 import { useMe, useTeam } from '../session.tsx';
 import { countsBus } from '../App.tsx';
 import { TaskDrawer } from './Project.tsx';
@@ -12,6 +12,8 @@ import { TaskDrawer } from './Project.tsx';
 export const PROJECT_STATUS: Record<string, string> = { ACTIVE: 'Active', ON_HOLD: 'On hold', DONE: 'Done', ARCHIVED: 'Archived' };
 export const TASK_STATUS: Record<string, string> = { TODO: 'To do', DOING: 'Doing', REVIEW: 'In review', DONE: 'Done' };
 export const PRIORITY: Record<string, string> = { HIGH: 'High', MEDIUM: 'Medium', LOW: 'Low' };
+const PROJECT_TONE: Record<string, Tone> = { ACTIVE: 'info', ON_HOLD: 'warning', DONE: 'success', ARCHIVED: 'neutral' };
+const TASK_TONE: Record<string, Tone> = { TODO: 'neutral', DOING: 'info', REVIEW: 'warning', DONE: 'success' };
 
 export function Projects() {
   const { search, go } = useRouter(); const view = search.get('view') ?? 'projects';
@@ -33,13 +35,13 @@ function ProjectList({ archived }: { archived: boolean }) {
   return (
     <>
       {!archived && (adding ? <NewProject onDone={() => { setAdding(false); reload(true); }} /> : <div><button className="btn primary" onClick={() => setAdding(true)}><Icon.plus size={16} />New project</button></div>)}
-      {!data!.length ? <div className="card"><Empty title={archived ? 'Nothing archived' : 'No projects yet'}>{archived ? 'Archived projects land here.' : 'Start one for the next piece of client work.'}</Empty></div> :
+      {!data!.length ? <div className="card"><Empty title={archived ? 'Nothing archived' : 'No projects yet'}>{archived ? 'Set a project to Archived from its page and it moves here, out of the way.' : 'Start one for the next piece of client work. Each project gets a board with To do, Doing, In review and Done.'}</Empty></div> :
         <div className="cards">{data!.map((p) => <Link key={p.id} to={`/projects/${p.id}`} className="pcard">
-          <div className="row between"><h3 className="ellipsis">{p.name}</h3><span className={`tag ${p.status === 'ACTIVE' ? 'ember' : 'dim'}`}>{PROJECT_STATUS[p.status]}</span></div>
+          <div className="row between"><h3 className="ellipsis">{p.name}</h3><Badge tone={PROJECT_TONE[p.status]}>{PROJECT_STATUS[p.status]}</Badge></div>
           {p.description && <p className="muted ellipsis">{p.description}</p>}
-          <div className="progress" aria-label={`${p.done} of ${p.tasks} tasks done`}><i style={{ width: `${p.tasks ? (p.done / p.tasks) * 100 : 0}%` }} /></div>
+          <div className="progress" role="img" aria-label={`${p.done} of ${p.tasks} tasks done`}><i style={{ width: `${p.tasks ? (p.done / p.tasks) * 100 : 0}%` }} /></div>
           <div className="row between faint" style={{ fontSize: 'var(--fs-0)' }}>
-            <span>{p.done}/{p.tasks} done{p.overdue ? <b className="late" style={{ fontWeight: 600 }}> · {p.overdue} late</b> : ''}</span>
+            <span>{p.tasks ? `${p.done} of ${p.tasks} done` : 'No tasks yet'}{p.overdue ? <b className="late" style={{ fontWeight: 600 }}> · {p.overdue} late</b> : ''}</span>
             <span>{p.company_name ?? p.owner_name ?? ''}{p.due_date ? ` · due ${dayLabel(p.due_date)}` : ''}</span>
           </div>
         </Link>)}</div>}
@@ -52,7 +54,7 @@ function NewProject({ onDone }: { onDone: () => void }) {
   const [f, setF] = useState({ name: '', description: '', owner_id: me.id, due_date: '' }); const [busy, setBusy] = useState(false);
   const submit = async (e: React.FormEvent) => {
     e.preventDefault(); setBusy(true);
-    try { const p = await api.post('/api/projects', f); toast('Project started.'); onDone(); go(`/projects/${p.id}`); } catch (e: any) { toast(e.message, { err: true }); setBusy(false); }
+    try { const p = await api.post('/api/projects', f); toast('Project created.'); onDone(); go(`/projects/${p.id}`); } catch (e: any) { toast(e.message, { err: true }); setBusy(false); }
   };
   return (
     <form className="card col" onSubmit={submit}>
@@ -98,12 +100,12 @@ function MyTasks() {
       </form>
       {loading && !data ? <Loading rows={4} /> : error ? <Failure error={error} retry={reload} /> : !list.length
         ? <div className="card"><Empty title="Nothing on your plate">Add a task above. Tasks assigned to you, in any project or none, show up here.</Empty></div>
-        : <div className="card flush scrollx"><table className="t">
+        : <div className="card flush scrollx"><table className="t stack">
           <thead><tr><th>Task</th><th>Project</th><th>Status</th><th>Priority</th><th>Due</th></tr></thead>
-          <tbody>{list.map((t) => <tr key={t.id} className="click" onClick={() => (t.project_id ? go(`/projects/${t.project_id}?task=${t.id}`) : setOpen(t.id))}>
-            <td style={{ fontWeight: 600 }}>{t.title}</td><td className="muted">{t.project_name ?? <span className="faint">To-do</span>}</td><td><span className="tag">{TASK_STATUS[t.status]}</span></td>
-            <td><span className={`tag ${t.priority === 'HIGH' ? 'ember' : 'dim'}`}>{PRIORITY[t.priority]}</span></td>
-            <td className={isLate(t.due_date) ? 'late' : 'sub'}>{dayLabel(t.due_date) || '·'}</td></tr>)}</tbody></table></div>}
+          <tbody>{list.map((t) => <tr key={t.id} className="click" {...rowOpen(() => (t.project_id ? go(`/projects/${t.project_id}?task=${t.id}`) : setOpen(t.id)))}>
+            <td data-label="Task" style={{ fontWeight: 600 }}>{t.title}</td><td data-label="Project" className="muted">{t.project_name ?? <span className="faint">To-do</span>}</td><td data-label="Status"><Badge tone={TASK_TONE[t.status]}>{TASK_STATUS[t.status]}</Badge></td>
+            <td data-label="Priority">{t.priority === 'HIGH' ? <Badge tone="warning">High</Badge> : <span className="muted">{PRIORITY[t.priority]}</span>}</td>
+            <td data-label="Due" className={isLate(t.due_date) && t.status !== 'DONE' ? 'late' : 'sub'}>{t.due_date ? (isLate(t.due_date) && t.status !== 'DONE' ? `Late, ${dayLabel(t.due_date)}` : dayLabel(t.due_date)) : 'No date'}</td></tr>)}</tbody></table></div>}
       {open && <TaskDrawer key={open} taskId={open} task={list.find((t) => t.id === open)} onClose={() => setOpen(null)} onChanged={changed} />}
     </>
   );

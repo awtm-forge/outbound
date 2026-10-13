@@ -51,6 +51,8 @@ const STATUS: Record<string, { label: string; tone: Tone }> = {
 };
 export function Badge({ tone = 'neutral', children }: { tone?: Tone; children: React.ReactNode }) { return <span className={`tag tone-${tone}`}>{children}</span>; }
 export function Status({ s }: { s: string }) { const m = STATUS[s] ?? { label: s, tone: 'neutral' as Tone }; return <Badge tone={m.tone}>{m.label}</Badge>; }
+// A clickable table row that also opens with Enter or Space from the keyboard.
+export const rowOpen = (run: () => void) => ({ tabIndex: 0, onClick: run, onKeyDown: (e: React.KeyboardEvent) => { if ((e.key === 'Enter' || e.key === ' ') && e.target === e.currentTarget) { e.preventDefault(); run(); } } });
 export const statusLabel = (s: string) => STATUS[s]?.label ?? s;
 const CLASS: Record<string, string> = { POSITIVE: 'Interested', VALUE_REQUEST: 'Asked for the two things', PRICE: 'Asked about price', TIMING: 'Not now', WRONG_PERSON: 'Wrong person', REFERRAL: 'Referred someone', OBJECTION: 'Objection', NOT_INTERESTED: 'Not interested', UNSUBSCRIBE: 'Asked to stop', OTHER: 'Needs a read' };
 export const classLabel = (c?: string | null) => (c ? CLASS[c] ?? c : 'Not read yet');

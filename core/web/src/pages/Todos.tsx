@@ -4,7 +4,7 @@ import { Link } from '../router.tsx';
 import { useLoad } from '../ui/hooks.ts';
 import { Icon } from '../ui/icons.tsx';
 import { useToast } from '../ui/toast.tsx';
-import { Failure, Spinner, dayLabel, initials, isLate, todayIST } from '../ui/kit.tsx';
+import { Badge, Failure, Loading, Spinner, dayLabel, initials, isLate, todayIST } from '../ui/kit.tsx';
 import { useMe, useTeam } from '../session.tsx';
 import { countsBus } from '../App.tsx';
 import { TaskDrawer } from './Project.tsx';
@@ -31,7 +31,7 @@ export function Todos() {
   const today = todayIST();
   return (
     <section className="section" aria-label="To-dos">
-      <div className="row between wrap"><h2 className="section-title" style={{ fontSize: 'var(--fs-3)' }}>To-dos{openCount ? <span className="faint mono" style={{ fontSize: 13, marginLeft: 10 }}>{openCount} open</span> : null}</h2>
+      <div className="row between wrap"><h2 className="section-title" style={{ fontSize: 'var(--fs-3)' }}>To-dos{openCount ? <span className="tab-n" style={{ verticalAlign: 3 }} aria-label={`${openCount} open`}>{openCount}</span> : null}</h2>
         <div className="tabs" role="tablist">{(['me', 'all'] as const).map((k) => <button key={k} role="tab" aria-selected={who === k} className={who === k ? 'on' : ''} onClick={() => setWho(k)}>{k === 'me' ? 'Mine' : 'Everyone'}</button>)}</div></div>
       <div className="card flush">
         <form className="todo-add" onSubmit={add}>
@@ -41,7 +41,7 @@ export function Todos() {
           <button className="btn primary" disabled={busy}>{busy ? <Spinner /> : <Icon.plus size={16} />}Add</button>
         </form>
         {error ? <div style={{ padding: 'var(--s-4)' }}><Failure error={error} retry={reload} /></div>
-          : loading && !data ? null
+          : loading && !data ? <div style={{ padding: 'var(--s-3) var(--s-4)' }}><Loading kind="list" rows={3} /></div>
           : !list.length ? <p className="muted" style={{ padding: 'var(--s-5)' }}>{who === 'me' ? 'Nothing on your list. Add the next thing above.' : 'Nothing on anyone\'s list.'}</p>
           : <ul className="todos">{list.map((t) => {
             const done = t.status === 'DONE'; const late = !done && isLate(t.due_date); const dueToday = !done && t.due_date === today;
@@ -49,11 +49,11 @@ export function Todos() {
               <input type="checkbox" className="check" checked={done} onChange={() => toggle(t)} aria-label={done ? `Mark ${t.title} not done` : `Mark ${t.title} done`} />
               <button className="todo-title" onClick={() => setOpen(t.id)}>{t.title}</button>
               <span className="todo-meta">
-                {t.priority === 'HIGH' && !done && <span className="tag ember">High</span>}
+                {t.priority === 'HIGH' && !done && <Badge tone="warning">High</Badge>}
                 {t.project_id && <Link className="tag" to={`/projects/${t.project_id}?task=${t.id}`}>{t.project_name}</Link>}
                 {t.comments > 0 && <span className="faint">{t.comments} {t.comments === 1 ? 'comment' : 'comments'}</span>}
                 {t.due_date && !done && <span className={late ? 'late' : dueToday ? 'kick ember' : 'faint'}>{late ? `Late, ${dayLabel(t.due_date)}` : dueToday ? 'Today' : dayLabel(t.due_date)}</span>}
-                {(who === 'all' || t.assignee_id !== me.id) && <span className="avatar sm" title={t.assignee_name ?? 'Nobody'}>{initials(t.assignee_name)}</span>}
+                {(who === 'all' || t.assignee_id !== me.id) && <span className="avatar sm" role="img" title={t.assignee_name ?? 'Nobody'} aria-label={`For ${t.assignee_name ?? 'nobody'}`}>{initials(t.assignee_name)}</span>}
               </span>
             </li>; })}</ul>}
       </div>
