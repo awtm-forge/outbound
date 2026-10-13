@@ -251,6 +251,8 @@ async function updateTask(c: Ctx, id: string, b: Row) {
   if (s && d && s > d) throw new HttpError(400, 'The start date is after the due date.');
   const t = (await patchRow('tasks', id, fields))!;
   if (b.collaborator_ids) await setCollaborators(id, b.collaborator_ids);
+  // a CRM follow-up done or reopened shows on the company's history
+  if (before.company_id && status !== before.status && (status === 'DONE' || before.status === 'DONE')) await audit('company', before.company_id, status === 'DONE' ? 'follow_up_done' : 'follow_up_reopened', c.actor, { task_id: id, title: t.title, user_id: c.user?.id ?? null });
   // what changed, in the project's timeline
   if (pid) {
     const ref = { task_id: id, title: t.title };

@@ -1,95 +1,149 @@
 import { useState } from 'react';
 import { api } from '../api.ts';
-import { Link } from '../router.tsx';
+import { Link, useRouter } from '../router.tsx';
 import { useLoad } from '../ui/hooks.ts';
-import { Icon } from '../ui/icons.tsx';
+import { Icon, Dots } from '../ui/icons.tsx';
+import { Menu, MenuItem } from '../ui/menu.tsx';
+import { useConfirm } from '../ui/overlay.tsx';
 import { useToast } from '../ui/toast.tsx';
-import { Badge, Empty, Failure, Loading, Spinner, Status, ago, dayLabel, initials, inr, toPaise, toRupees } from '../ui/kit.tsx';
+import { Empty, Failure, Skeleton, Spinner, ago, classLabel, dayLabel, inr, isLate, statusLabel, toPaise, toRupees } from '../ui/kit.tsx';
 import { Crumbs, actorLabel } from '../ui/chrome.tsx';
-import { STAGE, stageTone, useLostReason } from './Crm.tsx';
-import { EVENT } from './Prospect.tsx';
+import { useTeam } from '../session.tsx';
+import { STAGE, useLostReason } from './Crm.tsx';
+import { EVENT as PROSPECT_EVENT } from './Prospect.tsx';
 import { PROJECT_STATUS } from './Projects.tsx';
+import { CoMark, CompanyForm, ContactForm, EVENT, EVENT_ICON, FollowUpForm, OpportunityForm, OutStatus, PersonDot, StagePill, siteUrl } from './crm/shared.tsx';
+
+const RESEARCH: Record<string, string> = { ACCOUNT: 'Company research', WEBSITE: 'Website audit', PROBLEM: 'Problem we saw', CAPABILITY: 'How we can help', DECISION_MAKER: 'Decision maker search' };
+// the readable parts of a research finding: its sentences and short lists, nothing invented around them
+const readable = (d: any): [string, string][] => Object.entries(d ?? {}).flatMap(([k, v]): [string, string][] => {
+  const label = k.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase());
+  if (typeof v === 'string' && v.length > 2 && v !== 'UNKNOWN') return [[label, v]];
+  if (Array.isArray(v) && v.length && v.every((x) => typeof x === 'string')) return [[label, (v as string[]).slice(0, 5).join(' · ')]];
+  return [];
+}).slice(0, 6);
 
 export function Company({ id }: { id: string }) {
-  const toast = useToast();
-  const { data, error, loading, reload } = useLoad(() => api.get(`/api/crm/companies/${id}`), [id]);
-  const [editing, setEditing] = useState(false); const [note, setNote] = useState(''); const [busy, setBusy] = useState(false);
-  if (loading && !data) return <div className="page"><Loading rows={6} /></div>;
-  if (error) return <div className="page"><Crumbs items={[{ to: '/crm', label: 'CRM' }, { label: 'Company' }]} /><Failure error={error} retry={reload} /></div>;
-  const c = data;
+  const toast = useToast(); const ask = useConfirm(); const team = useTeam(); const { go } = useRouter();
+  const { data, error, loading, reload } = useLoad<any>(() => api.get(`/api/crm/companies/${id}`), [id]);
+  const camps = useLoad<any>(() => api.get('/api/campaigns'));
+  const [modal, setModal] = useState<{ kind: string; x?: any } | null>(null); const [note, setNote] = useState(''); const [busy, setBusy] = useState(false);
+  if (loading && !data) return <div className="dash-main"><Skeleton h={90} /><Skeleton h={400} /></div>;
+  if (error) return <div className="dash-main"><Crumbs items={[{ to: '/crm', label: 'CRM' }, { label: 'Company' }]} /><Failure error={error} retry={reload} /></div>;
+  const c = data; const url = siteUrl(c); const p = c.prospects[0]; const ref = { id: c.id, name: c.name };
+  const done = () => { setModal(null); reload(true); };
   const addNote = async (e: React.FormEvent) => {
     e.preventDefault(); if (!note.trim()) return; setBusy(true);
-    try { await api.post(`/api/crm/companies/${id}/notes`, { text: note }); setNote(''); toast('Note added.'); reload(true); } catch (e: any) { toast(e.message, { err: true }); } finally { setBusy(false); }
+    try { await api.post(`/api/crm/companies/${id}/notes`, { text: note }); setNote(''); toast('Note added.'); reload(true); } catch (x: any) { toast(x.message, { err: true }); } finally { setBusy(false); }
   };
-  const openDeal = async () => { try { await api.post(`/api/crm/companies/${id}/opportunities`, { stage: 'REPLIED' }); toast('Opportunity opened.'); reload(true); } catch (e: any) { toast(e.message, { err: true }); } };
-  const hasOpen = c.opportunities.some((o: any) => !['WON', 'LOST'].includes(o.stage));
+  const patch = async (body: object, msg: string) => { try { await api.patch(`/api/crm/companies/${id}`, body); toast(msg); reload(true); } catch (x: any) { toast(x.message, { err: true }); } };
+  const status = async (s: string) => { try { await api.post(`/api/crm/companies/${id}/status`, { status: s }); toast(`Outbound status: ${statusLabel(s)}.`); reload(true); } catch (x: any) { toast(x.message, { err: true }); } };
+  const finish = async (t: any) => { try { await api.patch(`/api/tasks/${t.id}`, { status: t.status === 'DONE' ? 'TODO' : 'DONE' }); reload(true); } catch (x: any) { toast(x.message, { err: true }); } };
+  const openFu = c.follow_ups.filter((t: any) => t.status !== 'DONE');
   return (
-    <div className="page">
-      <div className="head">
-        <div className="grow"><Crumbs items={[{ to: '/crm', label: 'CRM' }, { label: c.name }]} />
-          <h1 style={{ marginTop: 6 }}>{c.name}</h1>
-          <div className="co-meta"><a className="tag" href={c.website ?? `https://${c.domain}`} target="_blank" rel="noopener noreferrer">{c.domain} <Icon.out size={11} /></a>
-            {[c.city, c.country].filter(Boolean).length > 0 && <span className="tag">{[c.city, c.country].filter(Boolean).join(', ')}</span>}
-            {c.vertical && <span className="tag">{c.vertical}</span>}{c.platform && <span className="tag">{c.platform}</span>}{c.company_size && <span className="tag">{c.company_size} people</span>}</div></div>
-        <div className="row"><button className="btn" onClick={() => setEditing(!editing)}><Icon.edit size={15} />Edit details</button>{!hasOpen && <button className="btn primary" onClick={openDeal}><Icon.plus size={15} />Open a deal</button>}</div>
+    <div className="dash-main co-page">
+      <Crumbs items={[{ to: '/crm', label: 'CRM' }, { label: c.name }]} />
+      <div className="co-hero panel">
+        <CoMark name={c.name} size={60} />
+        <div className="co-id">
+          <h1>{c.name}{c.archived_at && <span className="ostat none">Archived</span>}</h1>
+          <div className="co-tags">{url && <a href={url} target="_blank" rel="noopener noreferrer" className="co-tag link"><Icon.globe size={13} />{c.domain}<Icon.out size={11} /></a>}
+            {c.industry && <span className="co-tag">{c.industry}</span>}{c.vertical && <span className="co-tag">{c.vertical}</span>}{[c.city, c.country].filter(Boolean).length > 0 && <span className="co-tag"><Icon.home size={12} />{[c.city, c.country].filter(Boolean).join(', ')}</span>}
+            {c.platform && <span className="co-tag">{c.platform}</span>}{c.company_size && <span className="co-tag">{c.company_size} people</span>}</div>
+        </div>
+        <div className="co-facts">
+          <div><span>Outbound</span><OutStatus s={p?.status} /></div>
+          <div><span>Campaign</span>{p?.campaign ? <Link to={`/pipeline?campaign=${p.campaign}`} className="camp-tag2">{p.campaign}</Link> : <b className="sub">None</b>}</div>
+          <label><span>Owner</span><select value={c.owner_id ?? ''} onChange={(e) => patch({ owner_id: e.target.value || null }, 'Owner changed.')} aria-label="Owner"><option value="">Nobody</option>{team.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}</select></label>
+        </div>
+        <div className="co-actions">
+          <button className="btn tiny" onClick={() => setModal({ kind: 'edit' })}><Icon.edit size={14} />Edit</button>
+          <button className="btn tiny" onClick={() => setModal({ kind: 'contact' })}><Icon.user size={14} />Add contact</button>
+          <button className="btn tiny" onClick={() => setModal({ kind: 'follow' })}><Icon.calendar size={14} />Follow-up</button>
+          <button className="btn tiny primary" onClick={() => setModal({ kind: 'opp' })}><Icon.plus size={14} />Opportunity</button>
+          <Menu label="More actions" className="icon-btn" place="left" button={<Dots vertical size={16} />}>{(close) => <>
+            <MenuItem onSelect={() => { close(); document.getElementById('note-box')?.focus(); }}><Icon.edit size={15} />Add note</MenuItem>
+            {url && <MenuItem onSelect={() => { close(); window.open(url, '_blank', 'noopener'); }}><Icon.out size={15} />Open website</MenuItem>}
+            {p?.campaign && <MenuItem onSelect={() => { close(); go(`/pipeline?campaign=${p.campaign}`); }}><Icon.campaigns size={15} />View campaign</MenuItem>}
+            {p && <MenuItem onSelect={() => { close(); go(`/prospects/${p.id}`); }}><Icon.pipeline size={15} />Open in pipeline</MenuItem>}
+            {p && p.status !== 'REJECTED' && <MenuItem onSelect={() => { close(); status('REJECTED'); }}><Icon.x size={15} />Mark not a fit</MenuItem>}
+            {p && p.status !== 'RESEARCH_FURTHER' && <MenuItem onSelect={() => { close(); status('RESEARCH_FURTHER'); }}><Icon.find size={15} />Send back to research</MenuItem>}
+            <div className="menu-sep" />
+            {c.archived_at ? <MenuItem onSelect={() => { close(); patch({ archived: false }, 'Restored.'); }}><Icon.redo size={15} />Restore</MenuItem>
+              : <MenuItem onSelect={async () => { close(); if (await ask({ title: `Archive ${c.name}?`, body: 'It leaves the CRM lists. Outbound, deals and history are untouched.', confirm: 'Archive' })) patch({ archived: true }, 'Archived.'); }}><Icon.archive size={15} />Archive</MenuItem>}</>}</Menu>
+        </div>
       </div>
-      {editing && <EditCompany c={c} onDone={() => { setEditing(false); reload(true); }} />}
-      <div className="prospect-grid">
-        <div className="col" style={{ gap: 'var(--s-5)' }}>
-          {c.opportunities.length > 0 && <section className="section"><h2 className="section-title">Deals</h2>{c.opportunities.map((o: any) => <Opportunity key={o.id} o={o} company={c.name} reload={() => reload(true)} />)}</section>}
-          <section className="section"><h2 className="section-title">Outbound</h2>
-            {c.prospects.length ? <div className="card flush"><table className="t"><tbody>{c.prospects.map((p: any) => <tr key={p.id}>
-              <td><Link to={`/prospects/${p.id}`} style={{ fontWeight: 600, textDecoration: 'none' }}>{p.campaign ? <>In outbound <span className="mono faint" style={{ fontSize: 11.5, fontWeight: 500 }}>{p.campaign}</span></> : 'Outside any campaign'}</Link><div className="sub">{p.contact_name ?? 'No person yet'}{p.account_score != null ? ` · score ${p.account_score}` : ''}</div></td>
-              <td><Status s={p.status} /></td><td className="sub">{ago(p.updated_at)}</td></tr>)}</tbody></table></div>
-              : <div className="card"><p className="muted">Not in any outbound campaign.</p></div>}</section>
-          <section className="section"><h2 className="section-title">Notes</h2>
-            <form className="card col" onSubmit={addNote}><textarea className="textarea" rows={3} aria-label="New note" placeholder="What happened, what was said, what is next" value={note} onChange={(e) => setNote(e.target.value)} maxLength={5000} />
-              <div><button className="btn sm primary" disabled={busy || !note.trim()}>{busy && <Spinner />}Add note</button></div></form>
-            {c.notes.map((n: any) => <div key={n.id} className="card comment"><div className="avatar" aria-hidden="true">{initials(actorLabel(n.actor))}</div><div><div className="who-line" style={{ display: 'flex', gap: 8, fontSize: 'var(--fs-0)' }}><b style={{ fontWeight: 600 }}>{actorLabel(n.actor)}</b><span className="faint">{ago(n.created_at)}</span></div><p className="prose">{n.text}</p></div></div>)}
+
+      <div className="co-grid">
+        <div className="co-main">
+          <section className="panel co-sec" aria-labelledby="op-h"><div className="panel-head"><h2 id="op-h"><span className="ic"><Icon.handshake size={18} /></span>Opportunities</h2>
+            <button className="btn tiny right" onClick={() => setModal({ kind: 'opp' })} style={{ marginLeft: 'auto' }}><Icon.plus size={13} />New</button></div>
+            {c.opportunities.length ? c.opportunities.map((o: any) => <Opportunity key={o.id} o={o} company={c.name} reload={() => reload(true)} onEdit={() => setModal({ kind: 'oppedit', x: { ...o, company: c.name } })} />) : <p className="co-empty">No opportunities yet. Open one when a conversation starts.</p>}
+          </section>
+          <section className="panel co-sec" aria-labelledby="rs-h"><div className="panel-head"><h2 id="rs-h"><span className="ic"><Icon.sparkle size={18} /></span>Research and website audit</h2></div>
+            {c.research.length ? <div className="rs-grid">{c.research.map((r: any) => { const items = readable(r.data); return <div key={r.kind} className="rs-card"><b>{RESEARCH[r.kind] ?? r.kind}</b><small>{ago(r.created_at)}{r.confidence != null ? ` · confidence ${Math.round(Number(r.confidence) * 100)}%` : ''}</small>
+              {items.length ? <dl>{items.map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}</dl> : <p className="faint">Nothing readable in this finding.</p>}</div>; })}</div>
+              : <p className="co-empty">{p ? 'Not researched yet. Outbound researches companies in a campaign.' : 'Not in outbound, so not researched. Add it to a campaign to research it.'}</p>}
+            {p?.specific_observation && p.specific_observation !== 'UNKNOWN' && <p className="obs"><b>What we saw:</b> {p.specific_observation}</p>}
+          </section>
+          <section className="panel co-sec" aria-labelledby="em-h"><div className="panel-head"><h2 id="em-h"><span className="ic"><Icon.mail size={18} /></span>Emails and replies</h2></div>
+            {c.emails.length ? <ul className="em-list">{c.emails.map((e: any) => <li key={e.kind + e.id}><span className={`f-ic tone-${e.kind === 'reply' ? 'g' : 'o'}`} aria-hidden="true">{e.kind === 'reply' ? <Icon.reply size={13} /> : <Icon.mail size={13} />}</span>
+              <div><b>{e.subject || '(no subject)'}</b><small>{e.kind === 'reply' ? `Reply · ${classLabel(e.classification)}` : `Our email · ${({ PENDING_APPROVAL: 'waiting for review', APPROVED: 'approved', REJECTED: 'rejected', RESEARCH_MORE: 'sent back for research', SENT_TO_SEQUENCER: 'sent' } as any)[e.status] ?? e.status}`}</small></div>
+              <span className="when">{ago(e.at_time)}</span></li>)}</ul> : <p className="co-empty">No emails yet.</p>}
+          </section>
+          <section className="panel co-sec" aria-labelledby="nt-h"><div className="panel-head"><h2 id="nt-h"><span className="ic"><Icon.edit size={18} /></span>Notes</h2></div>
+            <form className="note-form" onSubmit={addNote}><textarea id="note-box" className="textarea" rows={2} aria-label="New note" placeholder="What happened, what was said, what is next" value={note} onChange={(e) => setNote(e.target.value)} maxLength={5000} />
+              <button className="btn tiny primary" disabled={busy || !note.trim()}>{busy && <Spinner />}Add note</button></form>
+            {c.notes.map((n: any) => <div key={n.id} className="comment sm"><PersonDot name={actorLabel(n.actor)} /><div><div className="who-line"><b>{actorLabel(n.actor)}</b><span className="faint">{ago(n.created_at)}</span></div><p className="prose">{n.text}</p></div></div>)}
           </section>
         </div>
-        <div className="col" style={{ gap: 'var(--s-5)' }}>
-          <People c={c} reload={() => reload(true)} />
-          {c.projects.length > 0 && <section className="card col"><h2>Projects</h2>{c.projects.map((p: any) => <Link key={p.id} to={`/projects/${p.id}`} className="row between" style={{ textDecoration: 'none' }}><span>{p.name}</span><Badge>{PROJECT_STATUS[p.status]}</Badge></Link>)}</section>}
-          <section className="card col"><h2>Activity</h2>{c.activity.length ? <div className="timeline">{c.activity.map((a: any, i: number) => <div key={i} className="ev"><span className="dot" aria-hidden="true" /><span>{EVENT[a.action] ?? (a.action.charAt(0).toUpperCase() + a.action.slice(1).replace(/_/g, ' '))} <span className="faint">by {actorLabel(a.actor)}</span></span><span className="faint" style={{ fontSize: 'var(--fs-0)', whiteSpace: 'nowrap' }}>{ago(a.created_at)}</span></div>)}</div> : <p className="faint">Nothing has happened here yet.</p>}</section>
-        </div>
+        <aside className="co-side">
+          <section className="panel rpanel" aria-labelledby="pp-h"><div className="rp-head"><Icon.people size={17} /><h2 id="pp-h">People</h2><button className="btn tiny" style={{ marginLeft: 'auto' }} onClick={() => setModal({ kind: 'contact' })}><Icon.plus size={12} />Add</button></div>
+            {c.contacts.length ? <ul className="pp-list">{c.contacts.map((x: any) => <li key={x.id}><PersonDot name={x.full_name ?? x.email ?? '?'} /><div><b>{x.full_name ?? 'No name'}{x.is_decision_maker && <span className="decides">Decides</span>}</b>
+              <span>{x.job_title ?? ''}</span>{x.email && <a href={`mailto:${x.email}`}>{x.email}</a>}{x.phone && <a href={`tel:${x.phone.replace(/[^\d+]/g, '')}`}>{x.phone}</a>}</div>
+              <button className="icon-btn" onClick={() => setModal({ kind: 'cedit', x })} aria-label={`Edit ${x.full_name ?? 'contact'}`}><Icon.edit size={14} /></button></li>)}</ul> : <Empty title="Nobody yet">Add the person who decides.</Empty>}</section>
+          <section className="panel rpanel" aria-labelledby="fu2-h"><div className="rp-head"><Icon.calendar size={17} /><h2 id="fu2-h">Follow-ups</h2><button className="btn tiny" style={{ marginLeft: 'auto' }} onClick={() => setModal({ kind: 'follow' })}><Icon.plus size={12} />Add</button></div>
+            {c.follow_ups.length ? <ul className="fu-list">{c.follow_ups.map((t: any) => { const late = t.status !== 'DONE' && isLate(t.due_date); return <li key={t.id} className={late ? 'late' : t.status === 'DONE' ? 'isdone' : ''}>
+              <button type="button" className={`fu-check${t.status === 'DONE' ? ' on' : ''}`} onClick={() => finish(t)} aria-pressed={t.status === 'DONE'} aria-label={`${t.status === 'DONE' ? 'Reopen' : 'Mark done'}: ${t.title}`}><Icon.check size={12} /></button>
+              <div className="fu-body"><span>{t.title}</span><small>{t.due_date ? (late ? `Late, ${dayLabel(t.due_date)}` : dayLabel(t.due_date)) : 'No date'}{t.assignee_name ? ` · ${t.assignee_name}` : ''}</small></div></li>; })}</ul>
+              : <p className="rp-empty">None yet.</p>}{openFu.length > 0 && <p className="rp-foot">They are on each person’s Today list too.</p>}</section>
+          {c.meetings.length > 0 && <section className="panel rpanel" aria-labelledby="mt-h"><div className="rp-head"><Icon.calendar size={17} /><h2 id="mt-h">Meetings</h2></div>
+            <ul className="em-list">{c.meetings.map((m: any) => <li key={m.id}><span className="f-ic tone-p" aria-hidden="true"><Icon.calendar size={13} /></span><div><b>{m.scheduled_at ? new Date(m.scheduled_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }) : 'Time not set'}</b><small>{m.held ? 'Held' : 'Not held yet'}</small></div></li>)}</ul>
+            <Link to="/deals" className="link-accent rp-more">Meetings and deals <Icon.arrow size={13} /></Link></section>}
+          {c.projects.length > 0 && <section className="panel rpanel" aria-labelledby="pj-h"><div className="rp-head"><Icon.projects size={17} /><h2 id="pj-h">Projects</h2></div>
+            <ul className="em-list">{c.projects.map((x: any) => <li key={x.id}><Link to={`/projects/${x.id}`}><b>{x.name}</b></Link><small className="right">{PROJECT_STATUS[x.status]}</small></li>)}</ul></section>}
+          <section className="panel rpanel" aria-labelledby="ac-h"><div className="rp-head"><Icon.clock size={17} /><h2 id="ac-h">Activity</h2></div>
+            {c.activity.length ? <ul className="ra-feed">{c.activity.slice(0, 15).map((a: any, i: number) => { const [ic, tone] = EVENT_ICON(a.action); const I = Icon[ic]; return <li key={i}><span className={`f-ic tone-${tone}`} aria-hidden="true"><I size={13} /></span>
+              <span>{(EVENT[a.action] ?? PROSPECT_EVENT[a.action]?.toLowerCase() ?? a.action.replace(/_/g, ' ')).replace(/^./, (x: string) => x.toUpperCase())} <span className="faint">by {actorLabel(a.actor)}</span></span><small>{ago(a.created_at)}</small></li>; })}</ul>
+              : <p className="rp-empty">Nothing has happened here yet.</p>}</section>
+        </aside>
       </div>
+      {modal?.kind === 'edit' && <CompanyForm c={c} campaigns={camps.data?.campaigns} onClose={() => setModal(null)} onSaved={done} />}
+      {modal?.kind === 'contact' && <ContactForm company={ref} onClose={() => setModal(null)} onSaved={done} />}
+      {modal?.kind === 'cedit' && <ContactForm p={modal.x} onClose={() => setModal(null)} onSaved={done} />}
+      {modal?.kind === 'opp' && <OpportunityForm company={ref} onClose={() => setModal(null)} onSaved={done} />}
+      {modal?.kind === 'oppedit' && <OpportunityForm o={modal.x} onClose={() => setModal(null)} onSaved={done} />}
+      {modal?.kind === 'follow' && <FollowUpForm company={ref} onClose={() => setModal(null)} onSaved={done} />}
     </div>
   );
 }
 
-function EditCompany({ c, onDone }: { c: any; onDone: () => void }) {
-  const toast = useToast(); const fields = ['name', 'website', 'city', 'country', 'industry', 'vertical', 'company_size', 'platform'] as const;
-  const [f, setF] = useState<Record<string, string>>(Object.fromEntries(fields.map((k) => [k, c[k] ?? ''])));
-  const labels: Record<string, string> = { name: 'Name', website: 'Website', city: 'City', country: 'Country (2 letters)', industry: 'Industry', vertical: 'Vertical', company_size: 'Size', platform: 'Platform' };
-  const save = async (e: React.FormEvent) => { e.preventDefault(); try { await api.patch(`/api/crm/companies/${c.id}`, f); toast('Details saved.'); onDone(); } catch (e: any) { toast(e.message, { err: true }); } };
-  return <form className="card col" onSubmit={save}><div className="grid-form">{fields.map((k) => <label key={k} className="field"><span>{labels[k]}</span><input value={f[k]} required={k === 'name'} maxLength={k === 'country' ? 2 : 300} onChange={(e) => setF({ ...f, [k]: e.target.value })} /></label>)}</div>
-    <p className="faint" style={{ fontSize: 'var(--fs-0)' }}>The domain ({c.domain}) is how outbound recognises the company, so it stays as it is.</p>
-    <div className="row"><button className="btn primary">Save details</button><button type="button" className="btn ghost" onClick={onDone}>Cancel</button></div></form>;
-}
-
-function Opportunity({ o, company, reload }: { o: any; company: string; reload: () => void }) {
-  const toast = useToast(); const lostReason = useLostReason();
-  const [value, setValue] = useState(toRupees(o.value_paise)); const [dealOpen, setDealOpen] = useState(false);
-  const patch = async (body: object, done: string) => { try { await api.patch(`/api/crm/opportunities/${o.id}`, body); toast(done); reload(); } catch (e: any) { toast(e.message, { err: true }); } };
-  const setStage = async (stage: string) => {
-    if (stage === 'LOST') { const r = await lostReason(company); if (!r) return; return patch({ stage, lost_reason: r }, 'Marked lost.'); }
-    patch({ stage }, `Moved to ${STAGE[stage]}.`);
-  };
-  const saveValue = () => { const p = toPaise(value); if (p === 'invalid') return toast('Write the value in rupees, like 1,50,000.', { err: true }); if (p !== o.value_paise) patch({ value_paise: p }, 'Value saved.'); };
+function Opportunity({ o, company, reload, onEdit }: { o: any; company: string; reload: () => void; onEdit: () => void }) {
+  const toast = useToast(); const lostReason = useLostReason(); const [dealOpen, setDealOpen] = useState(false);
+  const patch = async (body: object, msg: string) => { try { await api.patch(`/api/crm/opportunities/${o.id}`, body); toast(msg); reload(); } catch (e: any) { toast(e.message, { err: true }); } };
+  const setStage = async (stage: string) => { if (stage === 'LOST') { const r = await lostReason(company); if (!r) return; return patch({ stage, lost_reason: r }, 'Marked lost.'); } patch({ stage }, `Moved to ${STAGE[stage]}.`); };
   return (
-    <div className="card col">
-      <div className="row wrap">
-        <Badge tone={stageTone(o.stage)}>{STAGE[o.stage]}</Badge>
-        <select className="input" style={{ width: 'auto' }} value={o.stage} onChange={(e) => setStage(e.target.value)} aria-label="Stage">{Object.entries(STAGE).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>
-        <label className="row" style={{ gap: 6 }}><span className="faint">₹</span><input className="input num" style={{ width: 150 }} inputMode="decimal" placeholder="Value" value={value} onChange={(e) => setValue(e.target.value)} onBlur={saveValue} aria-label="Value in rupees" /></label>
-        <span className="faint right" style={{ fontSize: 'var(--fs-0)' }}>{o.meetings} {o.meetings === 1 ? 'meeting' : 'meetings'} · opened {ago(o.created_at)}</span>
-      </div>
+    <div className="opp-card">
+      <div className="opp-top"><StagePill s={o.stage} /><b className="deal-v">{o.value_paise ? inr(o.value_paise) : 'No value set'}</b>
+        <select value={o.stage} onChange={(e) => setStage(e.target.value)} aria-label="Stage">{Object.entries(STAGE).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>
+        <button className="btn tiny" onClick={onEdit}><Icon.edit size={13} />Edit</button></div>
+      <dl className="opp-dl"><div><dt>Expected close</dt><dd className={o.expected_close && isLate(o.expected_close) && !['WON', 'LOST'].includes(o.stage) ? 'late' : ''}>{o.expected_close ? dayLabel(o.expected_close) : 'Not set'}</dd></div>
+        <div><dt>Next action</dt><dd>{o.next_action ? `${o.next_action}${o.next_action_on ? `, ${dayLabel(o.next_action_on)}` : ''}` : 'None'}</dd></div>
+        <div><dt>Owner</dt><dd>{o.owner ? actorLabel(o.owner) : 'Nobody'}</dd></div><div><dt>Meetings</dt><dd>{o.meetings}</dd></div></dl>
       {o.stage === 'LOST' && o.lost_reason && <p className="muted">Lost: {o.lost_reason}</p>}
-      {o.deal ? <div className="notice" style={{ padding: 'var(--s-4)' }}><div className="row between wrap"><div><p className="kick">Signed{o.deal.signed_at ? ` ${dayLabel(o.deal.signed_at)}` : ''} · {o.deal.status.charAt(0) + o.deal.status.slice(1).toLowerCase()}</p>
-          <p style={{ fontSize: 'var(--fs-3)', fontWeight: 700, marginTop: 4 }} className="num">{inr(o.deal.revenue_paise)}</p><p className="faint num" style={{ fontSize: 'var(--fs-0)' }}>Cost {inr(o.deal.cost_paise)} · gross profit {inr(o.deal.gross_profit_paise)}</p></div>
-          <button className="btn sm" onClick={() => setDealOpen(!dealOpen)} aria-expanded={dealOpen}>Update the deal</button></div></div>
-        : o.stage === 'WON' && !dealOpen && <button className="btn" onClick={() => setDealOpen(true)}>Record the signed deal</button>}
+      {o.deal ? <div className="deal-box"><div><small>Signed{o.deal.signed_at ? ` ${dayLabel(o.deal.signed_at)}` : ''} · {o.deal.status.charAt(0) + o.deal.status.slice(1).toLowerCase()}</small><b>{inr(o.deal.revenue_paise)}</b><small>Cost {inr(o.deal.cost_paise)} · gross profit {inr(o.deal.gross_profit_paise)}</small></div>
+        <button className="btn tiny" onClick={() => setDealOpen(!dealOpen)} aria-expanded={dealOpen}>Update the deal</button></div>
+        : o.stage === 'WON' && !dealOpen && <button className="btn tiny" onClick={() => setDealOpen(true)}>Record the signed deal</button>}
       {dealOpen && <DealForm o={o} onDone={() => { setDealOpen(false); reload(); }} />}
     </div>
   );
@@ -102,38 +156,10 @@ function DealForm({ o, onDone }: { o: any; onDone: () => void }) {
     if (!revenue_paise || revenue_paise === 'invalid' || cost_paise === 'invalid') return toast('Write amounts in rupees, like 1,50,000.', { err: true });
     try { await api.put(`/api/crm/opportunities/${o.id}/deal`, { revenue_paise, cost_paise, status: f.status, signed_at: f.signed_at }); toast('Deal saved.'); onDone(); } catch (e: any) { toast(e.message, { err: true }); }
   };
-  return <form className="col" onSubmit={save}><div className="grid-form">
+  return <form className="col deal-form" onSubmit={save}><div className="grid2">
     <label className="field"><span>Revenue, ₹</span><input inputMode="decimal" required value={f.revenue} onChange={(e) => setF({ ...f, revenue: e.target.value })} /></label>
     <label className="field"><span>Our cost, ₹</span><input inputMode="decimal" value={f.cost} onChange={(e) => setF({ ...f, cost: e.target.value })} /></label>
     <label className="field"><span>Status</span><select value={f.status} onChange={(e) => setF({ ...f, status: e.target.value })}>{['OPEN', 'DELIVERING', 'COMPLETE', 'CANCELLED'].map((s) => <option key={s} value={s}>{s.charAt(0) + s.slice(1).toLowerCase()}</option>)}</select></label>
     <label className="field"><span>Signed on</span><input type="date" value={f.signed_at} onChange={(e) => setF({ ...f, signed_at: e.target.value })} /></label>
-  </div><div className="row"><button className="btn primary">Save deal</button><button type="button" className="btn ghost" onClick={onDone}>Cancel</button></div></form>;
-}
-
-function People({ c, reload }: { c: any; reload: () => void }) {
-  const toast = useToast(); const [adding, setAdding] = useState(false); const [editing, setEditing] = useState<string | null>(null);
-  const blank = { full_name: '', job_title: '', email: '', linkedin_url: '', is_decision_maker: false };
-  const [f, setF] = useState(blank);
-  const start = (p?: any) => { setF(p ? { full_name: p.full_name ?? '', job_title: p.job_title ?? '', email: p.email ?? '', linkedin_url: p.linkedin_url ?? '', is_decision_maker: p.is_decision_maker } : blank); setEditing(p?.id ?? null); setAdding(!p); };
-  const save = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try { if (editing) await api.patch(`/api/crm/contacts/${editing}`, f); else await api.post(`/api/crm/companies/${c.id}/contacts`, f); setAdding(false); setEditing(null); toast(`Saved ${f.full_name}.`); reload(); } catch (e: any) { toast(e.message, { err: true }); }
-  };
-  const form = <form className="col" onSubmit={save} style={{ padding: 'var(--s-3)', border: '1px solid var(--hairline)', borderRadius: 'var(--r-1)' }}>
-    <label className="field"><span>Name</span><input required minLength={2} autoFocus value={f.full_name} onChange={(e) => setF({ ...f, full_name: e.target.value })} /></label>
-    <label className="field"><span>Title</span><input value={f.job_title} onChange={(e) => setF({ ...f, job_title: e.target.value })} /></label>
-    <label className="field"><span>Email</span><input type="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} /></label>
-    <label className="field"><span>LinkedIn</span><input value={f.linkedin_url} onChange={(e) => setF({ ...f, linkedin_url: e.target.value })} /></label>
-    <label className="row" style={{ gap: 8 }}><input type="checkbox" className="check" checked={f.is_decision_maker} onChange={(e) => setF({ ...f, is_decision_maker: e.target.checked })} />Makes the decision</label>
-    <div className="row"><button className="btn sm primary">Save</button><button type="button" className="btn sm ghost" onClick={() => { setAdding(false); setEditing(null); }}>Cancel</button></div></form>;
-  return (
-    <section className="card col"><div className="row between"><h2>People</h2>{!adding && <button className="btn sm" onClick={() => start()}><Icon.plus size={14} />Add</button>}</div>
-      {adding && form}
-      {!c.contacts.length && !adding ? <Empty title="Nobody yet">Add the person who decides.</Empty> : c.contacts.map((p: any) => editing === p.id ? <div key={p.id}>{form}</div> :
-        <div key={p.id} className="person"><div className="avatar" aria-hidden="true">{initials(p.full_name)}</div><div className="grow"><div style={{ fontWeight: 600 }}>{p.full_name ?? 'No name'}{p.is_decision_maker && <span style={{ marginLeft: 8 }}><Badge tone="success">Decides</Badge></span>}</div>
-          <div className="sub muted" style={{ fontSize: 'var(--fs-0)' }}>{[p.job_title, p.email].filter(Boolean).join(' · ') || 'No details'}</div></div>
-          {p.linkedin_url && /^https?:\/\//.test(p.linkedin_url) && <a className="btn sm ghost" href={p.linkedin_url} target="_blank" rel="noopener noreferrer" aria-label={`${p.full_name ?? 'This person'} on LinkedIn`}><Icon.out size={14} /></a>}
-          <button className="btn sm ghost" onClick={() => start(p)} aria-label={`Edit ${p.full_name}`}><Icon.edit size={14} /></button></div>)}
-    </section>
-  );
+  </div><div className="row"><button className="btn tiny primary">Save deal</button><button type="button" className="btn tiny ghost" onClick={onDone}>Cancel</button></div></form>;
 }

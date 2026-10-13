@@ -41,7 +41,7 @@ export function App() {
 
 export const countsBus = new EventTarget(); // pages poke this after an action so the sidebar badges stay true
 // pages that sit on the planet artwork, besides Today
-const ART = ['/find', '/pipeline', '/campaigns', '/projects'];
+const ART = ['/find', '/pipeline', '/campaigns', '/projects', '/crm'];
 function Shell({ me, onSignOut, onMeChanged }: { me: Me; onSignOut: () => void; onMeChanged: () => void }) {
   const { path } = useRouter(); const chat = useChat();
   const [counts, setCounts] = useState<Counts | null>(null);

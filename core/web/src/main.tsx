@@ -7,5 +7,6 @@ import './design/components.css';
 import './design/dash.css';
 import './design/auth.css';
 import './design/project.css';
+import './design/crm.css';
 import { App } from './App.tsx';
 createRoot(document.getElementById('root')!).render(<StrictMode><App /></StrictMode>);
