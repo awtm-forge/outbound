@@ -7,3 +7,8 @@ backups/*.dump
 core/web/dist/
 dist/
 hostinger.env
+
+# working files written by .claude/skills (taste-skill inspector, playwright-cli snapshots, fetched DESIGN.md files)
+.taste-skill/
+.playwright-cli/
+.design-md/
