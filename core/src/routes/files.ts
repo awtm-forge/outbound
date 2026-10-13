@@ -54,7 +54,8 @@ route('GET', '/api/files/:id/content', 'user', async (c) => {
     'content-type': inline ? f.mime : 'application/octet-stream', 'content-length': String(f.data.length),
     'content-disposition': `${inline ? 'inline' : 'attachment'}; filename*=UTF-8''${encodeURIComponent(f.name)}`,
     'x-content-type-options': 'nosniff', 'cache-control': 'private, max-age=3600', 'referrer-policy': 'no-referrer',
-    'content-security-policy': "default-src 'none'; img-src 'self'; media-src 'self'; style-src 'unsafe-inline'; sandbox",
+    // sandboxed so nothing in a file can act as the app; the browser's PDF viewer cannot run sandboxed, and a PDF cannot reach the app's cookies or pages
+    'content-security-policy': `default-src 'none'; img-src 'self'; media-src 'self'; style-src 'unsafe-inline'${f.mime === 'application/pdf' && inline ? '' : '; sandbox'}`,
   });
   c.res.end(f.data);
 });

@@ -77,7 +77,7 @@ const TASK_COLS = `t.*, u.name assignee_name,
 route('GET', '/api/projects/:id', 'user', async (c) => {
   const id = needUuid(c.params.id, 'project'); const archived = c.url.searchParams.get('archived') === '1';
   const p = await one(`${PROJECT_LIST} where p.id=$1 group by p.id, u.name, c.name`, [id]); if (!p) throw new HttpError(404, 'project not found');
-  const [tasks, columns, milestones, members, links, counts, updated] = await Promise.all([
+  const [tasks, columns, milestones, members, links, counts, updated, dependencies] = await Promise.all([
     q(`select ${TASK_COLS} from tasks t left join users u on u.id=t.assignee_id where t.project_id=$1 and ($2 or t.archived_at is null)
       order by case t.priority when 'HIGH' then 0 when 'MEDIUM' then 1 else 2 end, t.due_date nulls last, t.created_at`, [id, archived]),
     q('select * from board_columns where project_id=$1 order by position, created_at', [id]),
@@ -91,8 +91,9 @@ route('GET', '/api/projects/:id', 'user', async (c) => {
         count(*) filter (where status<>'DONE' and due_date = ${TODAY_IST})::int due_today
       from tasks t where project_id=$1 and archived_at is null`, [id]),
     one(`select a.created_at, u.name from activities a left join users u on u.id = (a.detail->>'user_id')::uuid where a.entity_type='project' and a.entity_id=$1 order by a.created_at desc limit 1`, [id]),
+    q('select d.task_id, d.depends_on_id, d.kind from task_dependencies d join tasks t on t.id=d.task_id where t.project_id=$1', [id]),
   ]);
-  return { ...p, task_list: tasks, columns, milestones, members, links, counts, last_updated: updated ?? null };
+  return { ...p, task_list: tasks, columns, milestones, members, links, counts, last_updated: updated ?? null, dependencies };
 });
 route('PATCH', '/api/projects/:id', 'user', async (c) => {
   const id = needUuid(c.params.id, 'project'); const b = parse(ProjectIn.partial(), c.body);

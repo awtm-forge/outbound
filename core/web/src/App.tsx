@@ -15,7 +15,7 @@ import { Campaigns } from './pages/Campaigns.tsx';
 import { Account } from './pages/Account.tsx';
 import { Team } from './pages/Team.tsx';
 import { Projects } from './pages/Projects.tsx';
-import { Project } from './pages/Project.tsx';
+import { Workspace } from './pages/project/Workspace.tsx';
 import { Wiki, WikiPage } from './pages/Wiki.tsx';
 import { Chat } from './pages/Chat.tsx';
 import { Crm } from './pages/Crm.tsx';
@@ -41,7 +41,7 @@ export function App() {
 
 export const countsBus = new EventTarget(); // pages poke this after an action so the sidebar badges stay true
 // pages that sit on the planet artwork, besides Today
-const ART = ['/find', '/pipeline', '/campaigns'];
+const ART = ['/find', '/pipeline', '/campaigns', '/projects'];
 function Shell({ me, onSignOut, onMeChanged }: { me: Me; onSignOut: () => void; onMeChanged: () => void }) {
   const { path } = useRouter(); const chat = useChat();
   const [counts, setCounts] = useState<Counts | null>(null);
@@ -85,7 +85,7 @@ function Shell({ me, onSignOut, onMeChanged }: { me: Me; onSignOut: () => void; 
   else if (path.startsWith('/pipeline')) page = <Pipeline />;
   else if (path.startsWith('/deals')) page = <Deals />;
   else if (path.startsWith('/campaigns')) page = <Campaigns />;
-  else if ((m = match('/projects/:id', path))) page = <Project id={m.id} key={m.id} />;
+  else if ((m = match('/projects/:id/:view/:sub', path) ?? match('/projects/:id/:view', path) ?? match('/projects/:id', path))) page = <Workspace id={m.id} view={m.view ?? ''} sub={m.sub} key={m.id} />;
   else if (path.startsWith('/projects')) page = <Projects />;
   else if ((m = match('/wiki/:slug', path))) page = <WikiPage slug={m.slug} key={m.slug} />;
   else if (path.startsWith('/wiki')) page = <Wiki />;

@@ -14,7 +14,18 @@ export const api = {
   post: <T = any>(p: string, b: unknown = {}) => call<T>('POST', p, b),
   patch: <T = any>(p: string, b: unknown = {}) => call<T>('PATCH', p, b),
   put: <T = any>(p: string, b: unknown = {}) => call<T>('PUT', p, b),
-  del: <T = any>(p: string) => call<T>('DELETE', p),
+  del: <T = any>(p: string, b?: unknown) => call<T>('DELETE', p, b),
+  // a file as the request body, with its type; progress from 0 to 1 while it goes up
+  upload: <T = any>(p: string, file: Blob, onProgress?: (f: number) => void) => new Promise<T>((ok, fail) => {
+    const x = new XMLHttpRequest(); x.open('POST', p); x.withCredentials = true;
+    x.setRequestHeader('content-type', file.type || 'application/octet-stream'); x.setRequestHeader('idempotency-key', crypto.randomUUID());
+    x.upload.onprogress = (e) => { if (e.lengthComputable) onProgress?.(e.loaded / e.total); };
+    x.onload = () => { let d: any = null; try { d = JSON.parse(x.responseText); } catch { /* not json */ }
+      if (x.status === 401) onUnauthorized.dispatchEvent(new Event('401'));
+      x.status < 300 ? ok(d) : fail(new ApiError(x.status, d?.error ?? `Upload failed (${x.status})`)); };
+    x.onerror = () => fail(new ApiError(0, 'The upload did not reach the server. Check the connection and try again.'));
+    x.send(file);
+  }),
   // AI actions come back as a job id (the host cuts requests at 60 s); wait here until the work is done.
   run: async <T = any>(p: string, b: unknown = {}, onWait?: (ms: number) => void): Promise<T> => {
     const r: any = await call('POST', p, b);

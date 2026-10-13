@@ -9,7 +9,7 @@ import { Menu, MenuItem } from '../ui/menu.tsx';
 import { Modal, useConfirm } from '../ui/overlay.tsx';
 import { useTeam } from '../session.tsx';
 import { countsBus } from '../App.tsx';
-import { TaskDrawer } from './Project.tsx';
+import { TaskDrawer } from './project/TaskDrawer.tsx';
 
 type Filter = 'all' | 'HIGH' | 'MEDIUM' | 'done';
 const PRIO: Record<string, string> = { HIGH: 'High', MEDIUM: 'Medium', LOW: 'Low' };
@@ -68,7 +68,7 @@ export function Todos({ me }: { me: Me }) {
               <MenuItem onSelect={() => { close(); remove(t); }}><Icon.trash size={15} />Delete</MenuItem></>}</Menu></span>
           </li>; })}</ul>}
       {adding && <AddTask me={me} team={team} onClose={() => setAdding(false)} onAdded={changed} />}
-      {open && <TaskDrawer key={open} taskId={open} task={list.find((t) => t.id === open)} onClose={() => setOpen(null)} onChanged={changed} />}
+      {open && <TaskDrawer key={open} taskId={open} onClose={() => setOpen(null)} onChanged={changed} />}
     </section>
   );
 }
