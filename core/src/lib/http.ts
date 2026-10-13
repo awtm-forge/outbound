@@ -14,12 +14,13 @@ export type Ctx = { req: IncomingMessage; res: ServerResponse; url: URL; params:
 type Handler = (c: Ctx) => Promise<unknown>;
 // api: X-Api-Key (n8n, scripts) or a signed-in person (the ops app). user: a signed-in person only, any role.
 // admin: a signed-in admin only. webhook: X-Webhook-Secret. none: public.
-type Route = { method: string; re: RegExp; keys: string[]; h: Handler; auth: 'api' | 'user' | 'admin' | 'webhook' | 'none' };
+// raw: the body is handed over as bytes (a file upload) up to this many bytes, instead of parsed as JSON
+type Route = { method: string; re: RegExp; keys: string[]; h: Handler; auth: 'api' | 'user' | 'admin' | 'webhook' | 'none'; raw?: number };
 const routes: Route[] = [];
-export function route(method: string, path: string, auth: Route['auth'], h: Handler) {
+export function route(method: string, path: string, auth: Route['auth'], h: Handler, opts: { raw?: number } = {}) {
   const keys: string[] = [];
   const re = new RegExp('^' + path.replace(/:(\w+)/g, (_, k) => { keys.push(k); return '([^/]+)'; }) + '/?$');
-  routes.push({ method, re, keys, h, auth });
+  routes.push({ method, re, keys, h, auth, raw: opts.raw });
 }
 export const safeEq = (a: string, b: string) => a.length === b.length && timingSafeEqual(Buffer.from(a), Buffer.from(b));
 
@@ -71,9 +72,11 @@ async function authenticate(req: IncomingMessage, kind: Route['auth']): Promise<
   return u ? { actor: u.username, user: u } : null;
 }
 
-async function readBody(req: IncomingMessage): Promise<any> {
-  const chunks: Buffer[] = []; let size = 0;
-  for await (const c of req) { size += c.length; if (size > 2_000_000) throw new HttpError(413, 'body too large'); chunks.push(c); }
+async function readBody(req: IncomingMessage, rawLimit?: number): Promise<any> {
+  const limit = rawLimit ?? 2_000_000; const chunks: Buffer[] = []; let size = 0;
+  if (Number(req.headers['content-length'] ?? 0) > limit) throw new HttpError(413, rawLimit ? `That file is too large. The limit is ${Math.round(limit / 1_000_000)} MB.` : 'body too large');
+  for await (const c of req) { size += c.length; if (size > limit) throw new HttpError(413, rawLimit ? `That file is too large. The limit is ${Math.round(limit / 1_000_000)} MB.` : 'body too large'); chunks.push(c); }
+  if (rawLimit) return Buffer.concat(chunks);
   const raw = Buffer.concat(chunks).toString(); if (!raw) return {};
   try { return JSON.parse(raw); } catch { throw new HttpError(400, 'invalid json'); }
 }
@@ -81,7 +84,7 @@ async function readBody(req: IncomingMessage): Promise<any> {
 // ---------- the ops app: static files from web/dist, index.html for every app route ----------
 const WEB_DIST = env.webDist;
 const TYPES: Record<string, string> = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.woff2': 'font/woff2', '.ico': 'image/x-icon', '.json': 'application/json', '.webmanifest': 'application/manifest+json' };
-const CSP = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'";
+const CSP = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'";
 async function serveApp(url: URL, res: ServerResponse): Promise<boolean> {
   const rel = normalize(decodeURIComponent(url.pathname)).replace(/^(\.\.[/\\])+/, '');
   const isAsset = /\.[a-z0-9]+$/i.test(rel);
@@ -121,7 +124,7 @@ export async function handle(req: IncomingMessage, res: ServerResponse) {
     if (who.user?.must_change_password && !/^\/api\/me(\/password)?$/.test(url.pathname)) return send(403, { error: 'Choose your own password first.', must_change_password: true });
     const { actor, user } = who;
     const m = url.pathname.match(r.re)!; const params = Object.fromEntries(r.keys.map((k, i) => [k, decodeURIComponent(m[i + 1])]));
-    const body = req.method === 'GET' ? {} : await readBody(req);
+    const body = req.method === 'GET' ? {} : await readBody(req, r.raw);
     const sent = String(req.headers['idempotency-key'] ?? '');
     // a person's keys are theirs: replaying someone else's key never returns their stored response
     const idem = sent && user ? `u:${user.id}:${sent}` : sent;
