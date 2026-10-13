@@ -14,10 +14,10 @@ type Ctx = { columns?: Column[]; milestones?: any[]; tasks?: Task[] };
 const TABS = ['Details', 'Subtasks', 'Comments', 'Files', 'Activity'] as const;
 
 // The whole of one task, beside the board or list it was opened from. Every change saves on its own.
-export function TaskDrawer({ taskId, onClose, onChanged, onOpen, ctx = {}, color }: { taskId: string; onClose: () => void; onChanged: () => void; onOpen?: (id: string) => void; ctx?: Ctx; color?: string | null }) {
+export function TaskDrawer({ taskId, onClose, onChanged, onOpen, ctx = {}, color, tab: tab0 }: { taskId: string; onClose: () => void; onChanged: () => void; onOpen?: (id: string) => void; ctx?: Ctx; color?: string | null; tab?: string | null }) {
   const toast = useToast(); const ask = useConfirm(); const team = useTeam();
   const { data: t, error, loading, reload, setData } = useLoad(() => api.get(`/api/tasks/${taskId}`), [taskId]);
-  const [tab, setTab] = useState<(typeof TABS)[number]>('Details');
+  const [tab, setTab] = useState<(typeof TABS)[number]>((TABS as readonly string[]).includes(tab0 ?? '') ? (tab0 as (typeof TABS)[number]) : 'Details');
   const ref = useRef<HTMLElement>(null);
   // Escape in a field leaves the field first (fields save on blur), a second Escape closes; Tab stays inside
   useFocusTrap(ref, () => { const a = document.activeElement as HTMLElement | null; if (a?.matches('input, textarea, select') && ref.current?.contains(a)) ref.current!.focus(); else onClose(); }, ref);
@@ -120,7 +120,7 @@ function NumberInput({ value, onSave, label }: { value: string | null; onSave: (
   return <input type="number" min={0} step={0.5} inputMode="decimal" aria-label={label} value={v} onChange={(e) => setV(e.target.value)} onBlur={() => { const n = v === '' ? null : Number(v); if (n !== (value == null ? null : Number(value)) && (n === null || n >= 0)) onSave(n); }} />;
 }
 
-function Subtasks({ t, reload, onOpen }: { t: any; reload: () => void; onOpen?: (id: string) => void }) {
+export function Subtasks({ t, reload, onOpen }: { t: any; reload: () => void; onOpen?: (id: string) => void }) {
   const toast = useToast(); const [title, setTitle] = useState(''); const [busy, setBusy] = useState(false);
   const done = t.subtasks.filter((s: any) => s.status === 'DONE').length;
   const add = async (e: React.FormEvent) => { e.preventDefault(); if (!title.trim() || !t.project_id) return; setBusy(true);

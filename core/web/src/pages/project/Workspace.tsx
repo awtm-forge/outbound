@@ -1,7 +1,7 @@
 import { Suspense, lazy, useMemo, useState } from 'react';
 import { api } from '../../api.ts';
 import { Link, useRouter } from '../../router.tsx';
-import { useLoad } from '../../ui/hooks.ts';
+import { useLoad, useMedia } from '../../ui/hooks.ts';
 import { Icon, Dots } from '../../ui/icons.tsx';
 import { Menu, MenuItem } from '../../ui/menu.tsx';
 import { Modal } from '../../ui/overlay.tsx';
@@ -12,6 +12,7 @@ import { useTeam } from '../../session.tsx';
 import { ColorPicker, ProjectMark, accentVars } from '../../ui/color.tsx';
 import { Avatar, PRIORITY, PROJECT_STATUS, daysFrom, shortDay, type Column, type Task } from './shared.tsx';
 import { TaskDrawer } from './TaskDrawer.tsx';
+import { TaskPanel } from './TaskPanel.tsx';
 import { Overview, Rail } from './Overview.tsx';
 import { Board } from './Board.tsx';
 import { ListView } from './ListView.tsx';
@@ -27,8 +28,8 @@ export type Project = {
   tasks: number; done: number; overdue: number; doing: number; task_list: Task[]; columns: Column[]; milestones: any[]; members: any[]; links: any[];
   counts: { review: number; blocked: number; due_today: number }; last_updated: { created_at: string; name: string | null } | null;
 };
-export type WS = { p: Project; reload: () => void; setP: (p: Project) => void; openTask: (id: string | null) => void; addTask: (preset?: Partial<Task>) => void };
-const VIEWS = [['', 'Overview'], ['board', 'Board'], ['list', 'List'], ['timeline', 'Timeline'], ['notes', 'Notes'], ['files', 'Files'], ['activity', 'Activity'], ['settings', 'Settings']] as const;
+export type WS = { p: Project; reload: () => void; setP: (p: Project) => void; openTask: (id: string | null, tab?: string) => void; addTask: (preset?: Partial<Task>) => void };
+const VIEWS = [['', 'Overview', 'home'], ['board', 'Board', 'projects'], ['list', 'List', 'list'], ['timeline', 'Timeline', 'calendar'], ['notes', 'Notes', 'wiki'], ['files', 'Files', 'file'], ['activity', 'Activity', 'today'], ['settings', 'Settings', 'settings']] as const;
 
 export function Workspace({ id, view = '', sub }: { id: string; view?: string; sub?: string }) {
   const toast = useToast(); const team = useTeam(); const { search, go } = useRouter();
@@ -36,7 +37,8 @@ export function Workspace({ id, view = '', sub }: { id: string; view?: string; s
   const [preview, setPreview] = useState<string | null | undefined>(undefined);
   const [adding, setAdding] = useState<Partial<Task> | null>(null);
   const open = search.get('task');
-  const openTask = (tid: string | null) => { const p = new URLSearchParams(search); if (tid) p.set('task', tid); else p.delete('task'); go(`${location.pathname}${p.toString() ? '?' + p : ''}`, true); };
+  const openTask = (tid: string | null, tab?: string) => { const p = new URLSearchParams(search); p.delete('tab'); if (tid) { p.set('task', tid); if (tab) p.set('tab', tab); } else p.delete('task'); go(`${location.pathname}${p.toString() ? '?' + p : ''}`, true); };
+  const wide = useMedia('(min-width: 1200px)');
   const ws: WS | null = useMemo(() => data ? { p: data, reload: () => reload(true), setP: setData, openTask, addTask: (preset = {}) => setAdding(preset) } : null, [data, search.toString()]); // eslint-disable-line react-hooks/exhaustive-deps
   if (loading && !data) return <div className="pws"><Skeleton h={60} w="50%" /><Skeleton h={90} /><Skeleton h={420} /></div>;
   if (error || !data || !ws) return <div className="pws"><Crumbs items={[{ to: '/projects', label: 'Projects' }, { label: 'Project' }]} /><Failure error={error ?? 'Project not found'} retry={reload} /></div>;
@@ -46,6 +48,8 @@ export function Workspace({ id, view = '', sub }: { id: string; view?: string; s
   const dueIn = p.due_date ? daysFrom(todayIST(), p.due_date) : null;
   const base = `/projects/${id}`;
   const withRail = view === '' || view === 'board';
+  const tabParam = search.get('tab');
+  const docked = !!open && wide && (view === 'list' || view === 'timeline') && tabParam !== 'full';
   return (
     <div className="pws" style={accentVars(color)}>
       <div className="pws-head">
@@ -84,13 +88,14 @@ export function Workspace({ id, view = '', sub }: { id: string; view?: string; s
           <div className="grow"><span>Completion</span><b>{pct}%</b><span className="pbar" role="progressbar" aria-label="Completion" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct}><i style={{ width: `${pct}%` }} /></span></div></div>
         <div className="pst"><span className="pst-ic warm"><Icon.calendar size={20} /></span><div><span>{dueIn == null ? 'Due date' : dueIn < 0 ? 'Overdue by' : 'Due in'}</span>
           <b className={dueIn != null && dueIn < 0 && p.status !== 'DONE' ? 'late' : 'acc'}>{dueIn == null ? 'Not set' : `${Math.abs(dueIn)} ${Math.abs(dueIn) === 1 ? 'day' : 'days'}`}</b><small>{dueIn == null ? 'set one above' : dueIn === 0 ? 'due today' : shortDay(p.due_date)}</small></div></div>
-        <div className="pst"><span className="pst-ic"><Icon.people size={20} /></span><div><span>Team</span><b>{p.members.length}</b><small>{p.members.length === 1 ? 'member' : 'members'}</small></div></div>
+        <div className="pst"><span className="pst-ic"><Icon.people size={20} /></span><div><span>Team</span><b>{p.members.length}</b><small>{p.members.length === 1 ? 'member' : 'members'}</small></div>
+          {p.members.length > 0 && <span className="pst-avs" aria-label={p.members.map((m: any) => m.name).join(', ')}>{p.members.slice(0, 3).map((m: any) => <Avatar key={m.id} name={m.name} size="sm" title={m.name} />)}{p.members.length > 3 && <span className="pst-more">+{p.members.length - 3}</span>}</span>}</div>
         <div className="pst"><span className="pst-ic"><Icon.clock size={20} /></span><div><span>Last updated</span><b>{p.last_updated ? ago(p.last_updated.created_at) : 'Not yet'}</b><small>{p.last_updated?.name ? `by ${p.last_updated.name}` : 'no changes recorded'}</small></div></div>
       </section>
 
-      <nav className="pws-tabs" aria-label="Project views">{VIEWS.map(([k, l]) => <Link key={k} to={k ? `${base}/${k}` : base} aria-current={view === k ? 'page' : undefined} className={view === k ? 'on' : ''}>{l}</Link>)}</nav>
+      <nav className="pws-tabs" aria-label="Project views">{VIEWS.map(([k, l, ic]) => { const I = Icon[ic]; return <Link key={k} to={k ? `${base}/${k}` : base} aria-current={view === k ? 'page' : undefined} className={view === k ? 'on' : ''}><I size={15} />{l}</Link>; })}</nav>
 
-      <div className={withRail ? 'pws-split' : 'pws-full'}>
+      <div className={withRail ? 'pws-split' : docked ? 'pws-dock' : 'pws-full'}>
         <div className="pws-main">
           {view === '' && <Overview ws={ws} />}
           {view === 'board' && <Board ws={ws} />}
@@ -102,8 +107,10 @@ export function Workspace({ id, view = '', sub }: { id: string; view?: string; s
           {view === 'settings' && <Settings ws={ws} onPreview={setPreview} />}
         </div>
         {withRail && <Rail ws={ws} />}
+        {docked && <TaskPanel key={open} taskId={open!} tab={tabParam} columns={p.columns} milestones={p.milestones} tasks={p.task_list} onClose={() => openTask(null)} onChanged={() => reload(true)} onOpen={(t) => openTask(t)}
+          onFull={() => openTask(open, 'full')} onDuplicate={async (tid) => { try { const d = await api.post(`/api/tasks/${tid}/duplicate`, {}); reload(true); toast('Task duplicated.'); openTask(d.id); } catch (e: any) { toast(e.message, { err: true }); } }} />}
       </div>
-      {open && <TaskDrawer key={open} taskId={open} color={color} onClose={() => openTask(null)} onChanged={() => reload(true)} onOpen={(t) => openTask(t)} ctx={{ columns: p.columns, milestones: p.milestones, tasks: p.task_list }} />}
+      {open && !docked && <TaskDrawer key={open} taskId={open} tab={tabParam} color={color} onClose={() => openTask(null)} onChanged={() => reload(true)} onOpen={(t) => openTask(t)} ctx={{ columns: p.columns, milestones: p.milestones, tasks: p.task_list }} />}
       {adding && <AddTask ws={ws} preset={adding} onClose={() => setAdding(null)} />}
     </div>
   );
@@ -112,26 +119,30 @@ export function Workspace({ id, view = '', sub }: { id: string; view?: string; s
 // a task with the details that matter at the start; the drawer has the rest
 function AddTask({ ws, preset, onClose }: { ws: WS; preset: Partial<Task>; onClose: () => void }) {
   const toast = useToast(); const team = useTeam(); const { p } = ws;
-  const [f, setF] = useState({ title: '', column_id: preset.column_id ?? p.columns[0]?.id ?? '', priority: preset.priority ?? 'MEDIUM', assignee_id: '', due_date: '', start_date: '', milestone_id: preset.milestone_id ?? '' });
+  const [f, setF] = useState({ title: '', description: '', column_id: preset.column_id ?? p.columns[0]?.id ?? '', priority: preset.priority ?? 'MEDIUM', assignee_id: '', due_date: preset.due_date ?? '', start_date: preset.start_date ?? '', milestone_id: preset.milestone_id ?? '', parent_id: preset.parent_id ?? '', labels: '' });
   const [busy, setBusy] = useState(false); const [more, setMore] = useState(false);
   const submit = async (e: React.FormEvent) => {
     e.preventDefault(); if (!f.title.trim()) return; setBusy(true);
     try {
-      const t = await api.post(`/api/projects/${p.id}/tasks`, { ...f, assignee_id: f.assignee_id || null, milestone_id: f.milestone_id || null, column_id: f.column_id || undefined });
+      const labels = [...new Set(f.labels.split(',').map((l) => l.trim()).filter(Boolean))].slice(0, 12);
+      const t = await api.post(`/api/projects/${p.id}/tasks`, { ...f, labels, assignee_id: f.assignee_id || null, milestone_id: f.milestone_id || null, parent_id: f.parent_id || null, column_id: f.column_id || undefined, due_date: f.due_date || null, start_date: f.start_date || null });
       toast('Task added.'); ws.reload();
-      if (more) { setF({ ...f, title: '' }); setBusy(false); } else { onClose(); ws.openTask(t.id); }
+      if (more) { setF({ ...f, title: '', description: '' }); setBusy(false); } else { onClose(); ws.openTask(t.id); }
     } catch (x: any) { toast(x.message, { err: true }); setBusy(false); }
   };
   return (
-    <Modal title={`New task in ${p.name}`} onClose={onClose} wide>
+    <Modal title={f.parent_id ? `New subtask of “${p.task_list.find((t) => t.id === f.parent_id)?.title ?? 'a task'}”` : `New task in ${p.name}`} onClose={onClose} wide>
       <form className="col" onSubmit={submit}>
         <label className="field"><span>Title</span><input autoFocus required maxLength={200} value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} placeholder="What needs doing" /></label>
+        <label className="field"><span>Description (optional)</span><textarea rows={3} maxLength={10000} value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} placeholder="What done looks like, links, notes" /></label>
         <div className="grid2">
           <label className="field"><span>Column</span><select value={f.column_id} onChange={(e) => setF({ ...f, column_id: e.target.value })}>{p.columns.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
           <label className="field"><span>Priority</span><select value={f.priority} onChange={(e) => setF({ ...f, priority: e.target.value })}>{Object.entries(PRIORITY).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></label>
           <label className="field"><span>Assignee</span><select value={f.assignee_id} onChange={(e) => setF({ ...f, assignee_id: e.target.value })}><option value="">Nobody yet</option>{team.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}</select></label>
           <label className="field"><span>Due</span><input type="date" value={f.due_date} onChange={(e) => setF({ ...f, due_date: e.target.value })} /></label>
           <label className="field"><span>Start (optional)</span><input type="date" value={f.start_date} onChange={(e) => setF({ ...f, start_date: e.target.value })} /></label>
+          <label className="field"><span>Labels (comma separated)</span><input value={f.labels} onChange={(e) => setF({ ...f, labels: e.target.value })} placeholder="Design, Website" list="add-labels" maxLength={300} /><datalist id="add-labels">{[...new Set(p.task_list.flatMap((t) => t.labels))].map((l) => <option key={l} value={l} />)}</datalist></label>
+          <label className="field"><span>Parent task</span><select value={f.parent_id} onChange={(e) => setF({ ...f, parent_id: e.target.value })}><option value="">None, a top-level task</option>{p.task_list.filter((t) => !t.archived_at).map((t) => <option key={t.id} value={t.id}>{t.title}</option>)}</select></label>
           {p.milestones.length > 0 && <label className="field"><span>Milestone</span><select value={f.milestone_id} onChange={(e) => setF({ ...f, milestone_id: e.target.value })}><option value="">None</option>{p.milestones.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}</select></label>}
         </div>
         {f.due_date && isLate(f.due_date) && <p className="faint" role="status">That due date has already passed.</p>}

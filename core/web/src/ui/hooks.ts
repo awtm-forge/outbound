@@ -22,3 +22,9 @@ export function useKeys(map: Record<string, () => void>, enabled = true) {
     addEventListener('keydown', h); return () => removeEventListener('keydown', h);
   }, [enabled]);
 }
+// true while the media query matches; follows changes
+export function useMedia(q: string) {
+  const [m, setM] = useState(() => typeof matchMedia !== 'undefined' && matchMedia(q).matches);
+  useEffect(() => { const mq = matchMedia(q); const h = () => setM(mq.matches); mq.addEventListener('change', h); h(); return () => mq.removeEventListener('change', h); }, [q]);
+  return m;
+}

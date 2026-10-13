@@ -15,7 +15,7 @@ import { Avatar, PROJECT_STATUS, PROJECT_TONE, describe } from './project/shared
 
 export { PROJECT_STATUS };
 export const TASK_STATUS: Record<string, string> = { TODO: 'To do', DOING: 'In progress', REVIEW: 'In review', DONE: 'Done' };
-export const PRIORITY: Record<string, string> = { HIGH: 'High', MEDIUM: 'Medium', LOW: 'Low' };
+export const PRIORITY: Record<string, string> = { URGENT: 'Urgent', HIGH: 'High', MEDIUM: 'Medium', LOW: 'Low', NONE: 'No priority' };
 const TASK_TONE: Record<string, Tone> = { TODO: 'neutral', DOING: 'info', REVIEW: 'warning', DONE: 'success' };
 
 export function Projects() {

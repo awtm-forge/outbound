@@ -12,7 +12,7 @@ import { countsBus } from '../App.tsx';
 import { TaskDrawer } from './project/TaskDrawer.tsx';
 
 type Filter = 'all' | 'HIGH' | 'MEDIUM' | 'done';
-const PRIO: Record<string, string> = { HIGH: 'High', MEDIUM: 'Medium', LOW: 'Low' };
+const PRIO: Record<string, string> = { URGENT: 'Urgent', HIGH: 'High', MEDIUM: 'Medium', LOW: 'Low', NONE: 'No priority' };
 
 // Today's tasks: quick to-dos that need no project, and your project tasks, in one list. Filters run in the browser.
 export function Todos({ me }: { me: Me }) {

@@ -6,8 +6,8 @@ import { Icon } from '../../ui/icons.tsx';
 export const TASK_STATUS: Record<string, string> = { TODO: 'To do', DOING: 'In progress', REVIEW: 'In review', DONE: 'Done' };
 export const STATUS_ORDER = ['TODO', 'DOING', 'REVIEW', 'DONE'] as const;
 export const STATUS_COLOR: Record<string, string> = { TODO: '#3B82F6', DOING: '#FF922E', REVIEW: '#A855F7', DONE: '#22C55E' };
-export const PRIORITY: Record<string, string> = { HIGH: 'High', MEDIUM: 'Medium', LOW: 'Low' };
-export const PRIORITY_RANK: Record<string, number> = { HIGH: 0, MEDIUM: 1, LOW: 2 };
+export const PRIORITY: Record<string, string> = { URGENT: 'Urgent', HIGH: 'High', MEDIUM: 'Medium', LOW: 'Low', NONE: 'No priority' };
+export const PRIORITY_RANK: Record<string, number> = { URGENT: 0, HIGH: 1, MEDIUM: 2, LOW: 3, NONE: 4 };
 export const PROJECT_STATUS: Record<string, string> = { ACTIVE: 'Active', ON_HOLD: 'On hold', DONE: 'Done', ARCHIVED: 'Archived' };
 export const PROJECT_TONE: Record<string, Tone> = { ACTIVE: 'success', ON_HOLD: 'warning', DONE: 'info', ARCHIVED: 'neutral' };
 

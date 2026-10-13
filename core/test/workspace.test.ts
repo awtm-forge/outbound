@@ -166,3 +166,24 @@ test('files: type and size checked, stored, downloaded only when signed in, neve
   assert.equal((await o.call('DELETE', `/api/files/${f.id}`, {})).status, 403, 'only the uploader or an admin deletes');
   assert.equal((await m.call('DELETE', `/api/files/${f.id}`, {})).status, 200);
 });
+
+test('list: urgent and no priority, duplicate a task, bulk due date and milestone, task shows who created it', async () => {
+  const m = await t.person('lalit');
+  const p = (await m.call('POST', '/api/projects', { name: 'List work' })).body;
+  const a = (await m.call('POST', `/api/projects/${p.id}/tasks`, { title: 'Fix checkout', priority: 'URGENT', labels: ['Website'], description: 'Payment fails on Safari.' })).body;
+  const b = (await m.call('POST', `/api/projects/${p.id}/tasks`, { title: 'Tidy copy', priority: 'NONE' })).body;
+  assert.equal(a.priority, 'URGENT'); assert.equal(b.priority, 'NONE');
+  assert.equal((await m.call('POST', `/api/projects/${p.id}/tasks`, { title: 'Bad', priority: 'CRITICAL' })).status, 400);
+  const full = (await m.call('GET', `/api/projects/${p.id}`)).body; assert.equal(full.task_list[0].title, 'Fix checkout', 'urgent sorts first');
+  const d = await m.call('POST', `/api/tasks/${a.id}/duplicate`, {}); assert.equal(d.status, 201);
+  assert.equal(d.body.title, 'Fix checkout (copy)'); assert.deepEqual(d.body.labels, ['Website']); assert.equal(d.body.description, 'Payment fails on Safari.');
+  const ms = (await m.call('POST', `/api/projects/${p.id}/milestones`, { name: 'Launch', target_date: '2026-12-01' })).body;
+  const r = await m.call('POST', `/api/projects/${p.id}/tasks/bulk`, { ids: [a.id, b.id], action: 'update', set: { due_date: '2026-11-20', milestone_id: ms.id } }); assert.equal(r.body.done, 2);
+  const after = (await m.call('GET', `/api/projects/${p.id}`)).body.task_list.filter((x: any) => [a.id, b.id].includes(x.id));
+  assert.ok(after.every((x: any) => String(x.due_date).startsWith('2026-11-20') && x.milestone_id === ms.id));
+  await m.call('POST', `/api/projects/${p.id}/tasks/bulk`, { ids: [a.id], action: 'update', set: { due_date: null } });
+  assert.equal((await m.call('GET', `/api/tasks/${a.id}`)).body.due_date, null, 'a due date can be cleared in bulk');
+  assert.equal((await m.call('GET', `/api/tasks/${a.id}`)).body.created_by_name, 'Lalit');
+  const other = (await m.call('POST', '/api/projects', { name: 'Elsewhere' })).body;
+  assert.equal((await m.call('POST', `/api/projects/${other.id}/tasks/bulk`, { ids: [a.id], action: 'update', set: { priority: 'LOW' } })).status, 400, 'only tasks of that project');
+});

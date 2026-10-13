@@ -170,7 +170,7 @@ route('GET', '/api/crm/follow-ups', 'user', async (c) => {
       (t.due_date < ${TODAY_IST}) overdue, (t.due_date = ${TODAY_IST}) today
     from tasks t join companies co on co.id=t.company_id left join users u on u.id=t.assignee_id
     where t.status<>'DONE' and t.archived_at is null and ($1::uuid is null or t.assignee_id=$1) and ($2::uuid is null or t.company_id=$2)
-    order by t.due_date nulls last, case t.priority when 'HIGH' then 0 when 'MEDIUM' then 1 else 2 end, t.created_at limit 100`, [mine ? c.user!.id : null, company && /^[0-9a-f-]{36}$/i.test(company) ? company : null]);
+    order by t.due_date nulls last, case t.priority when 'URGENT' then 0 when 'HIGH' then 1 when 'MEDIUM' then 2 when 'LOW' then 3 else 4 end, t.created_at limit 100`, [mine ? c.user!.id : null, company && /^[0-9a-f-]{36}$/i.test(company) ? company : null]);
 });
 route('POST', '/api/crm/companies/:id/follow-ups', 'user', async (c) => {
   const id = needUuid(c.params.id, 'company');

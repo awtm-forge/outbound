@@ -9,7 +9,7 @@ import { notify } from './notifications.ts';
 
 const PROJECT_STATUS = z.enum(['ACTIVE', 'ON_HOLD', 'DONE', 'ARCHIVED']);
 const TASK_STATUS = z.enum(['TODO', 'DOING', 'REVIEW', 'DONE']);
-const PRIORITY = z.enum(['LOW', 'MEDIUM', 'HIGH']);
+const PRIORITY = z.enum(['URGENT', 'HIGH', 'MEDIUM', 'LOW', 'NONE']);
 // any colour, as #RRGGBB; stored upper case. null puts the project back on the theme's orange.
 export const HEX = z.string().trim().regex(/^#?[0-9a-fA-F]{6}$/, 'use a colour like #3B82F6').transform((v) => '#' + v.replace('#', '').toUpperCase());
 const ProjectIn = z.object({
@@ -79,7 +79,7 @@ route('GET', '/api/projects/:id', 'user', async (c) => {
   const p = await one(`${PROJECT_LIST} where p.id=$1 group by p.id, u.name, c.name`, [id]); if (!p) throw new HttpError(404, 'project not found');
   const [tasks, columns, milestones, members, links, counts, updated, dependencies] = await Promise.all([
     q(`select ${TASK_COLS} from tasks t left join users u on u.id=t.assignee_id where t.project_id=$1 and ($2 or t.archived_at is null)
-      order by case t.priority when 'HIGH' then 0 when 'MEDIUM' then 1 else 2 end, t.due_date nulls last, t.created_at`, [id, archived]),
+      order by case t.priority when 'URGENT' then 0 when 'HIGH' then 1 when 'MEDIUM' then 2 when 'LOW' then 3 else 4 end, t.due_date nulls last, t.created_at`, [id, archived]),
     q('select * from board_columns where project_id=$1 order by position, created_at', [id]),
     q(`select m.*, u.name owner_name, (select count(*)::int from tasks t where t.milestone_id=m.id and t.archived_at is null) tasks,
         (select count(*)::int from tasks t where t.milestone_id=m.id and t.archived_at is null and t.status='DONE') done from milestones m left join users u on u.id=m.owner_id
@@ -188,7 +188,7 @@ route('GET', '/api/tasks', 'user', async (c) => {
   const mine = c.url.searchParams.get('mine') === '1';
   return q(`select t.*, p.name project_name, p.color project_color, u.name assignee_name from tasks t left join projects p on p.id=t.project_id left join users u on u.id=t.assignee_id
     where t.status <> 'DONE' and t.archived_at is null and (p.id is null or p.status in ('ACTIVE','ON_HOLD')) and ($1::uuid is null or t.assignee_id=$1)
-    order by t.due_date nulls last, case t.priority when 'HIGH' then 0 when 'MEDIUM' then 1 else 2 end, t.created_at limit 300`, [mine ? c.user!.id : null]);
+    order by t.due_date nulls last, case t.priority when 'URGENT' then 0 when 'HIGH' then 1 when 'MEDIUM' then 2 when 'LOW' then 3 else 4 end, t.created_at limit 300`, [mine ? c.user!.id : null]);
 });
 
 // where a task sits: a column of this project, which decides its status; without one, the first column of the status
@@ -272,7 +272,7 @@ async function updateTask(c: Ctx, id: string, b: Row) {
 }
 route('GET', '/api/tasks/:id', 'user', async (c) => {
   const id = needUuid(c.params.id, 'task');
-  const t = await one(`select ${TASK_COLS}, p.name project_name, p.color project_color, par.title parent_title from tasks t left join users u on u.id=t.assignee_id left join projects p on p.id=t.project_id left join tasks par on par.id=t.parent_id where t.id=$1`, [id]);
+  const t = await one(`select ${TASK_COLS}, p.name project_name, p.color project_color, par.title parent_title, cu.name created_by_name from tasks t left join users u on u.id=t.assignee_id left join users cu on cu.id=t.created_by left join projects p on p.id=t.project_id left join tasks par on par.id=t.parent_id where t.id=$1`, [id]);
   if (!t) throw new HttpError(404, 'task not found');
   const [subtasks, blocked_by, blocks, files, activity] = await Promise.all([
     q('select t.id, t.title, t.status, t.assignee_id, u.name assignee_name, t.due_date from tasks t left join users u on u.id=t.assignee_id where t.parent_id=$1 and t.archived_at is null order by t.position, t.created_at', [id]),
@@ -295,18 +295,30 @@ route('DELETE', '/api/tasks/:id', 'user', async (c) => {
   await act(r.project_id, c, 'task_deleted', { title: r.title });
   return { deleted: true };
 });
+// a copy beside the original: same details, no comments, files or history; subtasks are not copied
+route('POST', '/api/tasks/:id/duplicate', 'user', async (c) => {
+  const t = await one('select * from tasks where id=$1', [needUuid(c.params.id, 'task')]); if (!t) throw new HttpError(404, 'task not found');
+  if (!t.project_id) throw new HttpError(400, 'Only project tasks can be duplicated.');
+  const d = (await one(`insert into tasks(project_id,title,description,status,priority,assignee_id,due_date,start_date,parent_id,milestone_id,labels,estimate_hours,column_id,position,completed_at,created_by)
+    values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) returning *`,
+    [t.project_id, `${t.title} (copy)`.slice(0, 200), t.description, t.status, t.priority, t.assignee_id, t.due_date, t.start_date, t.parent_id, t.milestone_id, t.labels, t.estimate_hours, t.column_id, t.position + 0.5, t.status === 'DONE' ? new Date() : null, c.user!.id]))!;
+  await q('insert into task_collaborators(task_id,user_id) select $1, user_id from task_collaborators where task_id=$2 on conflict do nothing', [d.id, t.id]);
+  await act(t.project_id, c, 'task_created', { task_id: d.id, title: d.title, from: t.title });
+  return { created: true, ...d };
+});
 // change many at once: status, priority, assignee, labels, or archive / delete. Only tasks of this project are touched.
 route('POST', '/api/projects/:id/tasks/bulk', 'user', async (c) => {
   const p = await needProject(c.params.id);
   const b = parse(z.object({ ids: z.array(uuid).min(1).max(200), action: z.enum(['update', 'archive', 'restore', 'delete']),
-    set: z.object({ status: TASK_STATUS.optional(), priority: PRIORITY.optional(), assignee_id: uuid.nullable().optional(), add_labels: z.array(label).max(12).optional(), remove_labels: z.array(label).max(12).optional() }).optional() }), c.body);
+    set: z.object({ status: TASK_STATUS.optional(), column_id: uuid.optional(), priority: PRIORITY.optional(), assignee_id: uuid.nullable().optional(), due_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+      milestone_id: uuid.nullable().optional(), add_labels: z.array(label).max(12).optional(), remove_labels: z.array(label).max(12).optional() }).optional() }), c.body);
   const own = await q('select id, labels from tasks where project_id=$1 and id = any($2)', [p.id, b.ids]);
   if (own.length !== new Set(b.ids).size) throw new HttpError(400, 'Some of those tasks are not on this project.');
   if (b.action === 'delete') { await q('delete from tasks where id = any($1)', [own.map((t) => t.id)]); await act(p.id, c, 'tasks_deleted', { count: own.length }); return { done: own.length }; }
   for (const t of own) {
     const s = b.set ?? {};
     const labels = s.add_labels || s.remove_labels ? [...new Set([...(t.labels ?? []), ...(s.add_labels ?? [])])].filter((l) => !(s.remove_labels ?? []).includes(l)) : undefined;
-    await updateTask(c, t.id, b.action === 'update' ? { status: s.status, priority: s.priority, assignee_id: s.assignee_id, labels } : { archived_at: b.action === 'archive' ? new Date() : null, archived: b.action === 'archive' });
+    await updateTask(c, t.id, b.action === 'update' ? { status: s.status, column_id: s.column_id, priority: s.priority, assignee_id: s.assignee_id, due_date: s.due_date, milestone_id: s.milestone_id, labels } : { archived_at: b.action === 'archive' ? new Date() : null, archived: b.action === 'archive' });
   }
   return { done: own.length };
 });
@@ -416,7 +428,7 @@ route('GET', '/api/todos', 'user', async (c) => {
     where (p.id is null or p.status in ('ACTIVE','ON_HOLD')) and t.archived_at is null and ($1::uuid is null or t.assignee_id=$1)
       and (t.status <> 'DONE' or (t.completed_at at time zone 'Asia/Kolkata')::date = ${TODAY_IST})
       and (t.project_id is null or t.assignee_id is not null)
-    order by t.status = 'DONE', t.due_date nulls last, case t.priority when 'HIGH' then 0 when 'MEDIUM' then 1 else 2 end, t.created_at limit 300`, [mine ? c.user!.id : null]);
+    order by t.status = 'DONE', t.due_date nulls last, case t.priority when 'URGENT' then 0 when 'HIGH' then 1 when 'MEDIUM' then 2 when 'LOW' then 3 else 4 end, t.created_at limit 300`, [mine ? c.user!.id : null]);
 });
 route('POST', '/api/todos', 'user', async (c) => {
   const b = parse(TaskIn.pick({ title: true, priority: true, due_date: true, assignee_id: true }), c.body);
