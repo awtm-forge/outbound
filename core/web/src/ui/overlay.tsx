@@ -1,5 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
+import { createPortal } from 'react-dom';
 import { Icon } from './icons.tsx';
+// Overlays render at the end of <body>: inside a panel with a blur effect, a fixed overlay would be boxed into the panel.
+const toBody = (n: ReactNode) => createPortal(n, document.body);
 
 // Keeps keyboard focus inside an open overlay, closes it on Escape, and hands focus back to whatever had it before.
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -44,7 +47,7 @@ function ConfirmDialog({ p, close }: { p: Pending; close: (v: string | boolean) 
   // a destructive question starts on Cancel, so Enter alone never destroys anything
   useFocusTrap(box, () => close(false), p.input ? field : p.tone === 'danger' ? cancel : undefined);
   const ok = !p.input?.required || text.trim().length > 0;
-  return (
+  return toBody(
     <div className="overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) close(false); }}>
       <div ref={box} className="dialog" role="alertdialog" aria-modal="true" aria-labelledby="dlg-title" aria-describedby={p.body ? 'dlg-body' : undefined}>
         <h2 id="dlg-title">{p.title}</h2>
@@ -66,7 +69,7 @@ function ConfirmDialog({ p, close }: { p: Pending; close: (v: string | boolean) 
 export function Modal({ title, onClose, children, wide }: { title: string; onClose: () => void; children: ReactNode; wide?: boolean }) {
   const box = useRef<HTMLDivElement>(null);
   useFocusTrap(box, onClose);
-  return (
+  return toBody(
     <div className="overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div ref={box} className={`dialog${wide ? ' wide' : ''}`} role="dialog" aria-modal="true" aria-labelledby="modal-title">
         <h2 id="modal-title">{title}</h2>
@@ -82,7 +85,7 @@ export function Drawer({ label, onClose, actions, children }: { label: string; o
   // Escape in a field leaves the field first (the drawer saves on blur), a second Escape closes
   // focus starts on the panel itself, so neither Enter nor a stray key lands on Delete
   useFocusTrap(ref, () => { const a = document.activeElement as HTMLElement | null; if (a?.matches('input, textarea, select') && ref.current?.contains(a)) ref.current.focus(); else onClose(); }, ref);
-  return (
+  return toBody(
     <>
       <div className="drawer-back" onClick={onClose} />
       <section ref={ref} className="drawer" role="dialog" aria-modal="true" aria-label={label} tabIndex={-1}>

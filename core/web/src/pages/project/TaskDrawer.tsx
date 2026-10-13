@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { api } from '../../api.ts';
 import { useLoad } from '../../ui/hooks.ts';
 import { Icon } from '../../ui/icons.tsx';
@@ -28,7 +29,7 @@ export function TaskDrawer({ taskId, onClose, onChanged, onOpen, ctx = {}, color
     if (!(await ask({ title: `Delete “${t.title}”?`, body: `Its comments${t.subtasks ? ', its subtasks' : ''} and file links go with it. This cannot be undone. Archive it instead to keep it.`, confirm: 'Delete task', tone: 'danger' }))) return;
     try { await api.del(`/api/tasks/${taskId}`); onChanged(); onClose(); toast('Task deleted.'); } catch (e: any) { toast(e.message, { err: true }); }
   };
-  return (
+  return createPortal(
     <>
       <div className="drawer-back" onClick={onClose} />
       <section ref={ref} className="drawer wide tdrawer" role="dialog" aria-modal="true" aria-labelledby="td-title" tabIndex={-1} style={accentVars(color ?? t?.project_color)}>
@@ -56,7 +57,7 @@ export function TaskDrawer({ taskId, onClose, onChanged, onOpen, ctx = {}, color
           </div>
         </>}
       </section>
-    </>
+    </>, document.body,
   );
 }
 

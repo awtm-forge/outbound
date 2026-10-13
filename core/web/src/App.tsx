@@ -103,7 +103,7 @@ function Shell({ me, onSignOut, onMeChanged }: { me: Me; onSignOut: () => void; 
   const modes = [{ label: 'AI', value: WORDS[me.ai_provider] ?? me.ai_provider }, { label: 'Sending', value: WORDS[me.saleshandy] ?? me.saleshandy }, { label: 'Search', value: WORDS[me.discovery_source] ?? me.discovery_source }];
   const here = groups.flatMap((g) => g.items).find((n) => n.on(path))?.label ?? (path.startsWith('/account') ? 'Your account' : 'awtm forge');
   const palette: PaletteItem[] = [...groups.flatMap((g) => g.items.map((n) => ({ label: n.label, to: n.to, group: g.title }))),
-    { label: 'My tasks', to: '/projects?view=mine', group: 'Workspace', hint: 'to-dos' }, { label: 'New wiki page', to: '/wiki/new', group: 'Workspace', hint: 'write' },
+    { label: 'My tasks', to: '/projects?view=mine', group: 'Workspace', hint: 'to-dos' }, { label: 'New project', to: '/projects?new=1', group: 'Workspace', hint: 'create start' }, { label: 'New wiki page', to: '/wiki/new', group: 'Workspace', hint: 'write' },
     { label: 'Leave', to: '/people?tab=leave', group: 'Workspace', hint: 'holiday time off' }, { label: 'Opportunities', to: '/crm?tab=opportunities', group: 'Workspace', hint: 'deals' },
     { label: 'Your account', to: '/account', group: 'You', hint: 'password theme' }];
   return (

@@ -6,6 +6,7 @@ import { q, one, tx, type Row } from '../lib/db.ts';
 import { HttpError } from '../pipeline.ts';
 import { parse, z, uuid, text, needUuid, isUuid } from '../lib/validate.ts';
 import { act, needProject, mentions } from './projects.ts';
+import { notify } from './notifications.ts';
 
 const NODES = new Set(['doc', 'paragraph', 'text', 'heading', 'bulletList', 'orderedList', 'listItem', 'taskList', 'taskItem', 'blockquote', 'codeBlock', 'horizontalRule', 'hardBreak',
   'image', 'table', 'tableRow', 'tableHeader', 'tableCell', 'details', 'detailsSummary', 'detailsContent', 'callout', 'pageRef', 'taskRef', 'mention', 'bookmark', 'fileAttachment', 'toc', 'mathBlock', 'mathInline']);
@@ -17,7 +18,7 @@ export const EMPTY_DOC = { type: 'doc', content: [] };
 
 // Keeps only the nodes and marks the editor knows, with safe links and image sources, and gathers what the page refers to.
 export function clean(doc: any) {
-  const text: string[] = []; const pages = new Set<string>(); const tasks = new Set<string>(); let count = 0;
+  const text: string[] = []; const pages = new Set<string>(); const tasks = new Set<string>(); const people = new Set<string>(); let count = 0;
   const walk = (n: any, depth: number): any => {
     if (!n || typeof n !== 'object' || typeof n.type !== 'string' || !NODES.has(n.type) || depth > 60 || ++count > 50_000) return null;
     const out: any = { type: n.type };
@@ -27,7 +28,7 @@ export function clean(doc: any) {
       if (n.type === 'image' && !(typeof a.src === 'string' && (FILE_SRC.test(a.src) || /^https:\/\//i.test(a.src)))) return null;
       if (n.type === 'bookmark' && !(typeof a.url === 'string' && /^https?:\/\//i.test(a.url))) return null;
       if ((n.type === 'pageRef' || n.type === 'taskRef' || n.type === 'fileAttachment') && !(typeof a.id === 'string' && isUuid(a.id))) return null;
-      if (n.type === 'pageRef') pages.add(a.id); if (n.type === 'taskRef') tasks.add(a.id);
+      if (n.type === 'pageRef') pages.add(a.id); if (n.type === 'taskRef') tasks.add(a.id); if (n.type === 'mention' && typeof a.id === 'string' && isUuid(a.id)) people.add(a.id);
       out.attrs = a;
     }
     if (n.type === 'text') { if (typeof n.text !== 'string' || !n.text) return null; out.text = n.text.slice(0, 20_000); text.push(out.text); }
@@ -45,7 +46,7 @@ export function clean(doc: any) {
   };
   const d = walk(doc, 0);
   if (!d || d.type !== 'doc') throw new HttpError(400, 'That is not a page document.');
-  return { doc: d, text: text.join(' ').replace(/[ \t]+/g, ' ').replace(/\s*\n\s*/g, '\n').trim().slice(0, 200_000), pages: [...pages], tasks: [...tasks] };
+  return { doc: d, text: text.join(' ').replace(/[ \t]+/g, ' ').replace(/\s*\n\s*/g, '\n').trim().slice(0, 200_000), pages: [...pages], tasks: [...tasks], people: [...people] };
 }
 async function needPage(id: string) { const p = await one('select * from pages where id=$1', [needUuid(id, 'page')]); if (!p) throw new HttpError(404, 'page not found'); return p; }
 async function relink(pageId: string, projectId: string, pages: string[], tasks: string[]) {
@@ -65,7 +66,7 @@ route('GET', '/api/projects/:id/pages', 'user', async (c) => {
 route('POST', '/api/projects/:id/pages', 'user', async (c) => {
   const p = await needProject(c.params.id); const b = parse(PageIn, c.body);
   if (b.parent_id && !(await one('select 1 from pages where id=$1 and project_id=$2', [b.parent_id, p.id]))) throw new HttpError(400, 'The parent page is not in this project.');
-  const body = b.content ? clean(b.content) : { doc: EMPTY_DOC, text: '', pages: [], tasks: [] };
+  const body = b.content ? clean(b.content) : { doc: EMPTY_DOC, text: '', pages: [] as string[], tasks: [] as string[], people: [] as string[] };
   if (JSON.stringify(body.doc).length > 1_500_000) throw new HttpError(413, 'That page is too large.');
   const g = await tx(async (db) => {
     const g = (await db.query(`insert into pages(project_id,parent_id,title,icon,content,text_content,position,created_by,updated_by)
@@ -104,15 +105,20 @@ route('PUT', '/api/pages/:id', 'user', async (c) => {
       const by = (await db.query('select name from users where id=$1', [cur.updated_by])).rows[0]?.name ?? 'someone';
       throw new HttpError(409, `${by} saved a newer version of this page while you were editing. Your changes are kept on screen; reload to see theirs.`);
     }
+    const before = body ? clean(cur.content).people : [];
     const g = (await db.query(`update pages set title=coalesce($2,title), icon=case when $3::boolean then $4 else icon end, content=coalesce($5,content), text_content=coalesce($6,text_content),
       version=version+1, updated_by=$7 where id=$1 returning *`, [id, b.title ?? null, b.icon !== undefined, b.icon ?? null, body?.doc ?? null, body?.text ?? null, c.user!.id])).rows[0];
     // history: a snapshot when someone else last saved, or ten minutes have passed since the last one
     const last = (await db.query('select author_id, created_at from page_revisions where page_id=$1 order by version desc limit 1', [id])).rows[0];
     const snap = !last || last.author_id !== c.user!.id || Date.now() - new Date(last.created_at).getTime() > 10 * 60_000;
     if (snap) await db.query('insert into page_revisions(page_id,version,title,content,author_id) values($1,$2,$3,$4,$5)', [id, g.version, g.title, g.content, c.user!.id]);
-    return { g, snap };
+    return { g, snap, before };
   });
-  if (body) await relink(id, out.g.project_id, body.pages, body.tasks);
+  if (body) {
+    await relink(id, out.g.project_id, body.pages, body.tasks);
+    // someone newly @mentioned in the page hears about it once
+    for (const uid of body.people.filter((x) => !out.before.includes(x))) if (await one('select 1 from users where id=$1 and active', [uid])) await notify(uid, c.user!.id, 'mentioned', `${c.user!.name} mentioned you on the page “${out.g.title || 'Untitled'}”`, `/projects/${out.g.project_id}/notes/${id}`);
+  }
   if (out.snap) await act(out.g.project_id, c, 'page_edited', { page_id: id, title: out.g.title || 'Untitled' });
   return { id, version: out.g.version, title: out.g.title, icon: out.g.icon, updated_at: out.g.updated_at };
 });

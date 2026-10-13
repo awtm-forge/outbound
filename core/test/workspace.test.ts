@@ -125,6 +125,11 @@ test('notes: a page tree, cleaned content, conflict-safe saves, history, backlin
   assert.match(g.text_content, /Goals/);
   assert.deepEqual((await m.call('GET', `/api/pages/${home.id}`)).body.backlinks.map((x: any) => x.id), [brief.id], 'Homepage knows the brief links to it');
   assert.deepEqual((await m.call('GET', `/api/pages/${home.id}`)).body.breadcrumbs.map((x: any) => x.title), ['Project brief', 'Design']);
+  const ping = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'mention', attrs: { id: o.id, label: 'omar' } }] }] };
+  const before = (await o.call('GET', '/api/notifications')).body.unread;
+  await m.call('PUT', `/api/pages/${home.id}`, { content: ping, base_version: 1 });
+  await m.call('PUT', `/api/pages/${home.id}`, { content: ping, base_version: 2 });
+  assert.equal((await o.call('GET', '/api/notifications')).body.unread, before + 1, 'a mention in a page tells the person once, not on every save');
   const stale = await o.call('PUT', `/api/pages/${brief.id}`, { title: 'Mine', base_version: 1 });
   assert.equal(stale.status, 409, 'a save from an old version is refused, not merged over'); assert.match(stale.body.error, /Nisha saved a newer version/);
   assert.equal((await o.call('PUT', `/api/pages/${brief.id}`, { title: 'Brief', base_version: 2 })).status, 200);
@@ -144,7 +149,7 @@ test('notes: a page tree, cleaned content, conflict-safe saves, history, backlin
 test('files: type and size checked, stored, downloaded only when signed in, never shown inline when they could run', async () => {
   const m = await t.person('rhea'); const o = await t.person('sahil');
   const p = (await m.call('POST', '/api/projects', { name: 'Assets' })).body;
-  const up = (body: Buffer | string, type: string, name: string, cookie = m.cookie) => fetch(`${t.url}/api/projects/${p.id}/files?name=${encodeURIComponent(name)}`, { method: 'POST', headers: { cookie, 'content-type': type, 'idempotency-key': crypto.randomUUID() }, body });
+  const up = (body: Buffer | string, type: string, name: string, cookie = m.cookie) => fetch(`${t.url}/api/projects/${p.id}/files?name=${encodeURIComponent(name)}`, { method: 'POST', headers: { cookie, 'content-type': type, 'idempotency-key': crypto.randomUUID() }, body: body as any });
   const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3]);
   const r = await up(png, 'image/png', 'mock/up.png'); assert.equal(r.status, 201); const f = await r.json();
   assert.equal(f.name, 'mockup.png', 'slashes are taken out of names'); assert.equal(f.size, png.length);

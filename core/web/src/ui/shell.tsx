@@ -1,9 +1,10 @@
-import type { Me } from '../api.ts';
+import { useEffect, useState } from 'react';
+import { api, type Me } from '../api.ts';
 import { Link, useRouter } from '../router.tsx';
 import { Icon, Dots } from './icons.tsx';
 import { Menu, MenuItem } from './menu.tsx';
 import { ThemeSwitch, openSearch } from './chrome.tsx';
-import { initials } from './kit.tsx';
+import { ago, initials } from './kit.tsx';
 
 export type Counts = { drafts: number; replies: number; teardowns: number; needs_contact: number; meetings: number; proposals: number; replies_high: number; todos_due: number };
 const isMac = typeof navigator !== 'undefined' && /Mac|iP(hone|ad)/.test(navigator.platform);
@@ -26,9 +27,15 @@ export function Workbar({ me, counts, unread, today }: { me: Me; counts: Counts 
   );
 }
 
-// What is waiting for someone, from the same counts the sidebar shows. Nothing here is a new feed.
+// What is waiting for someone, from the same counts the sidebar shows, and what others did that concerns you
+// (a task given to you, a mention). Each notification points at a real event.
+type Note = { id: string; kind: string; title: string; link: string | null; read_at: string | null; created_at: string };
 function Notifications({ counts, unread }: { counts: Counts | null; unread: number }) {
   const { go } = useRouter();
+  const [notes, setNotes] = useState<{ unread: number; items: Note[] }>({ unread: 0, items: [] });
+  const load = async () => { try { setNotes(await api.get('/api/notifications')); } catch { /* the bell keeps what it had */ } };
+  useEffect(() => { load(); const t = setInterval(load, 60_000); return () => clearInterval(t); }, []);
+  const read = async (ids?: string[]) => { try { await api.post('/api/notifications/read', ids ? { ids } : {}); load(); } catch { /* retried on the next open */ } };
   const c = counts;
   const rows = c ? [
     { n: c.drafts, label: c.drafts === 1 ? 'email to review' : 'emails to review', to: '/review' },
@@ -38,13 +45,17 @@ function Notifications({ counts, unread }: { counts: Counts | null; unread: numb
     { n: c.todos_due, label: c.todos_due === 1 ? 'to-do due or late' : 'to-dos due or late', to: '/' },
     { n: c.proposals, label: c.proposals === 1 ? 'proposal to decide' : 'proposals to decide', to: '/deals' },
   ].filter((r) => r.n > 0) : [];
-  const total = rows.reduce((a, r) => a + r.n, 0);
+  const total = rows.reduce((a, r) => a + r.n, 0) + notes.unread;
   return (
-    <Menu label={total ? `Notifications, ${total} waiting` : 'Notifications, nothing waiting'} button={<><Icon.bell size={19} />{total > 0 && <span className="ping" aria-hidden="true" />}</>}>
-      {(close) => <>
-        <div className="menu-note">{total ? 'Waiting for you' : 'Nothing is waiting for you.'}</div>
+    <Menu label={total ? `Notifications, ${total} waiting` : 'Notifications, nothing waiting'} className="icon-btn" place="" button={<><Icon.bell size={19} />{total > 0 && <span className="ping" aria-hidden="true" />}</>}>
+      {(close) => <div className="notes-pop">
+        {notes.items.length > 0 && <><div className="menu-note" style={{ display: 'flex' }}>For you{notes.unread > 0 && <button type="button" className="link-btn" style={{ marginLeft: 'auto', fontSize: 12 }} onClick={() => read()}>Mark all read</button>}</div>
+          {notes.items.slice(0, 8).map((n) => <MenuItem key={n.id} onSelect={() => { close(); if (!n.read_at) read([n.id]); if (n.link) go(n.link); }}>
+            <span className={`nt-dot${n.read_at ? '' : ' on'}`} aria-hidden="true" /><span className="nt-txt"><span>{n.title}</span><small>{ago(n.created_at)}{n.read_at ? '' : ' · new'}</small></span></MenuItem>)}
+          <div className="menu-sep" /></>}
+        <div className="menu-note">{rows.length ? 'Waiting for you' : 'Nothing is waiting for you.'}</div>
         {rows.map((r) => <MenuItem key={r.to + r.label} onSelect={() => { close(); go(r.to); }}><span>{r.label.charAt(0).toUpperCase() + r.label.slice(1)}</span><span className="n">{r.n}</span></MenuItem>)}
-      </>}
+      </div>}
     </Menu>
   );
 }
