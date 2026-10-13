@@ -69,7 +69,7 @@ export function Workspace({ id, view = '', sub }: { id: string; view?: string; s
           <label className="pf"><span>Status</span><span className={`pf-sel st-${p.status}`}><i aria-hidden="true" /><select value={p.status} onChange={(e) => save({ status: e.target.value })}>{Object.entries(PROJECT_STATUS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></span></label>
           <label className="pf"><span>Owner</span><span className="pf-sel"><Avatar name={p.owner_name ?? '?'} size="xs" /><select value={p.owner_id ?? ''} onChange={(e) => save({ owner_id: e.target.value || null, owner_name: team.find((u) => u.id === e.target.value)?.name ?? null })}><option value="">Nobody</option>{team.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}</select></span></label>
           <label className="pf"><span>Due date</span><span className="pf-sel"><Icon.calendar size={15} /><input type="date" value={p.due_date ?? ''} onChange={(e) => save({ due_date: e.target.value || null })} /></span></label>
-          <div className="split">
+          <div className="btn-split">
             <button className="btn primary glow" onClick={() => setAdding({})}><Icon.plus size={16} />Add task</button>
             <Menu label="More to add" className="btn primary split-more" place="left" button={<Icon.down size={14} />}>{(close) => <>
               <MenuItem onSelect={() => { close(); go(`${base}?add=milestone`); }}><Icon.target size={15} />Add milestone</MenuItem>

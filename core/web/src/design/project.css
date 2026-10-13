@@ -132,9 +132,9 @@
 .pf-sel:focus-within { border-color: var(--pa); }
 .pf-sel > i { width: 8px; height: 8px; border-radius: 50%; background: var(--ink-faint); }
 .pf-sel.st-ACTIVE > i { background: #22C55E; box-shadow: 0 0 8px #22C55E; } .pf-sel.st-ON_HOLD > i { background: #F59E0B; } .pf-sel.st-DONE > i { background: #38BDF8; }
-.split { display: flex; }
-.split > .btn { height: 42px; border-top-right-radius: 0; border-bottom-right-radius: 0; }
-.split .split-more { height: 42px; padding: 0 10px; border-top-left-radius: 0; border-bottom-left-radius: 0; border-left: 1px solid rgba(0, 0, 0, 0.25); }
+.btn-split { display: flex; }
+.btn-split > .btn { height: 42px; border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.btn-split .split-more { height: 42px; padding: 0 10px; border-top-left-radius: 0; border-bottom-left-radius: 0; border-left: 1px solid rgba(0, 0, 0, 0.25); }
 .pws-stats { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); border-radius: 14px; border: 1px solid var(--glass-line); background: var(--glass); backdrop-filter: blur(14px); }
 .pst { display: flex; align-items: center; gap: 14px; padding: 16px 18px; min-width: 0; }
 .pst + .pst { border-left: 1px solid var(--glass-line); }
@@ -1087,3 +1087,18 @@ i.pdot { width: 8px !important; height: 8px !important; min-width: 8px; flex: no
 :root[data-theme='light'] .nb-doc ul[data-type='taskList'] li > label input { box-shadow: inset 0 0 0 3px transparent, inset 0 0 0 4.5px rgba(0, 0, 0, 0.35); }
 :root[data-theme='light'] .nb-doc ul[data-type='taskList'] li > label input:checked { box-shadow: inset 0 0 0 3px #fff; }
 button.tn-link { border: 0; background: none; font: inherit; font-size: 13px; cursor: pointer; text-align: left; padding: 4px 0; }
+/* phones: the project header gets out of the way. A shorter title, a one-line description, the numbers as a row you
+   swipe, and the view tabs pinned under the top bar so Board, List and the rest are always one tap away. */
+@media (max-width: 760px) {
+  .pws-title { gap: 12px; align-items: flex-start; } .pws-title .pc-mark.big { flex: none; } .pws-title .pc-mark.big .pmark { width: 48px !important; height: 48px !important; font-size: 17px !important; border-radius: 13px; }
+  .pws-title h1 { font-size: 24px; }
+  .pws-title p { font-size: 13.5px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .pws-head { gap: 12px; } .pws-ctl { gap: 8px; width: 100%; }
+  .pws-stats { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; grid-template-columns: none; }
+  .pws-stats::-webkit-scrollbar { display: none; }
+  .pst { flex: 0 0 auto; min-width: 150px; padding: 12px 14px; gap: 10px; scroll-snap-align: start; } .pst b { font-size: 18px; }
+  .pst + .pst { border-left: 1px solid var(--glass-line); border-top: 0; }
+  .pws-tabs { position: sticky; top: calc(56px + env(safe-area-inset-top)); z-index: 20; margin: 0 -16px; padding: 0 12px; background: rgba(8, 10, 14, 0.94); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
+  .pws-tabs a { padding: 13px 12px; font-size: 14px; }
+  :root[data-theme='light'] .pws-tabs { background: rgba(255, 255, 255, 0.94); }
+}

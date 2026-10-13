@@ -110,8 +110,9 @@ function Shell({ me, onSignOut, onMeChanged }: { me: Me; onSignOut: () => void; 
   return (
     <div className="app">
       <a href="#main" className="skip">Skip to content</a>
-      <header className="topbar"><button className="btn sm" onClick={() => setMenu(true)} aria-expanded={menu} aria-controls="side-nav"><Icon.pipeline size={16} />Menu</button>
-        <span className="where">{here}</span><button className="btn sm ghost icon-only" onClick={() => openSearch()} aria-label="Search, or go to a screen"><Icon.find size={16} /></button></header>
+      <header className="topbar"><Link to="/" className="top-mark" aria-label="awtm forge, Today"><img src="/favicon.svg" alt="" width={26} height={26} /></Link>
+        <span className="where">{here}</span><button className="icon-btn" onClick={() => openSearch()} aria-label="Search, or go to a screen"><Icon.find size={19} /></button>
+        <Link to="/account" className="av top-av" aria-label={`Your account, ${me.name}`}>{me.name.split(/\s+/).map((w) => w[0]).slice(0, 2).join('').toUpperCase()}</Link></header>
       {menu && <div className="side-scrim" onClick={() => setMenu(false)} />}
       <aside className={`side${menu ? ' open' : ''}`} id="side-nav">
         <Link to="/" className="brand" aria-label="awtm forge, Today"><span className="brand-mark" aria-hidden="true"><Icon.logo size={17} /></span><div className="mark">awtm <b>forge</b></div></Link>
@@ -127,6 +128,15 @@ function Shell({ me, onSignOut, onMeChanged }: { me: Me; onSignOut: () => void; 
         <Workbar me={me} counts={counts} unread={chat.unread} today={path === '/'} />
         <main className="main" id="main" tabIndex={-1}>{page}</main>
       </div>
+      {/* phones: the screens used most sit at the bottom, in reach of a thumb; More opens everything else */}
+      <nav className="tabbar" aria-label="Quick">
+        {([['/', 'Today', 'today', counts?.todos_due, (p: string) => p === '/'], ['/projects', 'Projects', 'projects', unread.s?.tasks, (p: string) => p.startsWith('/projects')],
+          ['/chat', 'Chat', 'chat', chat.unread, (p: string) => p.startsWith('/chat')], ['/inbox', 'Inbox', 'inbox', (counts?.replies ?? 0) + (counts?.teardowns ?? 0), (p: string) => p.startsWith('/inbox')]] as const).map(([to, label, icon, n, on]) => {
+          const I = Icon[icon]; const here = on(path);
+          return <Link key={to} to={to} className={here ? 'on' : ''} aria-current={here ? 'page' : undefined}><span className="tb-ic"><I size={21} />{!!n && <span className="tb-n" aria-label={`${n} new`}>{n > 99 ? '99+' : n}</span>}</span><span>{label}</span></Link>;
+        })}
+        <button type="button" className={menu ? 'on' : ''} onClick={() => setMenu(true)} aria-expanded={menu} aria-controls="side-nav"><span className="tb-ic"><Icon.more size={21} /></span><span>More</span></button>
+      </nav>
       <CommandPalette items={palette} />
     </div>
   );

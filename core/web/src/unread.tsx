@@ -74,7 +74,11 @@ export function UnreadProvider({ children }: { children: React.ReactNode }) {
     if (!supported()) return; pref.set('on');
     if (Notification.permission === 'default') await Notification.requestPermission();
     setAlerts(alertState());
-    if (Notification.permission === 'granted') new Notification('Desktop alerts are on', { body: 'New messages and tasks for you show here while awtm forge is open in a tab.', icon: '/icons/icon-192.png', tag: 'forge-alerts-on' });
+    if (Notification.permission === 'granted') {
+      const opts = { body: 'New messages and tasks for you show here while awtm forge is open.', icon: '/icons/icon-192.png', tag: 'forge-alerts-on' };
+      if ('serviceWorker' in navigator && navigator.serviceWorker.controller) void navigator.serviceWorker.ready.then((r) => r.showNotification('Alerts are on', opts)).catch(() => {});
+      else { try { new Notification('Alerts are on', opts); } catch { /* service-worker-only browser */ } }
+    }
   };
   const disable = () => { pref.set('off'); setAlerts(alertState()); };
   return <UnreadCtx.Provider value={{ s, reload: load, alerts, enable, disable }}>{children}</UnreadCtx.Provider>;
@@ -85,8 +89,10 @@ function alert(r: Summary, fresh: Set<string>) {
   if (alertState() !== 'on' || (document.visibilityState === 'visible' && document.hasFocus())) return;
   const notes = r.latest.filter((x) => fresh.has('n' + x.id)); const msgs = r.messages.filter((x) => fresh.has('m' + x.id));
   const show = (title: string, body: string, link: string, tag: string) => {
-    const n = new Notification(title, { body, icon: '/icons/icon-192.png', tag });
-    n.onclick = () => { window.focus(); history.pushState(null, '', link); dispatchEvent(new PopStateEvent('popstate')); n.close(); };
+    // phones only allow alerts through the service worker, which also opens the screen when one is tapped
+    const opts = { body, icon: '/icons/icon-192.png', badge: '/icons/icon-maskable-192.png', tag, data: { url: link } };
+    const viaPage = () => { try { const n = new Notification(title, opts); n.onclick = () => { window.focus(); history.pushState(null, '', link); dispatchEvent(new PopStateEvent('popstate')); n.close(); }; } catch { /* this browser only shows alerts from a service worker */ } };
+    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) navigator.serviceWorker.ready.then((r) => r.showNotification(title, opts)).catch(viaPage); else viaPage();
   };
   if (notes.length + msgs.length > 3) { show(`${notes.length + msgs.length} new in awtm forge`, [msgs.length ? `${msgs.length} ${msgs.length === 1 ? 'message' : 'messages'}` : '', notes.length ? `${notes.length} for you` : ''].filter(Boolean).join(', '), msgs.length ? '/chat' : notes[0]!.link ?? '/', 'forge-many'); return; }
   for (const x of notes) show(x.kind === 'task_assigned' ? 'New task for you' : x.kind === 'mentioned' ? 'You were mentioned' : 'awtm forge', x.title, x.link ?? '/', 'n' + x.id);

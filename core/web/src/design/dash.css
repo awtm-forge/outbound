@@ -526,3 +526,32 @@ code { font-family: var(--mono); font-size: 0.92em; padding: 1px 5px; border-rad
 .camp[data-card-open]:hover { transform: translateY(-2px); border-color: rgba(var(--tone-rgb), 0.75); }
 .pcard2[data-card-open]:hover { transform: translateY(-2px); border-color: rgba(var(--pa-rgb), 0.7); }
 @media (prefers-reduced-motion: reduce) { .camp[data-card-open]:hover, .pcard2[data-card-open]:hover { transform: none; } }
+
+/* ---------- phones: an app shell. A slim top bar (logo, screen name, search, you) and a bottom tab bar in thumb reach;
+   More opens the full navigation. Notches and home indicators are respected. ---------- */
+.tabbar { display: none; }
+@media (max-width: 900px) {
+  .topbar { height: calc(56px + env(safe-area-inset-top)); padding: env(safe-area-inset-top) max(12px, env(safe-area-inset-right)) 0 max(12px, env(safe-area-inset-left)); gap: 10px;
+    background: rgba(8, 10, 14, 0.9); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-bottom: 1px solid var(--glass-line); }
+  .top-mark { display: grid; place-items: center; width: 40px; height: 40px; flex: none; } .top-mark img { display: block; }
+  .topbar .where { font-size: 16px; }
+  .top-av { width: 34px; height: 34px; text-decoration: none; }
+  .tabbar { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); position: fixed; left: 0; right: 0; bottom: 0; z-index: 45;
+    padding: 4px max(6px, env(safe-area-inset-right)) calc(4px + env(safe-area-inset-bottom)) max(6px, env(safe-area-inset-left));
+    background: rgba(8, 10, 14, 0.94); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); border-top: 1px solid var(--glass-line); }
+  .tabbar a, .tabbar button { min-height: 56px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; border: 0; background: none; padding: 0;
+    color: var(--ink-muted); font: inherit; font-size: 11px; font-weight: 560; text-decoration: none; cursor: pointer; -webkit-tap-highlight-color: transparent; border-radius: 12px; }
+  .tabbar .tb-ic { position: relative; display: grid; place-items: center; width: 52px; height: 30px; border-radius: 15px; transition: background var(--t-fast) var(--ease); }
+  .tabbar .on { color: var(--ink); } .tabbar .on .tb-ic { background: rgba(255, 146, 46, 0.16); color: var(--accent-text, #FF9B47); }
+  .tabbar a:active .tb-ic, .tabbar button:active .tb-ic { background: rgba(255, 255, 255, 0.08); }
+  .tabbar .tb-n { position: absolute; top: -3px; left: 30px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: #EF4444; color: #fff;
+    font-size: 10.5px; font-weight: 700; line-height: 18px; text-align: center; box-shadow: 0 0 0 2px #080A0E; font-variant-numeric: tabular-nums; }
+  .main { padding-bottom: calc(88px + env(safe-area-inset-bottom)) !important; }
+  .toasts { left: 12px; right: 12px; bottom: calc(76px + env(safe-area-inset-bottom)); }
+  .side { padding-top: calc(var(--s-5) + env(safe-area-inset-top)); padding-bottom: calc(var(--s-4) + env(safe-area-inset-bottom)); }
+  /* typing: the keyboard needs the room, so the tab bar steps aside */
+  body:has(input:focus, textarea:focus, select:focus, [contenteditable='true']:focus) .tabbar { display: none; }
+}
+:root[data-theme='light'] .tabbar, :root[data-theme='light'] .topbar { background: rgba(255, 255, 255, 0.94); }
+:root[data-theme='light'] .tabbar .tb-n { box-shadow: 0 0 0 2px #fff; }
+@media (display-mode: standalone) { body { overscroll-behavior-y: none; } }
