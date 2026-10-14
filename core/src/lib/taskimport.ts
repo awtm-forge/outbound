@@ -68,7 +68,7 @@ export function parseDate(s: string | null | undefined, order: 'dmy' | 'mdy' = '
 const dateOrder = (lines: string[]): 'dmy' | 'mdy' => { let dmy = 0, mdy = 0; for (const l of lines) for (const m of l.matchAll(new RegExp(NUMERIC_DATE, 'g'))) { if (Number(m[1]) > 12) dmy++; else if (Number(m[2]) > 12) mdy++; } return mdy > dmy ? 'mdy' : 'dmy'; };
 
 const HEAD: Record<string, RegExp> = {
-  title: /^(task|tasks|task name|title|activity|activities|description|item|items|work|work item|particulars?|deliverables?|name|subject|issue|feature|requirement|scope)\b/i,
+  title: /^(task|tasks|task name|title|activity|activities|description|item|items|work|work item|particulars?|deliverables?|name|subject|issue|feature|requirement|scope|steps?|actions?|to-?dos?)\b/i,
   status: /^(status|state|current status|progress|stage of work|task status)\b/i,
   assignee: /^(assign(ed)?( to)?|assignee|owner|responsible|resource|person|done by|who|team member|poc|spoc|handled by|by)\b/i,
   due: /^(due|due date|deadline|end|end date|target|target date|finish|finish date|eta|completion date|planned end|to)\b/i,
@@ -192,6 +192,73 @@ export function parseTaskLines(input: Line[]): Parsed {
     rows.push(r);
   }
   return { rows, mode: 'lines', header: null, ignored, date_order: order };
+}
+
+// ---- Markdown: a plan written as headings, tables and checklists ----
+// Each table is read on its own with its own header row; the heading above it names the section. Outside tables only
+// list items and lines that name a status are tasks, so the paragraphs that explain a plan never become tasks.
+const MD_TABLE = /^\s*\|.*\|\s*$/;
+const MD_RULE = /^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)*\|?\s*$/;
+const MD_HEADING = /^\s{0,3}#{1,6}\s+(.*?)\s*#*\s*$/;
+const MD_CHECK = /^\s*(?:[-*+]|\d{1,4}[.)])\s+\[([ xX~\/-])\]\s+(.*)$/;
+const MD_ITEM = /^\s*(?:[-*+]|\d{1,4}[.)])\s+(.*)$/;
+export const looksLikeMarkdown = (text: string) => {
+  const ls = text.split('\n');
+  return ls.some((l, i) => MD_TABLE.test(l) && MD_RULE.test(ls[i + 1] ?? '')) || ls.some((l) => MD_CHECK.test(l)) || ls.filter((l) => MD_HEADING.test(l)).length >= 2;
+};
+// status emoji written for people stand in for the words
+const EMOJI: [RegExp, string][] = [[/[✅✔☑]️?/gu, ' Done '], [/[🔄⏳🟡🚧]️?/gu, ' In progress '], [/👀️?/gu, ' Under review '], [/[⬜☐]️?/gu, ' To do ']];
+const mdText = (s: string) => {
+  let t = s.replace(/!\[[^\]]*\]\([^)]*\)/g, ' ').replace(/\[([^\]]+)\]\([^)]*\)/g, '$1').replace(/`([^`]*)`/g, '$1').replace(/(\*\*|__)(.+?)\1/g, '$2').replace(/(^|\s)[*_]([^*_]+)[*_](?=\s|$|[.,:;])/g, '$1$2').replace(/<[^>]+>/g, ' ');
+  // the emoji stands in for the word only when the word is not already there ("✅ Done" is Done, not "Done Done")
+  const bare = EMOJI.reduce((s, [re]) => s.replace(re, ' '), t);
+  if (bare !== t && !statusIn(bare)) for (const [re, w] of EMOJI) t = t.replace(re, w); else t = bare;
+  return t.replace(/\s+/g, ' ').trim();
+};
+const CHECK: Record<string, string> = { ' ': 'To do', x: 'Done', X: 'Done', '~': 'In progress', '/': 'In progress', '-': 'In progress' };
+
+export function parseMarkdown(text: string): Parsed {
+  const src = text.replace(/\r/g, '').split('\n').slice(0, 20_000);
+  const rows: ImportRow[] = []; const headers: string[] = []; let ignored = 0; let heading: string | null = null; let fence = false;
+  const loose: { line: number; text: string }[] = []; // list items and status lines, read together by the line rules
+  for (let i = 0; i < src.length; i++) {
+    const raw = src[i]!;
+    if (/^\s*(```|~~~)/.test(raw)) { fence = !fence; ignored++; continue; }
+    if (fence || !raw.trim()) { ignored++; continue; }
+    const h = MD_HEADING.exec(raw);
+    if (h) { heading = mdText(h[1]!) || heading; if (heading) loose.push({ line: i + 1, text: `${heading}:` }); continue; }
+    if (MD_TABLE.test(raw)) {
+      // the whole table, read as its own document; line numbers are kept from the file
+      const at: number[] = []; const lines: string[] = [];
+      for (; i < src.length && MD_TABLE.test(src[i]!); i++) {
+        if (MD_RULE.test(src[i]!)) { ignored++; continue; }
+        const cs = src[i]!.trim().replace(/^\|/, '').replace(/\|$/, '').split(/(?<!\\)\|/).map((c) => mdText(c.replace(/\\\|/g, '|')));
+        lines.push(cs.join('\t')); at.push(i + 1);
+      }
+      i--;
+      // a table with a Status column but no Task column ("Phase | What it covers | Status"): its first column names the task
+      const head = (lines[0] ?? '').split('\t');
+      const named = head.some((c) => HEAD.title!.test(c) && c.length <= 30);
+      const ti = named || !head.some((c) => HEAD.status!.test(c)) ? -1 : head.findIndex((c) => c && !HEAD.status!.test(c) && !HEAD.serial!.test(c));
+      if (ti >= 0) lines[0] = head.map((c, k) => (k === ti ? 'Task' : c)).join('\t');
+      const t = parseTaskLines(lines); ignored += t.ignored;
+      if (t.mode === 'table' && t.header) headers.push(...t.header.map((x, k) => (k === ti ? head[ti]! : x)).filter((x) => x && !headers.includes(x)));
+      for (const r of t.rows) rows.push({ ...r, line: at[r.line - 1] ?? r.line, section: r.section ?? heading });
+      continue;
+    }
+    const c = MD_CHECK.exec(raw);
+    if (c) { loose.push({ line: i + 1, text: `${mdText(c[2]!)}\t${CHECK[c[1]!]}` }); continue; }
+    const li = MD_ITEM.exec(raw); const plain = mdText(raw.replace(/^\s*>\s?/, ''));
+    if (li) { loose.push({ line: i + 1, text: `- ${mdText(li[1]!)}` }); continue; }
+    // a paragraph is a task only when it says its status ("Charger map on the website - Done")
+    // (at its end, so a sentence that mentions "not started" in passing stays a sentence)
+    const st = plain.length <= 160 ? statusIn(plain) : null;
+    if (st && !plain.slice(st.end).replace(/[\s.)\]|:–\-!]+$/, '').length) loose.push({ line: i + 1, text: plain }); else ignored++;
+  }
+  const l = parseTaskLines(loose.map((x) => x.text)); ignored += l.ignored;
+  for (const r of l.rows) rows.push({ ...r, line: loose[r.line - 1]?.line ?? r.line });
+  rows.sort((a, b) => a.line - b.line);
+  return { rows, mode: headers.length ? 'table' : 'lines', header: headers.length ? headers : null, ignored, date_order: dateOrder(src) };
 }
 
 // a CSV file as lines with tabs between the cells (quoted cells may hold commas, quotes and line breaks)

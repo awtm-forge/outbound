@@ -9,7 +9,7 @@ import { act, needProject } from './projects.ts';
 import { notify } from './notifications.ts';
 import { enqueue } from '../jobs.ts';
 import { runAgent } from '../lib/ai.ts';
-import { parseTaskLines, csvToLines, type ImportRow } from '../lib/taskimport.ts';
+import { parseTaskLines, parseMarkdown, looksLikeMarkdown, csvToLines, type ImportRow } from '../lib/taskimport.ts';
 import { taskImportAi } from '../agents/taskimport.ts';
 
 const CellIn = z.object({ x: z.number().finite(), t: z.string().max(2000) });
@@ -42,7 +42,8 @@ route('POST', '/api/projects/:id/import/parse', 'user', async (c) => {
   const b = parse(z.object({ lines: z.array(LineIn).max(20_000).optional(), csv: z.string().max(1_800_000).optional(), text: z.string().max(1_800_000).optional() }), c.body);
   const lines = b.csv !== undefined ? csvToLines(b.csv) : b.text !== undefined ? b.text.split('\n') : b.lines ?? [];
   if (!lines.length) throw new HttpError(400, 'The file has no text to read. If it is a scanned PDF, export it again as text or as a spreadsheet (CSV).');
-  const r = parseTaskLines(lines);
+  // a Markdown plan (headings, tables, checklists) is read table by table; everything else by the line rules
+  const r = b.text !== undefined && looksLikeMarkdown(b.text) ? parseMarkdown(b.text) : parseTaskLines(lines);
   const rows = (await annotate(p.id, r.rows)).slice(0, MAX_ROWS);
   return { mode: r.mode, header: r.header, ignored: r.ignored, date_order: r.date_order, total: r.rows.length, counts: countOf(rows), rows };
 });
