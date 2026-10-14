@@ -3,7 +3,8 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { bootstrap } from './helpers.ts';
-import { parseTaskLines, parseDate } from '../src/lib/taskimport.ts';
+import { readFileSync } from 'node:fs';
+import { parseTaskLines, parseDate, parseMarkdown, looksLikeMarkdown } from '../src/lib/taskimport.ts';
 let t: Awaited<ReturnType<typeof bootstrap>>;
 before(async () => { t = await bootstrap(); });
 after(async () => { await t.teardown(); });
@@ -68,4 +69,27 @@ test('import: the AI reader returns a preview and writes nothing', async () => {
   assert.deepEqual(j.result.rows.map((x: any) => x.status), ['DONE', 'DOING', 'TODO']);
   assert.equal((await m.call('GET', `/api/projects/${p.id}`)).body.task_list.length, 0, 'reading creates nothing');
   assert.equal((await m.call('POST', `/api/projects/${p.id}/import`, { source: 'x', rows: [{ title: 'Bad', status: 'MAYBE' }] })).status, 400);
+});
+
+test('markdown: a plan with headings, tables and checklists becomes tasks with their statuses; prose and code stay out', async () => {
+  const text = readFileSync(new URL('./fixtures/execution-plan.md', import.meta.url), 'utf8');
+  assert.equal(looksLikeMarkdown(text), true); assert.equal(looksLikeMarkdown('Charger map - Done\nFleet dashboard - Pending'), false);
+  const r = parseMarkdown(text);
+  const by = (s: string | null) => r.rows.filter((x) => x.status === s).map((x) => x.title);
+  assert.deepEqual(by('DONE'), ['Foundations', 'Register the company', 'Open the current account', 'Brand guidelines', 'Rider app wireframes']);
+  assert.deepEqual(by('DOING'), ['Sites', 'Sign the lease for hub one', 'Apply for the power connection', 'Rider app build']);
+  assert.deepEqual(by('REVIEW'), ['Approve the hub layout', 'Charger hardware order', 'Fleet dashboard']);
+  assert.deepEqual(by('TODO'), ['Launch', 'Hire the hub supervisor', 'Launch campaign', 'Hub signage']);
+  assert.equal(by(null).length, 2, 'the decisions have no status, so a person decides');
+  const lease = r.rows.find((x) => x.title === 'Sign the lease for hub one')!;
+  assert.deepEqual([lease.assignee, lease.due_date, lease.section], ['Priya Sharma', '2026-10-20', 'Every step to launch']);
+  assert.ok(!r.rows.some((x) => /paragraph|code block/.test(x.title)), 'no prose or code becomes a task');
+  assert.equal(new Set(r.rows.map((x) => x.line)).size, r.rows.length, 'every row keeps its own line');
+  // through the API, as an uploaded .md file is sent
+  const m = await t.person('meera');
+  const p = (await m.call('POST', '/api/projects', { name: 'VRG EV plan import' })).body;
+  const read = (await m.call('POST', `/api/projects/${p.id}/import/parse`, { text })).body;
+  assert.deepEqual(read.counts, { DONE: 5, DOING: 4, REVIEW: 3, TODO: 4, NONE: 2 });
+  // a plan with only headings has nothing to import
+  assert.equal(parseMarkdown('# Plan\n\n## The phases\n\n## Every deliverable\n').rows.length, 0);
 });

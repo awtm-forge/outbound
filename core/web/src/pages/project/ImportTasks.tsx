@@ -1,4 +1,4 @@
-// Import a task list from a PDF, a CSV or pasted text. Three steps: choose, check, create. Reading creates nothing;
+// Import a task list from a PDF, a CSV, a Markdown plan or pasted text. Three steps: choose, check, create. Reading creates nothing;
 // the preview shows every task with the status the document gives it, and only the rows kept are created.
 import { useMemo, useRef, useState } from 'react';
 import { api } from '../../api.ts';
@@ -53,12 +53,12 @@ export function ImportTasks({ ws, onClose }: { ws: WS; onClose: () => void }) {
       } else if (ext === 'csv' || f.type === 'text/csv') {
         setBusy('Reading the CSV'); const csv = await f.text();
         took(await api.post(`/api/projects/${p.id}/import/parse`, { csv }), f.name, csv.split('\n'));
-      } else if (ext === 'txt' || ext === 'md' || f.type.startsWith('text/')) {
+      } else if (ext === 'txt' || ext === 'md' || ext === 'markdown' || f.type.startsWith('text/')) {
         setBusy('Reading the file'); const text = await f.text();
         took(await api.post(`/api/projects/${p.id}/import/parse`, { text }), f.name, text.split('\n'));
       } else if (ext === 'xlsx' || ext === 'xls') {
         setErr('Excel files cannot be read here yet. In Excel, use File, Save As, and choose CSV (or PDF), then import that file.');
-      } else setErr('Choose a PDF, a CSV or a text file.');
+      } else setErr('Choose a PDF, a CSV, a Markdown or a text file.');
     } catch (e: any) { setErr(e.message || 'The file could not be read.'); }
     setBusy(null);
   };
@@ -103,20 +103,20 @@ export function ImportTasks({ ws, onClose }: { ws: WS; onClose: () => void }) {
         <p className="imp-lead">Upload your task list and every task is created with its status: done, in progress, under review or pending. You check everything before anything is created.</p>
         <button type="button" className="imp-drop" onClick={() => input.current?.click()} disabled={!!busy}
           onDragOver={(e) => { if (e.dataTransfer.types.includes('Files')) e.preventDefault(); }} onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) void choose(f); }}>
-          <span><Icon.upload size={22} /></span><b>{busy ?? 'Choose a PDF or CSV, or drop it here'}</b>
+          <span><Icon.upload size={22} /></span><b>{busy ?? 'Choose a PDF, CSV or Markdown file, or drop it here'}</b>
           <small>{busy ? <Spinner /> : 'The PDF is read in your browser and is not stored. Excel: save as CSV or PDF first.'}</small>
         </button>
-        <input ref={input} type="file" accept=".pdf,.csv,.txt,.md,application/pdf,text/csv,text/plain" className="sr" tabIndex={-1} aria-label="Choose a task list" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void choose(f); }} />
+        <input ref={input} type="file" accept=".pdf,.csv,.txt,.md,.markdown,application/pdf,text/csv,text/plain,text/markdown" className="sr" tabIndex={-1} aria-label="Choose a task list" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void choose(f); }} />
         <details className="imp-paste"><summary>Or paste the list</summary>
           <textarea rows={6} value={paste} onChange={(e) => setPaste(e.target.value)} placeholder={'Charger map on website - Completed\nBattery swap booking - In progress\nRFID onboarding - Under review\nFleet dashboard - Pending'} aria-label="Paste the task list" />
           <button type="button" className="btn tiny" onClick={fromPaste} disabled={!paste.trim() || !!busy}>Read the list</button>
         </details>
-        <p className="faint imp-how">Works best with a table that has a Status column (and a Task column). Status words it understands: Completed, Done, Closed; In progress, In process, Ongoing, WIP; Under review, In review, Testing, Pending approval; Pending, Not started, To do, On hold, Blocked. A percentage works too (100% is done, 0% is pending).</p>
+        <p className="faint imp-how">Works best with a table that has a Status column (and a Task column). Status words it understands: Completed, Done, Closed; In progress, In process, Ongoing, WIP; Under review, In review, Testing, Pending approval; Pending, Not started, To do, On hold, Blocked. A percentage works too (100% is done, 0% is pending). Markdown plans: every table with a Status column, and checklists (- [x] is done, - [ ] is pending, - [~] is in progress); headings become sections.</p>
       </>}
 
       {step === 'check' && read && <>
         <div className="imp-sum">
-          <div><b>{read.total}</b><span>tasks found in {source}</span><small>{read.mode === 'table' ? `Read as a table: ${read.header?.filter(Boolean).join(', ')}` : read.mode === 'ai' ? 'Read by the AI' : 'Read line by line'}{read.ignored ? ` · ${read.ignored} lines skipped (headers, page numbers)` : ''}</small></div>
+          <div><b>{read.total}</b><span>tasks found in {source}</span><small>{read.mode === 'table' ? `Read as a table: ${read.header?.filter(Boolean).join(', ')}` : read.mode === 'ai' ? 'Read by the AI' : 'Read line by line'}{read.ignored ? ` · ${read.ignored} lines skipped (headers, notes, page numbers)` : ''}</small></div>
           <div className="imp-bars" role="group" aria-label="Show tasks by status">
             <button type="button" className={show === 'ALL' ? 'on' : ''} onClick={() => { setShow('ALL'); setPage(0); }}>All <b>{rows.length}</b></button>
             {ORDER.map((s) => <button key={s} type="button" className={show === s ? 'on' : ''} style={{ '--sc': STATUS_COLOR[s] } as React.CSSProperties} onClick={() => { setShow(s); setPage(0); }}><i />{LABEL[s]} <b>{found[s]}</b><small>{pct(found[s]!, rows.length)}</small></button>)}

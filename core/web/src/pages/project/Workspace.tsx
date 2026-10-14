@@ -77,7 +77,7 @@ export function Workspace({ id, view = '', sub }: { id: string; view?: string; s
               <MenuItem onSelect={() => { close(); go(`${base}/notes?new=1`); }}><Icon.wiki size={15} />New page</MenuItem>
               <MenuItem onSelect={() => { close(); go(`${base}/files?upload=1`); }}><Icon.upload size={15} />Upload a file</MenuItem>
               <div className="menu-sep" />
-              <MenuItem onSelect={() => { close(); setImporting(true); }}><Icon.list size={15} />Import tasks from a PDF or CSV</MenuItem></>}</Menu>
+              <MenuItem onSelect={() => { close(); setImporting(true); }}><Icon.list size={15} />Import tasks from a file (PDF, CSV, Markdown)</MenuItem></>}</Menu>
           </div>
           <Menu label="Project actions" className="icon-btn" button={<Dots vertical size={18} />}>{(close) => <>
             <MenuItem onSelect={async () => { close(); try { await navigator.clipboard.writeText(location.origin + base); toast('Link copied. Everyone signed in can open it.'); } catch { toast('Could not copy the link.', { err: true }); } }}><Icon.share size={15} />Copy link</MenuItem>
