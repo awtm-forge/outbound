@@ -217,3 +217,38 @@ test('gateway: permission, every kill switch, environment guard, spend cap, idem
   const status = await mm.call('GET', '/api/sh/status'); assert.equal(status.status, 200); assert.equal(status.body.flags.integration, true);
   assert.ok(!JSON.stringify(status.body).includes('sk-'), 'no key in the status payload');
 });
+
+test('live checks: reads report every resource without writing; the test sequence check touches only the test sequence and allowlisted people', async () => {
+  const { readChecks, testSequenceCheck } = await import('../src/saleshandy/livecheck.ts');
+  const { setTransport } = await import('../src/saleshandy/client.ts'); const { mockTransport } = await import('../src/saleshandy/mock.ts');
+  const db = await import('../src/lib/db.ts');
+  process.env.SALESHANDY_INTEGRATION_ENABLED = 'true';
+  const sent: { method: string; path: string; body: any }[] = [];
+  setTransport(async (r) => { sent.push({ method: r.method, path: new URL(r.url).pathname, body: r.body ? JSON.parse(r.body) : null }); const res = await mockTransport(r); return r.url.includes('/sequences?') ? { ...res, headers: { ...res.headers, 'x-ratelimit-remaining': '99', 'x-other': 'no' } } : res; });
+  // reads: every resource answers, the rate limit headers are reported, nothing is written, the key never appears
+  const r = await readChecks();
+  assert.equal(r.mode, 'fake'); assert.equal(r.steps.filter((s) => s.ok === false).length, 0, r.steps.map((s) => s.detail).join(' | '));
+  assert.match(r.steps.find((s) => s.name === 'Rate limit headers')!.detail, /x-ratelimit-remaining: 99/); assert.doesNotMatch(JSON.stringify(r), /x-other|x-api-key/);
+  assert.ok(sent.every((s) => s.method === 'GET' || ['/api/open-api/v1/unified-inbox/emails', '/api/open-api/v1/email-accounts', '/api/open-api/v1/credits'].includes(s.path)), 'reads only');
+  const a = await t.person('lcadmin', 'admin', 'Live Check Admin'); const admin = { kind: 'user' as const, id: a.id, name: 'Live Check Admin', role: 'admin' as const };
+  // without the two settings it does not run
+  assert.equal((await testSequenceCheck(admin)).summary, 'Not run.');
+  // with writes off, every write shows as refused and nothing reaches Saleshandy
+  process.env.SALESHANDY_TEST_SEQUENCE_ID = 'seqFakeA01'; process.env.SALESHANDY_TEST_ALLOWLIST = 'brightlamp.example';
+  sent.length = 0; const off = await testSequenceCheck(admin);
+  assert.ok(off.steps.filter((s) => /risk/.test(s.name)).every((s) => s.ok === false && /Refused/.test(s.detail)));
+  assert.ok(sent.every((s) => s.method === 'GET' || s.path.endsWith('/emails') || s.path.endsWith('/email-accounts') || s.path.endsWith('/consolidated-stats')), 'no writes while switched off');
+  // switched on: each write goes to the test sequence or the allowlisted prospect only, and the sequence ends as it began
+  allOn(); sent.length = 0; const on = await testSequenceCheck(admin);
+  assert.equal(on.steps.filter((s) => s.ok === false).length, 0, on.steps.map((s) => `${s.name}: ${s.detail}`).join(' | '));
+  const writes = sent.filter((s) => s.method !== 'GET' && !s.path.endsWith('/emails') && !s.path.endsWith('/email-accounts') && !s.path.endsWith('/consolidated-stats'));
+  assert.ok(writes.length >= 6, 'pause, resume, note, tag on, tag off, task');
+  assert.ok(writes.every((w) => !JSON.stringify(w.body ?? {}).match(/seqFake(B|C|D)0|prFake0(0[2-9]|1)/)), 'nothing outside the test sequence and the allowlisted prospect');
+  assert.equal((await db.one(`select active from sh_sequences where id='seqFakeA01'`))!.active, true, 'resumed after the pause');
+  assert.ok(Number((await db.one(`select count(*)::int n from sh_write_audit where idempotency_key like 'livecheck:%' and outcome='sent'`))!.n) >= 6, 'every write is in the audit log');
+  // a paused test sequence is never resumed (the fixture's 'ops portal test' is paused, with nobody in it)
+  process.env.SALESHANDY_TEST_SEQUENCE_ID = 'seqFakeD04'; sent.length = 0; const paused = await testSequenceCheck(admin);
+  assert.equal(paused.steps.find((s) => s.name === 'Pause and resume')!.ok, null);
+  assert.ok(!sent.some((s) => s.path === '/v1/sequences/status'), 'no status change sent');
+  assert.match(paused.steps.find((s) => s.name === 'Test prospect')!.detail, /Add one such prospect/);
+});

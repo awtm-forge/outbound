@@ -10,6 +10,7 @@ import { runSync, refreshThread, refreshNotes, linkProspects } from '../saleshan
 import { execute, cancel, monthSpend, creditBalance, type Actor } from '../saleshandy/gateway.ts';
 import { receive, replay, replayFailed } from '../saleshandy/webhook.ts';
 import { read } from '../saleshandy/client.ts';
+import { readChecks, testSequenceCheck } from '../saleshandy/livecheck.ts';
 
 const STALE_MS = 2 * 60 * 60_000;
 const on = () => { if (!shConfig().integration) throw new HttpError(409, 'The Saleshandy integration is switched off.'); };
@@ -36,6 +37,9 @@ route('GET', '/api/sh/status', 'user', async () => {
   return { flags: { integration: c.integration, live: c.live, production: c.production, writes: c.writes, ...c.risk, allowlist: c.allowlist, test_sequence_set: !!c.testSequenceId, credit_cap: c.creditCap, webhook_secret_set: !!process.env.SALESHANDY_WEBHOOK_SECRET },
     resources, runs, webhooks, failed_webhooks: failedHooks!.n, audit, counts, spend: { spent, cap: c.creditCap, last_balance: lastBalance?.balance_after ?? null }, app_url: SH_APP };
 });
+// live checks, run here on the server that reaches Saleshandy; the browser waits on the job for the report
+route('POST', '/api/sh/live-check', 'admin', async () => { on(); const job = enqueue('Saleshandy read checks', () => readChecks()); return { job_id: job.id, status: job.status }; });
+route('POST', '/api/sh/test-sequence-check', 'admin', async (c) => { on(); const actor = actorOf(c); const job = enqueue('Saleshandy test sequence check', () => testSequenceCheck(actor)); return { job_id: job.id, status: job.status }; });
 route('POST', '/api/sh/sync', 'admin', async (c) => {
   on(); const b = parse(z.object({ kind: z.enum(['full', 'incremental']).default('incremental') }), c.body);
   const job = enqueue(`Saleshandy ${b.kind} sync`, () => runSync(b.kind)); return { job_id: job.id, status: job.status };

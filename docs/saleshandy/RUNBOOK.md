@@ -28,19 +28,17 @@ Each step is checked before the next.
 1. Apply migration `018_saleshandy.sql` with the normal migration command at deploy time. It only adds tables whose names start with `sh_`.
 2. Deploy with every Saleshandy switch off. Check that nothing has changed: no Outreach item in the menu, the pipeline behaves as before.
 3. Set `SALESHANDY_API_KEY` and `SALESHANDY_MODE=real` in the host's settings. Still off.
-4. Run the live checks below from a session that can reach Saleshandy (this one could not). Record the answers in `DIAGNOSIS.md` and replace the constructed fixtures with recorded, anonymised ones.
-5. Set `SALESHANDY_INTEGRATION_ENABLED=true`. The first sync runs within 30 minutes while someone uses the app, or an admin presses Full sync on Integration status. Check the counts there against Saleshandy.
-6. Register the webhook (next section). Send one test event and check it appears on Integration status as processed.
-7. Turn on writes in this order, each for a few days: low, then medium, then high. Each time, check the write log on Integration status.
-8. Spend last, and only with a cap: set `SALESHANDY_MONTHLY_CREDIT_CAP` first, then `SALESHANDY_WRITES_SPEND=true`.
+4. Set `SALESHANDY_INTEGRATION_ENABLED=true` and redeploy. Writes are still off, so nothing can change in Saleshandy.
+5. As an admin, open Outreach, then Integration status, and press **Run read checks**. It reads every resource once from the live server, reports the rate limit headers Saleshandy sends and the credit balance, and writes nothing. Every line should pass. Then press Full sync and check the counts against Saleshandy.
+6. Register the webhook (next section, also shown on Integration status). Send one test event and check it appears there as processed.
+7. The test sequence check:
+   1. In Saleshandy, make a sequence for testing only, and add one prospect to it whose email is at awtmforge.com.
+   2. In the host, set `SALESHANDY_TEST_SEQUENCE_ID` to that sequence's id and `SALESHANDY_TEST_ALLOWLIST=awtmforge.com`, and turn on `SALESHANDY_WRITES_ENABLED`, `_LOW`, `_MEDIUM` and `_HIGH`. These switches apply to everyone, so do this when you are ready for writes.
+   3. Press **Run test sequence check**. It pauses and resumes that sequence (only if it was running, so a paused sequence never starts sending), then adds a note, puts a tag on and takes it off, and creates and skips a task, all on that one prospect, through the write gateway. Every write is in the write log. Nothing outside that sequence and prospect is touched, even in production.
+8. Keep writes on, or switch the classes off again and turn them on one at a time over a few days: low, then medium, then high, checking the write log each time.
+9. Spend last, and only with a cap: set `SALESHANDY_MONTHLY_CREDIT_CAP` first, then `SALESHANDY_WRITES_SPEND=true`.
 
-Live checks (step 4):
-
-1. One read of each resource: sequences, prospects, inbox, tasks, Do Not Contact, mailboxes, schedules, tags, fields. Compare the stored rows with Saleshandy.
-2. The rate limit: the response headers on a normal call, and what a 429 looks like.
-3. One webhook of each kind we handle, to confirm the payload fields (the raw payload is kept, so it documents itself).
-4. Where the credit balance is reported, and what one enrichment call costs.
-5. The test sequence: in a staging copy (not production), set `SALESHANDY_TEST_SEQUENCE_ID` and `SALESHANDY_TEST_ALLOWLIST=awtmforge.com`, add a prospect at awtmforge.com to it, then pause and resume it, add a note, a tag and a task. This was skipped in this build at your request.
+Still to confirm by watching the first real events: the payload of each webhook kind (each raw payload is kept on Integration status, so it documents itself), what a 429 looks like if one ever comes, and what one enrichment call costs. Record the answers in `DIAGNOSIS.md`.
 
 ## Registering the webhook
 

@@ -100,6 +100,23 @@ export const read = {
   },
 };
 
+// One read, no retries, for the live checks: what came back, how long it took and the rate limit headers only
+// (never the request headers, so the key stays out of every report).
+export async function probe(method: 'GET' | 'POST', path: string, opts: Opts = {}) {
+  if (method === 'POST' && !READ_POSTS.has(path)) throw new ShError(0, `${path} is not a read.`);
+  await throttle(); const t0 = Date.now();
+  try {
+    const res = await transport()({ method, url: buildUrl(path, opts.query), headers: { 'x-api-key': process.env.SALESHANDY_API_KEY ?? '', 'sh-application': 'open-api', 'content-type': 'application/json', accept: 'application/json' },
+      body: opts.body === undefined ? undefined : JSON.stringify(opts.body), signal: AbortSignal.timeout(TIMEOUT_MS) });
+    let data: any = null; try { data = res.text ? JSON.parse(res.text) : null; } catch { data = null; }
+    const limits = Object.fromEntries(Object.entries(res.headers).filter(([k]) => /rate|limit|retry/i.test(k)));
+    const ok = res.status >= 200 && res.status < 300;
+    return { status: res.status, ok, ms: Date.now() - t0, limits, data: ok && data && typeof data === 'object' && 'payload' in data ? data.payload : data, error: ok ? null : String((data && (data.message ?? data.messages)) ?? '').slice(0, 300) || `Saleshandy answered ${res.status}.` };
+  } catch (e: any) {
+    return { status: 0, ok: false, ms: Date.now() - t0, limits: {}, data: null, error: e?.name === 'TimeoutError' ? 'No answer within 15 seconds.' : 'Saleshandy could not be reached.' };
+  }
+}
+
 export type Writer = (method: 'POST' | 'PATCH' | 'DELETE', path: string, body?: unknown) => Promise<any>;
 let taken = false;
 // the write gateway calls this once when it loads; a second caller is refused, so it is the only sender

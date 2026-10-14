@@ -185,6 +185,8 @@ function Status() {
         <p>{data.spend.spent} spent{data.spend.cap ? ` of ${data.spend.cap}` : ', no cap set'}{data.spend.last_balance != null ? ` · balance ${data.spend.last_balance} at the last spend` : ''}</p>
       </div>
     </div>
+    {admin && <LiveChecks flags={f} after={() => reload(true)} />}
+    <WebhookSetup secretSet={!!f.webhook_secret_set} received={data.webhooks.length} />
     <div className="card flush"><div style={{ padding: '12px 16px' }}><h2>Recent syncs</h2></div>
       {!data.runs.length ? <Empty title="No syncs yet">The first sync runs when the integration is switched on.</Empty>
         : <div className="scrollx"><table className="t"><thead><tr><th>Started</th><th>Kind</th><th>Status</th><th>Counts</th><th>Problems</th></tr></thead>
@@ -206,4 +208,65 @@ function Status() {
           <tbody>{data.audit.map((a: any) => <tr key={a.id}><td>{ago(a.created_at)}</td><td>{a.actor}</td><td>{a.label ?? a.action}<div className="sub">{a.action}</div></td><td>{a.risk}</td><td><ShStatus s={a.outcome} />{a.reason && <div className="sub">{a.reason}</div>}</td></tr>)}</tbody></table></div>}
     </div>
   </>;
+}
+
+// ---------- live checks: run on the server, which reaches Saleshandy ----------
+type CheckReport = { mode: 'live' | 'fake'; started_at: string; steps: { name: string; ok: boolean | null; detail: string }[]; summary: string };
+function LiveChecks({ flags, after }: { flags: any; after: () => void }) {
+  const toast = useToast(); const [busy, setBusy] = useState<string | null>(null); const [reports, setReports] = useState<Record<string, CheckReport>>({});
+  const run = async (key: string, path: string) => {
+    setBusy(key);
+    try { const r = await api.run<CheckReport>(path); setReports((x) => ({ ...x, [key]: r })); after(); } catch (e: any) { toast(e.message, { err: true }); } finally { setBusy(null); }
+  };
+  const writesOn = flags.writes && flags.low && flags.medium && flags.high;
+  return <div className="card col">
+    <h2>Live checks</h2>
+    <p className="muted" style={{ fontSize: 'var(--fs-0)' }}>These run on the server, against {flags.live ? 'the real Saleshandy account' : <b>the fake account: this server is not live (set SALESHANDY_MODE=real and SALESHANDY_API_KEY)</b>}.</p>
+    <div className="split" style={{ gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)' }}>
+      <div className="col">
+        <p><b style={{ fontWeight: 600 }}>Read checks.</b> <span className="muted">One read of everything the sync uses, the rate limit headers and the credit balance. Reads only; nothing is changed.</span></p>
+        <div><button className="btn sm primary" disabled={!!busy} onClick={() => run('read', '/api/sh/live-check')}>{busy === 'read' && <Spinner />}Run read checks</button></div>
+        {reports.read && <CheckList r={reports.read} />}
+      </div>
+      <div className="col">
+        <p><b style={{ fontWeight: 600 }}>Test sequence check.</b> <span className="muted">Pauses and resumes the test sequence (only if it is running), then adds a note, a tag and a task to one prospect of it at {flags.allowlist?.length ? flags.allowlist.join(', ') : 'the allowlist'}. Every write goes through the gateway and is logged below. Takes about half a minute.</span></p>
+        {(!flags.test_sequence_set || !flags.allowlist?.length) && <p className="faint" style={{ fontSize: 'var(--fs-0)' }}>Needs SALESHANDY_TEST_SEQUENCE_ID and SALESHANDY_TEST_ALLOWLIST set on the server.</p>}
+        {!writesOn && <p className="faint" style={{ fontSize: 'var(--fs-0)' }}>Writes are off (SALESHANDY_WRITES_ENABLED, and _LOW, _MEDIUM, _HIGH), so each write will show as refused. That is a useful check of the switches too.</p>}
+        <div><button className="btn sm" disabled={!!busy || !flags.test_sequence_set || !flags.allowlist?.length} onClick={() => run('seq', '/api/sh/test-sequence-check')}>{busy === 'seq' && <Spinner />}Run test sequence check</button></div>
+        {reports.seq && <CheckList r={reports.seq} />}
+      </div>
+    </div>
+  </div>;
+}
+function CheckList({ r }: { r: CheckReport }) {
+  return <div className="col" style={{ gap: 6 }}>
+    <p style={{ fontSize: 'var(--fs-0)' }}><b style={{ fontWeight: 600 }}>{r.summary}</b> <span className="faint">{r.mode === 'live' ? 'Real account' : 'Fake account'} · {ago(r.started_at)}</span></p>
+    {r.steps.map((s, i) => <div key={i} className="row" style={{ gap: 8, alignItems: 'flex-start', fontSize: 'var(--fs-0)' }}>
+      <Badge tone={s.ok === true ? 'success' : s.ok === false ? 'danger' : 'neutral'}>{s.ok === true ? 'Passed' : s.ok === false ? 'Failed' : 'Skipped'}</Badge>
+      <span><b style={{ fontWeight: 600 }}>{s.name}.</b> <span className="muted">{s.detail}</span></span></div>)}
+  </div>;
+}
+
+// ---------- the webhook: a person registers it in Saleshandy; this says how, and whether events are arriving ----------
+const WEBHOOK_EVENTS = ['Reply received', 'Email bounced', 'Prospect unsubscribed', 'Prospect finished', 'Prospect outcome updated', 'Sequence paused', 'Email sent', 'Email account disconnected', 'Email account paused', 'Task created', 'Task updated', 'Bulk task updated', 'Call task updated', 'LinkedIn task updated', 'Custom task updated', 'WhatsApp task updated'];
+function WebhookSetup({ secretSet, received }: { secretSet: boolean; received: number }) {
+  const toast = useToast(); const url = `${location.origin}/webhooks/saleshandy`;
+  const copyIt = async (t: string) => toast((await navigator.clipboard.writeText(t).then(() => true, () => false)) ? 'Copied.' : 'Could not copy.');
+  const done = secretSet && received > 0;
+  return <details className="card col" open={!done}>
+    <summary style={{ cursor: 'pointer' }}><h2 style={{ display: 'inline' }}>Webhook setup</h2> <span style={{ marginLeft: 8 }}>{done ? <Badge tone="success">Receiving events</Badge> : secretSet ? <Badge tone="warning">Secret set, no events yet</Badge> : <Badge tone="warning">Not set up</Badge>}</span></summary>
+    <ol className="col" style={{ gap: 10, paddingLeft: 18, marginTop: 12 }}>
+      <li><b style={{ fontWeight: 600 }}>Make a secret</b> on your own computer. In Terminal: <code>openssl rand -hex 32</code>. Keep it in your password manager; do not paste it anywhere else.</li>
+      <li><b style={{ fontWeight: 600 }}>Give it to the server.</b> In Hostinger, set <code>SALESHANDY_WEBHOOK_SECRET</code> to it, then press Redeploy. {secretSet ? <Badge tone="success">Set</Badge> : <Badge tone="warning">Not set yet</Badge>}</li>
+      <li><b style={{ fontWeight: 600 }}>Create the webhook in Saleshandy</b> (its Settings, under Integrations or Webhooks):
+        <dl className="kv" style={{ marginTop: 8 }}>
+          <dt>Name</dt><dd>ops portal</dd>
+          <dt>URL</dt><dd><code>{url}</code> <button className="link-btn" onClick={() => copyIt(url)}>Copy</button></dd>
+          <dt>Custom header</dt><dd>Name <code>X-Webhook-Secret</code> <button className="link-btn" onClick={() => copyIt('X-Webhook-Secret')}>Copy</button>, value: the secret from step 1</dd>
+          <dt>Events</dt><dd>{WEBHOOK_EVENTS.join(', ')}. Email opened and link clicked are optional: they are kept but marked unreliable.</dd>
+        </dl></li>
+      <li><b style={{ fontWeight: 600 }}>Test it.</b> Use Saleshandy's test button if it has one, or reply to a test email. The event should appear under Webhooks received below within seconds. {received > 0 ? <Badge tone="success">{received} received</Badge> : <Badge>None yet</Badge>}</li>
+    </ol>
+    <p className="faint" style={{ fontSize: 'var(--fs-0)' }}>Never put the secret in the URL; it goes in the header only. If events do not arrive, check the header name and value match exactly; a wrong secret is refused and never reaches this page.</p>
+  </details>;
 }
