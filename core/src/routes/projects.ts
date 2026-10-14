@@ -38,17 +38,25 @@ const PROJECT_LIST = `select p.*, u.name owner_name, c.name company_name,
   from projects p left join users u on u.id=p.owner_id left join companies c on c.id=p.company_id left join tasks t on t.project_id=p.id`;
 route('GET', '/api/projects', 'user', async (c) => {
   const s = c.url.searchParams.get('status');
-  const rows = await q(`${PROJECT_LIST} where ($1::text is null and p.status <> 'ARCHIVED') or p.status = $1 group by p.id, u.name, c.name
-    order by case p.status when 'ACTIVE' then 0 when 'ON_HOLD' then 1 when 'DONE' then 2 else 3 end, p.due_date nulls last, p.updated_at desc`, [s || null]);
+  // ?person=<id>: only that person's projects, the ones they own or have tasks in (being on the team alone does not
+  // count: whoever creates a project joins its team, so it would put every project on its creator's list)
+  const person = c.url.searchParams.get('person') || null;
+  if (person && !/^[0-9a-f-]{36}$/i.test(person)) throw new HttpError(400, 'person must be a person id');
+  const rows = await q(`${PROJECT_LIST} where (($1::text is null and p.status <> 'ARCHIVED') or p.status = $1)
+      and ($2::uuid is null or p.owner_id = $2 or exists (select 1 from tasks x where x.project_id = p.id and x.assignee_id = $2 and x.archived_at is null))
+    group by p.id, u.name, c.name
+    order by case p.status when 'ACTIVE' then 0 when 'ON_HOLD' then 1 when 'DONE' then 2 else 3 end, p.due_date nulls last, p.updated_at desc`, [s || null, person]);
   if (!rows.length) return rows;
   // the latest event and the team of each, for the cards
   const ids = rows.map((r) => r.id);
-  const [last, members] = await Promise.all([
+  const [last, members, assignees] = await Promise.all([
     q(`select distinct on (a.entity_id) a.entity_id, a.action, a.detail, a.created_at, u.name actor_name from activities a left join users u on u.id = (a.detail->>'user_id')::uuid
       where a.entity_type='project' and a.entity_id = any($1) order by a.entity_id, a.created_at desc`, [ids]),
     q(`select m.project_id, u.id, u.name from project_members m join users u on u.id=m.user_id where m.project_id = any($1) order by m.added_at`, [ids]),
+    q(`select distinct project_id, assignee_id from tasks where project_id = any($1) and assignee_id is not null and archived_at is null`, [ids]),
   ]);
-  return rows.map((r) => ({ ...r, last_activity: last.find((a) => a.entity_id === r.id) ?? null, members: members.filter((m) => m.project_id === r.id).map(({ id, name }) => ({ id, name })) }));
+  return rows.map((r) => ({ ...r, last_activity: last.find((a) => a.entity_id === r.id) ?? null, members: members.filter((m) => m.project_id === r.id).map(({ id, name }) => ({ id, name })),
+    assignees: assignees.filter((a) => a.project_id === r.id).map((a) => a.assignee_id) }));
 });
 // how many projects are in each state, for the cards at the top of Projects
 route('GET', '/api/projects/summary', 'user', async () => one(`select count(*) filter (where status='ACTIVE')::int active, count(*) filter (where status='ON_HOLD')::int on_hold,

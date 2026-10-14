@@ -22,9 +22,10 @@ const TASK_TONE: Record<string, Tone> = { TODO: 'neutral', DOING: 'info', REVIEW
 export function Projects() {
   const { search, go } = useRouter(); const view = search.get('view') ?? 'projects'; const me = useMe(); const team = useTeam();
   const summary = useLoad(() => api.get('/api/projects/summary'));
-  // every open task once, for the counts on the person tabs
+  // every open task once, for the All tasks count; every project once, for each person's count
   const open = useLoad(() => api.get<any[]>('/api/tasks'));
-  const countFor = (id: string) => open.data?.filter((t) => t.assignee_id === id).length;
+  const all = useLoad(() => api.get<any[]>('/api/projects'));
+  const countFor = (id: string) => all.data?.filter((p) => p.owner_id === id || (p.assignees ?? []).includes(id)).length;
   // a tab per person (you first), then everyone's: each shows only the tasks assigned to that person
   const people = [...team.filter((u) => u.id === me.id), ...team.filter((u) => u.id !== me.id)];
   const who = view === 'mine' ? me.id : view === 'person' ? search.get('who') ?? me.id : view === 'all' ? 'all' : null;
@@ -48,16 +49,22 @@ export function Projects() {
           <button key={to} role="tab" aria-selected={on} className={on ? 'on' : ''} onClick={() => go(to, true)}>{l}{n != null ? ` (${n})` : ''}</button>)}</div>
         <button className="btn primary glow" onClick={() => setAdding(true)}><Icon.plus size={16} />New project</button>
       </div>
-      {who ? <MyTasks key={who} who={who === me.id ? 'me' : who} onChanged={() => open.reload(true)} /> : <ProjectList archived={view === 'archived'} onNew={() => setAdding(true)} onChanged={() => summary.reload(true)} />}
+      {who && who !== 'all' ? <>
+        {/* a person's tab: their projects, laid out as on All projects, then the tasks assigned to them */}
+        <ProjectList key={`p-${who}`} archived={false} person={who} personName={people.find((u) => u.id === who)?.name} onNew={() => setAdding(true)} onChanged={() => { summary.reload(true); all.reload(true); }} />
+        <h2 className="rail-h" style={{ margin: '8px 0 -4px' }}>{who === me.id ? 'Your tasks' : `${people.find((u) => u.id === who)?.name ?? 'Their'}'s tasks`}</h2>
+        <MyTasks key={who} who={who === me.id ? 'me' : who} onChanged={() => open.reload(true)} />
+      </> : who ? <MyTasks key={who} who={who} onChanged={() => open.reload(true)} /> : <ProjectList archived={view === 'archived'} onNew={() => setAdding(true)} onChanged={() => summary.reload(true)} />}
       {adding && <NewProject onClose={() => setAdding(false)} />}
     </div>
   );
 }
 
-function ProjectList({ archived, onNew, onChanged }: { archived: boolean; onNew: () => void; onChanged: () => void }) {
-  const { data, error, loading, reload, setData } = useLoad(() => api.get<any[]>(`/api/projects${archived ? '?status=ARCHIVED' : ''}`), [archived]);
+function ProjectList({ archived, person, personName, onNew, onChanged }: { archived: boolean; person?: string; personName?: string; onNew: () => void; onChanged: () => void }) {
+  const { data, error, loading, reload, setData } = useLoad(() => api.get<any[]>(`/api/projects${archived ? '?status=ARCHIVED' : person ? `?person=${person}` : ''}`), [archived, person]);
   if (loading && !data) return <div className="pgrid">{[0, 1].map((i) => <div key={i} className="pcard2"><Skeleton h={44} w={44} /><Skeleton h={18} w="60%" /><Skeleton h={120} /></div>)}</div>;
   if (error) return <Failure error={error} retry={reload} />;
+  if (!data!.length && person) return <div className="panel" style={{ padding: 8 }}><Empty title={`${personName ?? 'This person'} is not on a project yet`}>A project shows here once they own it or are given one of its tasks.</Empty></div>;
   if (!data!.length) return <div className="panel" style={{ padding: 8 }}><Empty title={archived ? 'Nothing archived' : 'No projects yet'} action={archived ? undefined : <button className="btn primary" onClick={onNew}><Icon.plus size={16} />New project</button>}>
     {archived ? 'Set a project to Archived from its page and it moves here, out of the way.' : 'Start one for the next piece of client work. Each project gets a board, notes, files and a timeline.'}</Empty></div>;
   const patched = (p: any) => { setData(data!.map((x) => (x.id === p.id ? { ...x, ...p } : x))); onChanged(); if (p.status && (p.status === 'ARCHIVED') !== archived) reload(true); };
