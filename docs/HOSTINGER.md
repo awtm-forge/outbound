@@ -124,9 +124,9 @@ curl -s https://ops.awtmforge.com/health
 
 `status` is `ok`, `db` is `ok`, `ai_provider` is `gemini`. Then sign in at `https://ops.awtmforge.com`.
 
-Saleshandy webhook URL, once sending is live:
-`https://ops.awtmforge.com/webhooks/saleshandy?token=<SALESHANDY_WEBHOOK_SECRET>`, or the bare URL
-with an `X-Webhook-Secret` header if Saleshandy allows custom headers.
+Saleshandy webhook URL: `https://ops.awtmforge.com/webhooks/saleshandy`, with the secret in an
+`X-Webhook-Secret` header. A `?token=` in the URL is refused. The full steps are in
+`docs/saleshandy/RUNBOOK.md` and on Outreach, Integration status.
 
 ## 5. Backups
 
