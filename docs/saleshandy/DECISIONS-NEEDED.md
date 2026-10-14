@@ -63,3 +63,11 @@ Removing a prospect from a sequence, setting a thread's outcome, deleting a note
 
 1. Webhooks, a 30 minute incremental sync while the app is in use, and a nightly full run at 02:30 India time (chosen).
 2. A 15 minute incremental sync. Fresher without webhooks, twice the requests and less database sleep.
+
+## 9. Undo for low risk actions
+
+Some low risk actions have an opposite in Saleshandy (a tag can be removed again); others do not (a completed task cannot be reopened, a note cannot be deleted).
+
+1. Opposite where one exists, otherwise a 5 second wait in the browser with Undo (chosen). Undo inside the wait means nothing is sent. Closing the page inside the wait also means nothing is sent, which fails safe.
+2. Hold low risk actions on the server for 10 seconds, like high risk ones. Survives a closed page, but every small action waits 10 seconds.
+

@@ -13,6 +13,7 @@ import { STAGE, useLostReason } from './Crm.tsx';
 import { EVENT as PROSPECT_EVENT } from './Prospect.tsx';
 import { PROJECT_STATUS } from './Projects.tsx';
 import { CoMark, CompanyForm, ContactForm, EVENT, EVENT_ICON, FollowUpForm, OpportunityForm, OutStatus, PersonDot, StagePill, siteUrl } from './crm/shared.tsx';
+import { SaleshandyPanel } from './outreach/Prospects.tsx';
 
 const RESEARCH: Record<string, string> = { ACCOUNT: 'Company research', WEBSITE: 'Website audit', PROBLEM: 'Problem we saw', CAPABILITY: 'How we can help', DECISION_MAKER: 'Decision maker search' };
 // the readable parts of a research finding: its sentences and short lists, nothing invented around them
@@ -116,6 +117,7 @@ export function Company({ id }: { id: string }) {
             {c.activity.length ? <ul className="ra-feed">{c.activity.slice(0, 15).map((a: any, i: number) => { const [ic, tone] = EVENT_ICON(a.action); const I = Icon[ic]; return <li key={i}><span className={`f-ic tone-${tone}`} aria-hidden="true"><I size={13} /></span>
               <span>{(EVENT[a.action] ?? PROSPECT_EVENT[a.action]?.toLowerCase() ?? a.action.replace(/_/g, ' ')).replace(/^./, (x: string) => x.toUpperCase())} <span className="faint">by {actorLabel(a.actor)}</span></span><small>{ago(a.created_at)}</small></li>; })}</ul>
               : <p className="rp-empty">Nothing has happened here yet.</p>}</section>
+          <SaleshandyPanel companyId={c.id} />
         </aside>
       </div>
       {modal?.kind === 'edit' && <CompanyForm c={c} campaigns={camps.data?.campaigns} onClose={() => setModal(null)} onSaved={done} />}
