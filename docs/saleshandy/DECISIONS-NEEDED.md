@@ -20,9 +20,46 @@ The outreach pipeline already adds approved drafts to Saleshandy sequences every
 
 What happens with option 1: turning the medium flag off in an incident also stops the 15 minute sync, which is the point of a kill switch.
 
-## 3. Webhook secret in the URL
+## 3. How the webhook proves it is Saleshandy
 
-Saleshandy's webhook settings may only allow a URL, with no custom header. The existing receiver accepts the secret either as an `X-Webhook-Secret` header or as a `token` query parameter. This will be confirmed in Part B.
+Saleshandy does not sign webhooks, but it sends custom headers chosen when the webhook is registered (confirmed in Saleshandy's official client).
 
-1. Keep accepting the query parameter (current default, if Saleshandy cannot sign or send headers). The secret then sits in Saleshandy's settings and possibly in access logs on the hosting side. Rotation is easy.
-2. Header or signature only. Safer, but only possible if Saleshandy supports it.
+1. Header only (chosen). The receiver requires `X-Webhook-Secret` and no longer accepts the secret as a `token` in the URL, so it never appears in links or access logs.
+2. Keep the URL token as well. Only useful if some sender cannot set headers; none is known.
+
+What happens with option 1: an old webhook registered with the secret in the URL stops being accepted. None is registered today.
+
+## 4. Retention of mirrored data
+
+1. 12 months (chosen as the proposal). Message bodies and events older than 12 months are deleted from our mirror; prospects with no activity for 12 months are removed from the mirror. Saleshandy stays the full record. Audit rows are kept for 3 years.
+2. 6 months. Less personal data held, but reply history older than half a year disappears from our screens.
+3. 24 months. Longer history for reporting, more personal data to justify under the DPDP Act.
+
+Why it matters: the DPDP Act expects personal data to be kept only as long as its purpose needs.
+
+## 5. Working without live access
+
+This environment could not reach Saleshandy, and changing that was declined. So:
+
+1. The endpoint list comes from Saleshandy's official command line client (its code read, not run), which fixes paths, fields, paging and limits.
+2. Response shapes not shown by that client, rate limits, webhook payloads and credit costs are unverified and marked so. The client is typed loosely where a shape is unverified, and every unknown field is ignored rather than trusted.
+3. Live tests and real sync counts wait for a session that can reach Saleshandy.
+
+What happens: everything is built and tested against constructed fixtures. The first live session runs the live checks listed in the pull request and replaces constructed fixtures with recorded, anonymised ones.
+
+## 6. Actions with no confirmed endpoint
+
+Removing a prospect from a sequence, setting a thread's outcome, deleting a note and removing an address from Do Not Contact are not in Saleshandy's official client.
+
+1. Fall back and link out (chosen). "Remove from sequence" sets the prospect's status in that sequence to finished, which stops all sending; outcome changes, note deletion and Do Not Contact removal link to Saleshandy.
+2. Guess the endpoints. Rejected: a wrong guess fails at the worst moment.
+
+## 7. When data counts as stale
+
+1. 2 hours (chosen). The 30 minute sync only runs while someone uses the app, so the first visit of a morning can show data from the night run; anything older than 2 hours is flagged stale with a "Sync now" button.
+2. 1 hour. More warnings, more manual syncs.
+
+## 8. Sync cadence
+
+1. Webhooks, a 30 minute incremental sync while the app is in use, and a nightly full run at 02:30 India time (chosen).
+2. A 15 minute incremental sync. Fresher without webhooks, twice the requests and less database sleep.
