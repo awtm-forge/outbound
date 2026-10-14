@@ -38,7 +38,7 @@ export const env = {
   aiCacheTtlHours: Number(process.env.AI_CACHE_TTL_HOURS ?? 720),
   saleshandyMode: (process.env.SALESHANDY_MODE ?? 'mock') as 'real' | 'mock',
   saleshandyKey: process.env.SALESHANDY_API_KEY ?? '',
-  saleshandyBaseUrl: process.env.SALESHANDY_BASE_URL ?? 'https://open-api.saleshandy.com/v1',
+  saleshandyBaseUrl: process.env.SALESHANDY_BASE_URL ?? 'https://open-api.saleshandy.com',
   saleshandyWebhookSecret: process.env.SALESHANDY_WEBHOOK_SECRET ?? '',
   configDir: process.env.CONFIG_DIR ?? new URL('../../config/', import.meta.url).pathname, // core/config, from src/lib or dist/lib
   discoverySource: (process.env.DISCOVERY_SOURCE ?? 'mock') as 'mock' | 'serper' | 'google_cse',

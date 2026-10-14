@@ -1,0 +1,72 @@
+{
+ "_note": "Constructed webhook payloads. Saleshandy's payload shapes are not verified; the receiver stores every raw payload so the first real events document themselves.",
+ "reply-received": {
+  "event": "reply-received",
+  "eventId": "evFake001",
+  "timestamp": "2026-10-14T05:00:00.000Z",
+  "prospect": {
+   "id": "prFake003",
+   "email": "test.three@tinkerbay.example"
+  },
+  "sequence": {
+   "id": "seqFakeC03"
+  },
+  "email": {
+   "subject": "Re: Quick question about your store",
+   "body": "Fake reply body for testing."
+  }
+ },
+ "email-bounced": {
+  "event": "email-bounced",
+  "eventId": "evFake002",
+  "timestamp": "2026-10-14T05:01:00.000Z",
+  "prospect": {
+   "id": "prFake011",
+   "email": "test.eleven@saltandsage.example"
+  },
+  "sequence": {
+   "id": "seqFakeB02"
+  }
+ },
+ "prospect-unsubscribed": {
+  "event": "prospect-unsubscribed",
+  "eventId": "evFake003",
+  "timestamp": "2026-10-14T05:02:00.000Z",
+  "prospect": {
+   "id": "prFake007",
+   "email": "test.seven@brightlamp.example"
+  },
+  "sequence": {
+   "id": "seqFakeA01"
+  }
+ },
+ "email-opened": {
+  "event": "email-opened",
+  "eventId": "evFake004",
+  "timestamp": "2026-10-14T05:03:00.000Z",
+  "prospect": {
+   "id": "prFake001",
+   "email": "test.one@brightlamp.example"
+  },
+  "sequence": {
+   "id": "seqFakeA01"
+  }
+ },
+ "task-updated": {
+  "event": "task-updated",
+  "eventId": "evFake005",
+  "timestamp": "2026-10-14T05:04:00.000Z",
+  "task": {
+   "id": "tkFake001",
+   "status": "completed"
+  }
+ },
+ "sequence-paused": {
+  "event": "sequence-paused",
+  "eventId": "evFake006",
+  "timestamp": "2026-10-14T05:05:00.000Z",
+  "sequence": {
+   "id": "seqFakeA01"
+  }
+ }
+}

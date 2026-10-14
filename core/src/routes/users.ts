@@ -2,6 +2,7 @@
 import { route, makeSession, clearSession, rateLimited, overLimit } from '../lib/http.ts';
 import { q, one, audit } from '../lib/db.ts';
 import { env } from '../lib/env.ts';
+import { shConfig } from '../saleshandy/config.ts';
 import { queueState } from '../jobs.ts';
 import { HttpError } from '../pipeline.ts';
 import { hashPassword, verifyPassword, dummyHash, checkPassword, findForLogin, forgetUser, assertAnotherAdmin } from '../lib/auth.ts';
@@ -27,7 +28,7 @@ route('POST', '/auth/logout', 'none', async (c) => { c.setCookie(clearSession())
 route('GET', '/api/me', 'api', async (c) => ({
   user: c.actor, session: !!c.user, id: c.user?.id ?? null, name: c.user?.name ?? c.actor, role: c.user?.role ?? 'service', email: c.user?.email ?? null,
   must_change_password: c.user?.must_change_password ?? false,
-  ai_provider: env.aiProvider, saleshandy: env.saleshandyMode, discovery_source: env.discoverySource, queue: queueState(),
+  ai_provider: env.aiProvider, saleshandy: env.saleshandyMode, saleshandy_integration: shConfig().integration, discovery_source: env.discoverySource, queue: queueState(),
 }));
 route('POST', '/api/me/password', 'user', async (c) => {
   const u = (await one('select * from users where id=$1', [c.user!.id]))!;

@@ -7,6 +7,7 @@ import { normalizeDomain, emailDomain, firstName } from './lib/normalize.ts';
 import { fetchSnapshot, snapshotFromHtml } from './lib/website.ts';
 import { isSuppressed, suppress } from './lib/suppression.ts';
 import { saleshandy } from './adapters/saleshandy.ts';
+import { env } from './lib/env.ts';
 import * as A from './agents/index.ts';
 import type { SiteSnapshotT } from './agents/research.ts';
 
@@ -187,16 +188,27 @@ export async function syncToSaleshandy(draftId: string) {
   if (p.campaign?.config?.delivery === 'manual') throw new HttpError(409, 'campaign delivery is manual: copy the approved draft and send it from your own account');
   const sup = await isSuppressed(p.contact.email, p.company.domain); if (p.suppressed || sup.suppressed) throw new HttpError(409, 'suppressed; refusing to sync');
   if (!['VALID', 'CATCH_ALL', 'UNVERIFIED'].includes(p.contact.email_verification_status)) throw new HttpError(409, `email verification is ${p.contact.email_verification_status}`);
-  const sh = saleshandy();
   let seqId = p.campaign?.sequence_ref as string | null;
-  if (!seqId) { const s = await sh.createSequence(p.campaign.code); seqId = s.id; await q('update campaigns set sequence_ref=$2 where id=$1', [p.campaign.id, seqId]); }
-  const r = await sh.addProspectToSequence(seqId!, { email: p.contact.email, first_name: p.contact.first_name ?? firstName(p.contact.full_name), last_name: p.contact.last_name ?? undefined, company: p.company.name, job_title: p.contact.job_title ?? undefined, website: p.company.website ?? undefined }, { subject: d.subject_final, body: d.body_final });
+  let r: { prospect_id: string | null }; let mode: string;
+  if (env.saleshandyMode === 'real') {
+    // live: through the write gateway, as the system, with every guard; a sequence is never created here (that needs an admin)
+    if (!seqId) throw new HttpError(409, `Campaign ${p.campaign.code} has no Saleshandy sequence yet. Create it in Saleshandy or from Outreach, then set its id on the campaign.`);
+    const { execute } = await import('./saleshandy/gateway.ts');
+    const out = await execute({ kind: 'system' }, 'sequence.import_prospects', { sequenceId: seqId, prospects: [{ email: p.contact.email, firstName: p.contact.first_name ?? firstName(p.contact.full_name) ?? undefined, lastName: p.contact.last_name ?? undefined,
+      company: p.company.name, jobTitle: p.contact.job_title ?? undefined, website: p.company.website ?? undefined, custom: { subject_1: d.subject_final, body_1: d.body_final } }] }, `draft-sync:${d.id}`);
+    if (out.outcome !== 'sent') throw new HttpError(out.outcome === 'failed' ? 502 : 409, `Not sent to Saleshandy: ${out.reason ?? out.outcome}`);
+    r = { prospect_id: null }; mode = 'real'; // the import answers with a request id; the prospect id arrives with the next sync
+  } else {
+    const sh = saleshandy(); mode = sh.mode;
+    if (!seqId) { const s = await sh.createSequence(p.campaign.code); seqId = s.id; await q('update campaigns set sequence_ref=$2 where id=$1', [p.campaign.id, seqId]); }
+    r = await sh.addProspectToSequence(seqId!, { email: p.contact.email, first_name: p.contact.first_name ?? firstName(p.contact.full_name), last_name: p.contact.last_name ?? undefined, company: p.company.name, job_title: p.contact.job_title ?? undefined, website: p.company.website ?? undefined }, { subject: d.subject_final, body: d.body_final });
+  }
   await q(`update email_drafts set status='SENT_TO_SEQUENCER' where id=$1`, [d.id]);
   await q(`update campaign_memberships set status='ACTIVE', saleshandy_prospect_id=$3, saleshandy_sequence_id=$4, synced_at=now() where prospect_id=$1 and campaign_id=$2`, [p.id, p.campaign.id, r.prospect_id, seqId]);
-  await q(`update contacts set external_ref=$2 where id=$1`, [p.contact.id, r.prospect_id]);
-  await q(`update prospects set external_ref=$2 where id=$1`, [p.id, r.prospect_id]); await setStatus(p.id, 'SYNCED');
-  await audit('email_draft', d.id, 'synced', 'system', { mode: sh.mode, sequence: seqId, sh_prospect: r.prospect_id });
-  return { draft_id: d.id, sequence_id: seqId, saleshandy_prospect_id: r.prospect_id, mode: sh.mode };
+  if (r.prospect_id) { await q(`update contacts set external_ref=$2 where id=$1`, [p.contact.id, r.prospect_id]); await q(`update prospects set external_ref=$2 where id=$1`, [p.id, r.prospect_id]); }
+  await setStatus(p.id, 'SYNCED');
+  await audit('email_draft', d.id, 'synced', 'system', { mode, sequence: seqId, sh_prospect: r.prospect_id });
+  return { draft_id: d.id, sequence_id: seqId, saleshandy_prospect_id: r.prospect_id, mode };
 }
 // ---------- 09 webhook ingestion ----------
 export type WebhookEvent = { event: string; event_id?: string; email: string; sequence_id?: string; prospect_id?: string; occurred_at?: string; subject?: string; body?: string; reply_from?: string; raw?: any };

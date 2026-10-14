@@ -5,6 +5,7 @@ import { log } from './lib/log.ts';
 import * as P from './pipeline.ts';
 import { requeueStale } from './jobs.ts';
 import { lastActivity } from './lib/activity.ts';
+import { shConfig } from './saleshandy/config.ts';
 
 // whenUsed: run only if someone used the app in the last quarter hour. Nothing new can be waiting otherwise, and
 // skipping lets the database sleep through nights and weekends instead of waking every 15 minutes.
@@ -38,6 +39,11 @@ export const JOBS: Job[] = [
     await q(`insert into activities(entity_type,entity_id,action,actor,detail) values('metrics','00000000-0000-0000-0000-000000000000','daily_snapshot','system',$1)`, [{ campaigns: m }]);
     return { campaigns: m.length, pruned: await prune() };
   } },
+  // Saleshandy: the 30 minute sync while someone uses the app, the full run every night, and high risk writes whose
+  // 10 second undo window ended while the process was restarting (writes are only ever queued by someone using the app)
+  { name: 'core:sh_sync_incremental', due: (t) => t.minute % 30 === 7 && shConfig().integration, whenUsed: true, run: async () => (await import('./saleshandy/sync.ts')).runSync('incremental') },
+  { name: 'core:sh_sync_full', due: (t) => t.hour === 2 && t.minute === 30 && shConfig().integration, run: async () => (await import('./saleshandy/sync.ts')).runSync('full') },
+  { name: 'core:sh_send_due', due: (t) => t.minute % 5 === 0 && shConfig().integration, whenUsed: true, run: async () => ({ sent: await (await import('./saleshandy/gateway.ts')).sendDue() }) },
   { name: 'core:weekly_analysis', due: (t) => t.weekday === 1 && t.hour === 9 && t.minute === 0, run: async () => (await P.weeklyAnalysis()).recommendations?.length ?? 0 },
 ];
 
