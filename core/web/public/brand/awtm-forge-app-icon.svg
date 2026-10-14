@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000" width="1024" height="1024"><title>awtm forge</title><defs>
+    <linearGradient id="jarch" x1="0.15" y1="0" x2="0.95" y2="1"><stop offset="0" stop-color="#FF9A1F"/><stop offset="0.35" stop-color="#FFC233"/><stop offset="0.62" stop-color="#FF7A12"/><stop offset="1" stop-color="#E23A0B"/></linearGradient>
+    <linearGradient id="jarchIn" x1="0" y1="0" x2="1" y2="0.6"><stop offset="0" stop-color="#E8480E"/><stop offset="1" stop-color="#9E1F05"/></linearGradient>
+    <linearGradient id="jleg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#C2300A"/><stop offset="0.5" stop-color="#FF7A12"/><stop offset="1" stop-color="#FF9A1F"/></linearGradient>
+    <linearGradient id="jbowl" x1="0.9" y1="0" x2="0.1" y2="1"><stop offset="0" stop-color="#FF8A1A"/><stop offset="0.55" stop-color="#F04E0E"/><stop offset="1" stop-color="#C42A08"/></linearGradient>
+    <linearGradient id="jleafY" x1="1" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFD84A"/><stop offset="1" stop-color="#FF9A1F"/></linearGradient>
+    <linearGradient id="jleafO" x1="1" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FF8A1A"/><stop offset="1" stop-color="#E8400C"/></linearGradient>
+  </defs><rect width="1000" height="1000" rx="220" fill="#0B0D12"/><g transform="translate(111.452,185.968) scale(0.53226)"><path fill="url(#jarch)" d="M170 405C330 190 560 62 765 66C975 72 1085 255 1135 520C1185 790 1230 965 1305 1060L1010 1062C915 1062 868 1000 858 905C846 745 850 560 842 420C770 270 620 190 470 192C335 196 235 300 170 405Z"/>
+  <path fill="url(#jarchIn)" opacity="0.85" d="M170 405C235 300 335 196 470 192C620 190 770 270 842 420C760 300 640 250 520 252C360 256 250 320 170 405Z"/>
+  <path fill="url(#jleg)" opacity="0.7" d="M842 420C870 560 905 660 960 760C1060 930 1190 1010 1305 1060L1010 1062C915 1062 868 1000 858 905C846 745 850 560 842 420Z"/>
+  
+  <path fill="url(#jbowl)" d="M842 420C720 480 470 470 305 600C150 725 160 960 330 1047C520 1085 720 1005 810 875C865 790 860 600 842 420Z"/>
+  <path fill="url(#jleafY)" d="M842 420C770 525 580 560 470 670C370 770 335 905 330 1047C410 905 545 830 670 760C800 690 852 565 842 420Z"/>
+  <path fill="url(#jleafO)" d="M842 420C800 610 690 655 575 735C455 820 390 935 330 1047C480 960 640 935 740 840C830 755 855 610 842 420Z"/></g></svg>
