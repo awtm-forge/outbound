@@ -184,11 +184,13 @@ route('DELETE', '/api/milestones/:id', 'user', async (c) => {
 
 // ---------- tasks ----------
 route('GET', '/api/tasks', 'user', async (c) => {
-  // ?mine=1: what is on my plate across every project, not done, soonest first
-  const mine = c.url.searchParams.get('mine') === '1';
+  // across every project, soonest first: ?mine=1 is what is on my plate, ?assignee=<id> one person's, neither is
+  // everyone's (unassigned too); done tasks only with ?done=1
+  const sp = c.url.searchParams; const who = sp.get('mine') === '1' ? c.user!.id : sp.get('assignee') || null;
+  if (who && !/^[0-9a-f-]{36}$/i.test(who)) throw new HttpError(400, 'assignee must be a person id');
   return q(`select t.*, p.name project_name, p.color project_color, u.name assignee_name from tasks t left join projects p on p.id=t.project_id left join users u on u.id=t.assignee_id
-    where t.status <> 'DONE' and t.archived_at is null and (p.id is null or p.status in ('ACTIVE','ON_HOLD')) and ($1::uuid is null or t.assignee_id=$1)
-    order by t.due_date nulls last, case t.priority when 'URGENT' then 0 when 'HIGH' then 1 when 'MEDIUM' then 2 when 'LOW' then 3 else 4 end, t.created_at limit 300`, [mine ? c.user!.id : null]);
+    where ($2 or t.status <> 'DONE') and t.archived_at is null and (p.id is null or p.status in ('ACTIVE','ON_HOLD')) and ($1::uuid is null or t.assignee_id=$1)
+    order by t.status = 'DONE', t.due_date nulls last, case t.priority when 'URGENT' then 0 when 'HIGH' then 1 when 'MEDIUM' then 2 when 'LOW' then 3 else 4 end, t.created_at limit 5000`, [who, sp.get('done') === '1']);
 });
 
 // where a task sits: a column of this project, which decides its status; without one, the first column of the status

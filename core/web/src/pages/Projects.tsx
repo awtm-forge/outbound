@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { api } from '../api.ts';
 import { Link, useRouter } from '../router.tsx';
 import { useLoad } from '../ui/hooks.ts';
@@ -126,10 +126,13 @@ function NewProject({ onClose }: { onClose: () => void }) {
 const ALL = 'all'; // the "For" choice that gives everyone on the team their own copy
 function MyTasks() {
   const { go } = useRouter(); const me = useMe(); const team = useTeam(); const toast = useToast();
-  const { data, error, loading, reload } = useLoad(() => api.get<any[]>('/api/tasks?mine=1'));
   const projects = useLoad(() => api.get<any[]>('/api/projects'));
   const [f, setF] = useState({ title: '', project_id: '', assignee_id: me.id, due_date: '' }); const [busy, setBusy] = useState(false);
-  const [open, setOpen] = useState<string | null>(null);
+  const [open, setOpen] = useState<string | null>(null); const [done, setDone] = useState(false); const [page, setPage] = useState(0);
+  // the list follows the For choice: Me is your plate, a person is theirs, All is every task in every project
+  const who = f.assignee_id === ALL ? 'all' : f.assignee_id === me.id ? 'me' : f.assignee_id;
+  const { data, error, loading, reload } = useLoad(() => api.get<any[]>(`/api/tasks?${who === 'me' ? 'mine=1' : who === 'all' ? '' : `assignee=${who}`}${done ? '&done=1' : ''}`), [who, done]);
+  useEffect(() => setPage(0), [who, done]);
   const changed = () => { reload(true); countsBus.dispatchEvent(new Event('changed')); };
   // with a project it goes on that board; without one it is a plain to-do
   const add = async (e: React.FormEvent) => {
@@ -146,10 +149,13 @@ function MyTasks() {
         await post(f.assignee_id || null);
         if (f.assignee_id !== me.id) toast(`Added for ${team.find((u) => u.id === f.assignee_id)?.name ?? 'them'}. It is on their list.`);
       }
-      setF({ ...f, title: '', due_date: '', assignee_id: me.id }); changed();
+      setF({ ...f, title: '', due_date: '' }); changed();
     } catch (x: any) { toast(x.message, { err: true }); } finally { setBusy(false); }
   };
   const list = data ?? [];
+  const whoName = who === 'all' ? 'Everyone' : who === 'me' ? 'You' : team.find((u) => u.id === who)?.name ?? 'This person';
+  const n = (s: string) => list.filter((t) => t.status === s).length;
+  const PAGE = 100; const shown = list.slice(page * PAGE, page * PAGE + PAGE);
   return (
     <>
       <form className="panel todo-add task-add" onSubmit={add} aria-label="Add a task" style={{ padding: 14 }}>
@@ -160,15 +166,21 @@ function MyTasks() {
         <label className="field"><span>Due date (optional)</span><input className="input" type="date" value={f.due_date} onChange={(e) => setF({ ...f, due_date: e.target.value })} /></label>
         <button className="btn primary" disabled={busy}>{busy ? <Spinner /> : <Icon.plus size={16} />}Add</button>
       </form>
+      <div className="row wrap between" style={{ padding: '0 4px' }}>
+        <p className="muted" style={{ fontSize: 'var(--fs-0)' }}>{who === 'all' ? 'Every task in every project, for everyone' : who === 'me' ? 'Your tasks in every project' : `${whoName}'s tasks in every project`}{data ? `: ${list.length}${list.length ? ` (${[['TODO', 'to do'], ['DOING', 'in progress'], ['REVIEW', 'in review'], ['DONE', 'done']].filter(([k]) => n(k!)).map(([k, l]) => `${n(k!)} ${l}`).join(', ')})` : ''}` : ''}. Change "For" to see someone else's.</p>
+        <label className="row" style={{ gap: 6, fontSize: 'var(--fs-0)' }}><input type="checkbox" checked={done} onChange={(e) => setDone(e.target.checked)} />Show done tasks</label>
+      </div>
       {loading && !data ? <Skeleton h={200} /> : error ? <Failure error={error} retry={reload} /> : !list.length
-        ? <div className="panel" style={{ padding: 8 }}><Empty title="Nothing on your plate">Add a task above. Tasks assigned to you, in any project or none, show up here.</Empty></div>
+        ? <div className="panel" style={{ padding: 8 }}><Empty title={who === 'me' ? 'Nothing on your plate' : 'No tasks here'}>{who === 'me' ? 'Add a task above. Tasks assigned to you, in any project or none, show up here.' : `${whoName === 'Everyone' ? 'Nobody has' : `${whoName} has`} ${done ? 'no tasks' : 'no open tasks'} in any project.`}</Empty></div>
         : <div className="panel scrollx"><table className="ctable">
-          <thead><tr><th>Task</th><th>Project</th><th>Status</th><th>Priority</th><th>Due</th></tr></thead>
-          <tbody>{list.map((t) => <tr key={t.id} className="click" {...rowOpen(() => (t.project_id ? go(`/projects/${t.project_id}/board?task=${t.id}`) : setOpen(t.id)))}>
-            <td style={{ fontWeight: 600, color: 'var(--ink)' }}>{t.title}</td>
+          <thead><tr><th>Task</th>{who !== 'me' && <th>Assigned to</th>}<th>Project</th><th>Status</th><th>Priority</th><th>Due</th></tr></thead>
+          <tbody>{shown.map((t) => <tr key={t.id} className="click" {...rowOpen(() => (t.project_id ? go(`/projects/${t.project_id}/board?task=${t.id}`) : setOpen(t.id)))}>
+            <td style={{ fontWeight: 600, color: 'var(--ink)' }}>{t.title}</td>{who !== 'me' && <td>{t.assignee_name ?? <span className="faint">Nobody</span>}</td>}
             <td>{t.project_name ? <span className="proj-chip" style={accentVars(t.project_color)}><i />{t.project_name}</span> : <span className="faint">To-do</span>}</td><td><Badge tone={TASK_TONE[t.status]}>{TASK_STATUS[t.status]}</Badge></td>
             <td>{t.priority === 'HIGH' ? <Badge tone="warning">High</Badge> : <span className="muted">{PRIORITY[t.priority]}</span>}</td>
-            <td className={isLate(t.due_date) && t.status !== 'DONE' ? 'late' : 'sub'}>{t.due_date ? (isLate(t.due_date) && t.status !== 'DONE' ? `Late, ${dayLabel(t.due_date)}` : dayLabel(t.due_date)) : 'No date'}</td></tr>)}</tbody></table></div>}
+            <td className={isLate(t.due_date) && t.status !== 'DONE' ? 'late' : 'sub'}>{t.due_date ? (isLate(t.due_date) && t.status !== 'DONE' ? `Late, ${dayLabel(t.due_date)}` : dayLabel(t.due_date)) : 'No date'}</td></tr>)}</tbody></table>
+          {list.length > PAGE && <div className="row between" style={{ padding: '10px 14px' }}><span className="faint" style={{ fontSize: 'var(--fs-0)' }}>{page * PAGE + 1} to {Math.min(list.length, page * PAGE + PAGE)} of {list.length}</span>
+            <div className="row"><button type="button" className="btn tiny" disabled={!page} onClick={() => setPage(page - 1)}>Previous</button><button type="button" className="btn tiny" disabled={(page + 1) * PAGE >= list.length} onClick={() => setPage(page + 1)}>Next</button></div></div>}</div>}
       {open && <TaskDrawer key={open} taskId={open} onClose={() => setOpen(null)} onChanged={changed} />}
     </>
   );

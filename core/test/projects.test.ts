@@ -54,3 +54,21 @@ test('to-dos: no project needed, yours by default, can be handed over, Today lis
   assert.ok((await a.call('GET', '/api/tasks?mine=1')).body.some((x: any) => x.id === handed.body.id), 'My tasks includes to-dos');
   assert.equal((await t.api('GET', '/api/todos')).status, 403);
 });
+
+test('task list: everyone across every project, one person, or only yours; done only when asked', async () => {
+  const r = await t.person('rohan', 'member', 'Rohan Test'); const a = await t.person('aarav', 'member', 'Aarav Test');
+  const p1 = (await r.call('POST', '/api/projects', { name: 'Everyone list one' })).body; const p2 = (await a.call('POST', '/api/projects', { name: 'Everyone list two' })).body;
+  const forR = (await r.call('POST', `/api/projects/${p1.id}/tasks`, { title: 'Rohan task', assignee_id: r.id })).body;
+  const forA = (await r.call('POST', `/api/projects/${p2.id}/tasks`, { title: 'Aarav task', assignee_id: a.id })).body;
+  const doneA = (await a.call('POST', `/api/projects/${p2.id}/tasks`, { title: 'Aarav done task', assignee_id: a.id, status: 'DONE' })).body;
+  const ids = (b: any[]) => b.map((x) => x.id);
+  const all = (await r.call('GET', '/api/tasks')).body;
+  assert.ok(ids(all).includes(forR.id) && ids(all).includes(forA.id), 'everyone: both people, both projects');
+  assert.ok(!ids(all).includes(doneA.id), 'done tasks are left out by default');
+  assert.equal(all.find((x: any) => x.id === forA.id).assignee_name, 'Aarav Test');
+  const theirs = ids((await r.call('GET', `/api/tasks?assignee=${a.id}`)).body);
+  assert.ok(theirs.includes(forA.id) && !theirs.includes(forR.id), 'one person: only theirs');
+  assert.ok(ids((await r.call('GET', `/api/tasks?assignee=${a.id}&done=1`)).body).includes(doneA.id), 'done=1 brings done tasks back');
+  assert.deepEqual(ids((await r.call('GET', '/api/tasks?mine=1')).body).filter((x) => [forR.id, forA.id].includes(x)), [forR.id]);
+  assert.equal((await r.call('GET', '/api/tasks?assignee=not-a-person')).status, 400);
+});
