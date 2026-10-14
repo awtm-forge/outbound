@@ -47,7 +47,7 @@
 .ptabs-row { display: flex; align-items: center; gap: 12px; padding-bottom: 14px; border-bottom: 1px solid var(--glass-line); flex-wrap: wrap; }
 .ptabs-row > .btn { margin-left: auto; height: 42px; padding: 0 18px; }
 .ptabs { display: flex; gap: 6px; flex-wrap: wrap; }
-.ptabs button { height: 42px; padding: 0 18px; border-radius: 10px; border: 1px solid var(--glass-line); background: rgba(255, 255, 255, 0.02); color: var(--ink-muted); font: inherit; font-size: 14px; cursor: pointer; }
+.ptabs button { white-space: nowrap; height: 42px; padding: 0 18px; border-radius: 10px; border: 1px solid var(--glass-line); background: rgba(255, 255, 255, 0.02); color: var(--ink-muted); font: inherit; font-size: 14px; cursor: pointer; }
 .ptabs button:hover { color: var(--ink); }
 .ptabs button.on { color: var(--ink); border-color: rgba(255, 138, 42, 0.7); background: rgba(255, 138, 42, 0.1); box-shadow: 0 0 16px rgba(255, 106, 0, 0.12); }
 .pgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(460px, 100%), 1fr)); gap: 18px; }
@@ -671,7 +671,7 @@ li[aria-expanded='true'] > .tn .tn-tog svg { transform: rotate(90deg); }
 @media (max-width: 640px) {
   .pgrid { grid-template-columns: minmax(0, 1fr); }
   .pc-tiles { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .pc-tile:last-child { grid-column: 1 / -1; }
-  .pstats { flex-direction: column; } .ptabs-row > .btn { width: 100%; margin-left: 0; justify-content: center; } .ptabs { width: 100%; } .ptabs button { flex: 1; padding: 0 10px; font-size: 13px; }
+  .pstats { flex-direction: column; } .ptabs-row > .btn { width: 100%; margin-left: 0; justify-content: center; } .ptabs { width: 100%; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; } .ptabs::-webkit-scrollbar { display: none; } .ptabs button { flex: none; padding: 0 14px; font-size: 13px; }
   .pws-ctl { width: 100%; } .pws-ctl .pf { flex: 1 1 140px; } .pf-sel select, .pf-sel input { width: 100%; }
   .pws-stats { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .pst { padding: 12px; } .pst + .pst { border-left: 0; } .pst:nth-child(even) { border-left: 1px solid var(--glass-line); } .pst:nth-child(n+3) { border-top: 1px solid var(--glass-line); } .pst:last-child { grid-column: 1 / -1; }
   .pst b { font-size: 18px; } .pst-ic, .pst-ring { width: 36px; height: 36px; }
