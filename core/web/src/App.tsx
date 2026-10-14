@@ -29,6 +29,7 @@ import { MeContext } from './session.tsx';
 import { ConfirmProvider } from './ui/overlay.tsx';
 import { CommandPalette, openSearch, type PaletteItem } from './ui/chrome.tsx';
 import { AiPromo, Profile, Workbar, type Counts } from './ui/shell.tsx';
+import { NewVersion } from './ui/version.tsx';
 
 export function App() {
   const [me, setMe] = useState<Me | null | undefined>(undefined);
@@ -142,6 +143,7 @@ function Shell({ me, onSignOut, onMeChanged }: { me: Me; onSignOut: () => void; 
         <button type="button" className={menu ? 'on' : ''} onClick={() => setMenu(true)} aria-expanded={menu} aria-controls="side-nav"><span className="tb-ic"><Icon.more size={21} /></span><span>More</span></button>
       </nav>
       <CommandPalette items={palette} />
+      <NewVersion />
     </div>
   );
 }
