@@ -38,6 +38,8 @@ export function Workspace({ id, view = '', sub }: { id: string; view?: string; s
   const { data, error, loading, reload, setData } = useLoad<Project>(() => api.get(`/api/projects/${id}`), [id]);
   const [preview, setPreview] = useState<string | null | undefined>(undefined);
   const [adding, setAdding] = useState<Partial<Task> | null>(null); const [importing, setImporting] = useState(() => search.get('import') === '1');
+  // ?import=1 opens it from anywhere in the project, e.g. the Overview's quick actions
+  useEffect(() => { if (search.get('import') === '1') setImporting(true); }, [search.get('import')]); // eslint-disable-line react-hooks/exhaustive-deps
   const open = search.get('task');
   const openTask = (tid: string | null, tab?: string) => { const p = new URLSearchParams(search); p.delete('tab'); if (tid) { p.set('task', tid); if (tab) p.set('tab', tab); } else p.delete('task'); go(`${location.pathname}${p.toString() ? '?' + p : ''}`, true); };
   const wide = useMedia('(min-width: 1200px)');
@@ -70,6 +72,7 @@ export function Workspace({ id, view = '', sub }: { id: string; view?: string; s
           <label className="pf"><span>Status</span><span className={`pf-sel st-${p.status}`}><i aria-hidden="true" /><select value={p.status} onChange={(e) => save({ status: e.target.value })}>{Object.entries(PROJECT_STATUS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></span></label>
           <label className="pf"><span>Owner</span><span className="pf-sel"><Avatar name={p.owner_name ?? '?'} size="xs" /><select value={p.owner_id ?? ''} onChange={(e) => save({ owner_id: e.target.value || null, owner_name: team.find((u) => u.id === e.target.value)?.name ?? null })}><option value="">Nobody</option>{team.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}</select></span></label>
           <label className="pf"><span>Due date</span><span className="pf-sel"><Icon.calendar size={15} /><input type="date" value={p.due_date ?? ''} onChange={(e) => save({ due_date: e.target.value || null })} /></span></label>
+          <button className="btn" onClick={() => setImporting(true)} title="Create tasks from a PDF, CSV or Markdown file, with their statuses"><Icon.upload size={16} />Import tasks</button>
           <div className="btn-split">
             <button className="btn primary glow" onClick={() => setAdding({})}><Icon.plus size={16} />Add task</button>
             <Menu label="More to add" className="btn primary split-more" place="left" button={<Icon.down size={14} />}>{(close) => <>

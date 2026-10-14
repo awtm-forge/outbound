@@ -142,6 +142,7 @@ export function Rail({ ws }: { ws: WS }) {
           {notIn.length > 0 && <li><Menu label="Add a team member" className="icon-btn add-m" place="up left" button={<Icon.plus size={16} />}>{(close) => <>{notIn.map((u) => <MenuItem key={u.id} onSelect={() => { close(); addMember(u.id); }}><Avatar name={u.name} size="xs" />{u.name}</MenuItem>)}</>}</Menu></li>}</ul></section>
       <section className="panel" aria-labelledby="qa2-h"><h2 id="qa2-h" className="rail-h">Quick actions</h2>
         <div className="qacts">
+          <button type="button" onClick={() => go(`/projects/${p.id}?import=1`)}><Icon.upload size={16} />Import tasks from a file<Icon.right size={14} /></button>
           <button type="button" onClick={() => setAddMs(true)}><Icon.target size={16} />Add milestone<Icon.right size={14} /></button>
           <button type="button" onClick={async () => { try { await navigator.clipboard.writeText(`${location.origin}/projects/${p.id}`); toast('Link copied. Everyone signed in can open it.'); } catch { toast('Could not copy the link.', { err: true }); } }}><Icon.share size={16} />Share project link<Icon.right size={14} /></button>
           <button type="button" onClick={() => go(`/projects/${p.id}/files?upload=1`)}><Icon.upload size={16} />Upload file<Icon.right size={14} /></button>
