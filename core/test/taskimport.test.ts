@@ -93,3 +93,20 @@ test('markdown: a plan with headings, tables and checklists becomes tasks with t
   // a plan with only headings has nothing to import
   assert.equal(parseMarkdown('# Plan\n\n## The phases\n\n## Every deliverable\n').rows.length, 0);
 });
+
+test('to-dos: a Markdown file becomes to-dos with no project; owners matched, anyone else\'s become yours', async () => {
+  const me = await t.person('tanvi', 'member', 'Tanvi Test'); const other = await t.person('kabir', 'member', 'Kabir Test');
+  const text = '# My week\n\n- [x] Send the invoice\n- [ ] Call the landlord\n\n| Task | Owner | Status |\n|---|---|---|\n| Review the deck | Kabir Test | In review |\n| Book the venue | Someone Else | In progress |\n';
+  const read = (await me.call('POST', '/api/todos/import/parse', { text })).body;
+  assert.deepEqual(read.counts, { DONE: 1, DOING: 1, REVIEW: 1, TODO: 1, NONE: 0 });
+  const rows = read.rows.map((r: any) => ({ title: r.title, status: r.status, assignee: r.assignee }));
+  const made = (await me.call('POST', '/api/todos/import', { source: 'week.md', rows })).body;
+  assert.equal(made.created, 4); assert.deepEqual(made.unmatched, ['Someone Else']);
+  const mine = (await me.call('GET', '/api/tasks?mine=1&done=1')).body.filter((x: any) => ['Send the invoice', 'Call the landlord', 'Book the venue'].includes(x.title));
+  assert.equal(mine.length, 3, 'unowned and unmatched to-dos are yours'); assert.ok(mine.every((x: any) => x.project_id === null));
+  assert.match(mine.find((x: any) => x.title === 'Book the venue').description, /Owner in week.md: Someone Else/);
+  const theirs = (await other.call('GET', '/api/tasks?mine=1')).body.find((x: any) => x.title === 'Review the deck');
+  assert.equal(theirs.status, 'REVIEW'); assert.equal(theirs.project_id, null);
+  const again = (await me.call('POST', '/api/todos/import', { source: 'week.md', rows })).body;
+  assert.equal(again.created, 0, 'a second import of the same list adds nothing'); assert.equal(again.skipped_existing, 4);
+});
