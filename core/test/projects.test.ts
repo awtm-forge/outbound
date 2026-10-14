@@ -72,3 +72,20 @@ test('task list: everyone across every project, one person, or only yours; done 
   assert.deepEqual(ids((await r.call('GET', '/api/tasks?mine=1')).body).filter((x) => [forR.id, forA.id].includes(x)), [forR.id]);
   assert.equal((await r.call('GET', '/api/tasks?assignee=not-a-person')).status, 400);
 });
+
+test('projects by person: the ones they own or have tasks in, not the ones they only created for someone else', async () => {
+  const r = await t.person('ravi', 'member', 'Ravi Test'); const a = await t.person('anya', 'member', 'Anya Test');
+  const ravis = (await r.call('POST', '/api/projects', { name: 'Ravi owns this' })).body;
+  const forAnya = (await r.call('POST', '/api/projects', { name: 'Anya owns this', owner_id: a.id })).body; // Ravi made it, so Ravi is on its team
+  const shared = (await r.call('POST', '/api/projects', { name: 'Ravi owns, Anya has a task' })).body;
+  await r.call('POST', `/api/projects/${shared.id}/tasks`, { title: 'Anya does this', assignee_id: a.id });
+  const names = async (who: string) => (await r.call('GET', `/api/projects?person=${who}`)).body.map((p: any) => p.name);
+  const rv = await names(r.id); const an = await names(a.id);
+  assert.ok(rv.includes('Ravi owns this') && rv.includes('Ravi owns, Anya has a task'));
+  assert.ok(!rv.includes('Anya owns this'), 'creating a project for someone else does not make it yours');
+  assert.ok(an.includes('Anya owns this') && an.includes('Ravi owns, Anya has a task') && !an.includes('Ravi owns this'));
+  const all = (await r.call('GET', '/api/projects')).body; const sh = all.find((p: any) => p.id === shared.id);
+  assert.deepEqual(sh.assignees, [a.id], 'each project lists who has tasks in it');
+  assert.ok(all.some((p: any) => p.id === forAnya.id) && all.some((p: any) => p.id === ravis.id), 'All projects still shows everything');
+  assert.equal((await r.call('GET', '/api/projects?person=nope')).status, 400);
+});
