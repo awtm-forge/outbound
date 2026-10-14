@@ -123,6 +123,7 @@ function NewProject({ onClose }: { onClose: () => void }) {
   );
 }
 
+const ALL = 'all'; // the "For" choice that gives everyone on the team their own copy
 function MyTasks() {
   const { go } = useRouter(); const me = useMe(); const team = useTeam(); const toast = useToast();
   const { data, error, loading, reload } = useLoad(() => api.get<any[]>('/api/tasks?mine=1'));
@@ -133,10 +134,18 @@ function MyTasks() {
   // with a project it goes on that board; without one it is a plain to-do
   const add = async (e: React.FormEvent) => {
     e.preventDefault(); if (!f.title.trim()) { (e.currentTarget as HTMLFormElement).querySelector('input')?.focus(); return; } setBusy(true);
-    const body = { title: f.title, assignee_id: f.assignee_id || null, due_date: f.due_date };
+    const post = (assignee_id: string | null) => { const body = { title: f.title, assignee_id, due_date: f.due_date }; return f.project_id ? api.post(`/api/projects/${f.project_id}/tasks`, body) : api.post('/api/todos', body); };
     try {
-      if (f.project_id) await api.post(`/api/projects/${f.project_id}/tasks`, body); else await api.post('/api/todos', body);
-      if (f.assignee_id !== me.id) toast(`Added for ${team.find((u) => u.id === f.assignee_id)?.name ?? 'them'}. It is on their list.`);
+      if (f.assignee_id === ALL) {
+        // a task has one owner, so "All" adds one copy for each person on the team
+        const r = await Promise.allSettled(team.map((u) => post(u.id)));
+        const failed = r.filter((x) => x.status === 'rejected').length;
+        if (failed) toast(`Added for ${r.length - failed} of ${r.length}. ${failed} could not be added: ${(r.find((x) => x.status === 'rejected') as PromiseRejectedResult).reason?.message ?? 'try again'}`, { err: true });
+        else toast(`Added for all ${r.length}. It is on everyone's list.`);
+      } else {
+        await post(f.assignee_id || null);
+        if (f.assignee_id !== me.id) toast(`Added for ${team.find((u) => u.id === f.assignee_id)?.name ?? 'them'}. It is on their list.`);
+      }
       setF({ ...f, title: '', due_date: '', assignee_id: me.id }); changed();
     } catch (x: any) { toast(x.message, { err: true }); } finally { setBusy(false); }
   };
@@ -147,7 +156,7 @@ function MyTasks() {
         <label className="field"><span>Task</span><input className="input" autoFocus placeholder="What needs doing? Then Enter" required value={f.title} maxLength={200} onChange={(e) => setF({ ...f, title: e.target.value })} /></label>
         <label className="field"><span>Project</span><select className="input" value={f.project_id} onChange={(e) => setF({ ...f, project_id: e.target.value })}>
           <option value="">No project (a to-do)</option>{(projects.data ?? []).filter((p) => p.status === 'ACTIVE' || p.status === 'ON_HOLD').map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
-        <label className="field"><span>For</span><select className="input" value={f.assignee_id} onChange={(e) => setF({ ...f, assignee_id: e.target.value })}>{team.map((u) => <option key={u.id} value={u.id}>{u.id === me.id ? 'Me' : u.name}</option>)}</select></label>
+        <label className="field"><span>For</span><select className="input" value={f.assignee_id} onChange={(e) => setF({ ...f, assignee_id: e.target.value })}>{team.map((u) => <option key={u.id} value={u.id}>{u.id === me.id ? 'Me' : u.name}</option>)}{team.length > 1 && <option value={ALL}>All ({team.length})</option>}</select></label>
         <label className="field"><span>Due date (optional)</span><input className="input" type="date" value={f.due_date} onChange={(e) => setF({ ...f, due_date: e.target.value })} /></label>
         <button className="btn primary" disabled={busy}>{busy ? <Spinner /> : <Icon.plus size={16} />}Add</button>
       </form>
