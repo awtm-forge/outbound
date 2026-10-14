@@ -49,12 +49,9 @@ export function Projects() {
           <button key={to} role="tab" aria-selected={on} className={on ? 'on' : ''} onClick={() => go(to, true)}>{l}{n != null ? ` (${n})` : ''}</button>)}</div>
         <button className="btn primary glow" onClick={() => setAdding(true)}><Icon.plus size={16} />New project</button>
       </div>
-      {who && who !== 'all' ? <>
-        {/* a person's tab: their projects, laid out as on All projects, then the tasks assigned to them */}
-        <ProjectList key={`p-${who}`} archived={false} person={who} personName={people.find((u) => u.id === who)?.name} onNew={() => setAdding(true)} onChanged={() => { summary.reload(true); all.reload(true); }} />
-        <h2 className="rail-h" style={{ margin: '8px 0 -4px' }}>{who === me.id ? 'Your tasks' : `${people.find((u) => u.id === who)?.name ?? 'Their'}'s tasks`}</h2>
-        <MyTasks key={who} who={who === me.id ? 'me' : who} onChanged={() => open.reload(true)} />
-      </> : who ? <MyTasks key={who} who={who} onChanged={() => open.reload(true)} /> : <ProjectList archived={view === 'archived'} onNew={() => setAdding(true)} onChanged={() => summary.reload(true)} />}
+      {/* a person's tab: only their projects, laid out as on All projects; adding and importing tasks is on All tasks */}
+      {who && who !== 'all' ? <ProjectList key={`p-${who}`} archived={false} person={who} personName={people.find((u) => u.id === who)?.name} onNew={() => setAdding(true)} onChanged={() => { summary.reload(true); all.reload(true); }} />
+        : who ? <MyTasks key={who} who={who} onChanged={() => open.reload(true)} /> : <ProjectList archived={view === 'archived'} onNew={() => setAdding(true)} onChanged={() => summary.reload(true)} />}
       {adding && <NewProject onClose={() => setAdding(false)} />}
     </div>
   );
