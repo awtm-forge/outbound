@@ -74,6 +74,7 @@ export function describe(a: { action: string; detail: any }): { verb: string; wh
     case 'file_replaced': return { verb: 'uploaded a new version of', what: t, note: d.version ? `version ${d.version}` : undefined, icon: 'upload', tone: 'p' };
     case 'file_downloaded': return { verb: 'downloaded', what: t, icon: 'download', tone: 'c' };
     case 'file_comment': return { verb: 'commented on the file', what: t, note: d.excerpt ? `“${d.excerpt}”` : undefined, icon: 'message', tone: 'c' };
+    case 'tasks_imported': return { verb: `imported ${d.count ?? ''} tasks from`, what: t, note: d.counts ? [['DONE', 'done'], ['DOING', 'in progress'], ['REVIEW', 'under review'], ['TODO', 'pending']].filter(([k]) => d.counts[k!]).map(([k, l]) => `${d.counts[k!]} ${l}`).join(', ') : undefined, icon: 'upload', tone: 'g' };
     case 'folder_added': return { verb: 'created the folder', what: t, icon: 'folder', tone: 'g' };
     case 'folder_renamed': return { verb: 'renamed the folder', what: `${d.from} to ${t}`, icon: 'folder', tone: 'p' };
     case 'folder_removed': return { verb: 'deleted the folder', what: t, note: d.files ? `${d.files} ${d.files === 1 ? 'file' : 'files'} moved up` : undefined, icon: 'trash', tone: 'r' };

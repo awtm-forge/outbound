@@ -1,6 +1,7 @@
 import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
 import { api } from '../../api.ts';
 import { unreadChanged } from '../../unread.tsx';
+import { ImportTasks } from './ImportTasks.tsx';
 import { Link, useRouter } from '../../router.tsx';
 import { useLoad, useMedia } from '../../ui/hooks.ts';
 import { Icon, Dots } from '../../ui/icons.tsx';
@@ -36,7 +37,7 @@ export function Workspace({ id, view = '', sub }: { id: string; view?: string; s
   const toast = useToast(); const team = useTeam(); const { search, go } = useRouter();
   const { data, error, loading, reload, setData } = useLoad<Project>(() => api.get(`/api/projects/${id}`), [id]);
   const [preview, setPreview] = useState<string | null | undefined>(undefined);
-  const [adding, setAdding] = useState<Partial<Task> | null>(null);
+  const [adding, setAdding] = useState<Partial<Task> | null>(null); const [importing, setImporting] = useState(() => search.get('import') === '1');
   const open = search.get('task');
   const openTask = (tid: string | null, tab?: string) => { const p = new URLSearchParams(search); p.delete('tab'); if (tid) { p.set('task', tid); if (tab) p.set('tab', tab); } else p.delete('task'); go(`${location.pathname}${p.toString() ? '?' + p : ''}`, true); };
   const wide = useMedia('(min-width: 1200px)');
@@ -74,7 +75,9 @@ export function Workspace({ id, view = '', sub }: { id: string; view?: string; s
             <Menu label="More to add" className="btn primary split-more" place="left" button={<Icon.down size={14} />}>{(close) => <>
               <MenuItem onSelect={() => { close(); go(`${base}?add=milestone`); }}><Icon.target size={15} />Add milestone</MenuItem>
               <MenuItem onSelect={() => { close(); go(`${base}/notes?new=1`); }}><Icon.wiki size={15} />New page</MenuItem>
-              <MenuItem onSelect={() => { close(); go(`${base}/files?upload=1`); }}><Icon.upload size={15} />Upload a file</MenuItem></>}</Menu>
+              <MenuItem onSelect={() => { close(); go(`${base}/files?upload=1`); }}><Icon.upload size={15} />Upload a file</MenuItem>
+              <div className="menu-sep" />
+              <MenuItem onSelect={() => { close(); setImporting(true); }}><Icon.list size={15} />Import tasks from a PDF or CSV</MenuItem></>}</Menu>
           </div>
           <Menu label="Project actions" className="icon-btn" button={<Dots vertical size={18} />}>{(close) => <>
             <MenuItem onSelect={async () => { close(); try { await navigator.clipboard.writeText(location.origin + base); toast('Link copied. Everyone signed in can open it.'); } catch { toast('Could not copy the link.', { err: true }); } }}><Icon.share size={15} />Copy link</MenuItem>
@@ -115,6 +118,7 @@ export function Workspace({ id, view = '', sub }: { id: string; view?: string; s
       </div>
       {open && !docked && <TaskDrawer key={open} taskId={open} tab={tabParam} color={color} onClose={() => openTask(null)} onChanged={() => reload(true)} onOpen={(t) => openTask(t)} ctx={{ columns: p.columns, milestones: p.milestones, tasks: p.task_list }} />}
       {adding && <AddTask ws={ws} preset={adding} onClose={() => setAdding(null)} />}
+      {importing && <ImportTasks ws={ws} onClose={() => { setImporting(false); if (search.get('import')) go(location.pathname, true); }} />}
     </div>
   );
 }
