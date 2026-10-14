@@ -136,13 +136,16 @@ function NewProject({ onClose }: { onClose: () => void }) {
 }
 
 const ALL = 'all'; // the "For" choice that gives everyone on the team their own copy
-function MyTasks({ who, onChanged }: { who: string; onChanged: () => void }) {
+function MyTasks({ who: initialWho, onChanged }: { who: string; onChanged: () => void }) {
   const { go } = useRouter(); const me = useMe(); const team = useTeam(); const toast = useToast();
   const projects = useLoad(() => api.get<any[]>('/api/projects'));
+  // Show tasks for: 'all' (everyone), 'me', a person's id, or 'none' (nobody assigned)
+  const [who, setWho] = useState(initialWho);
   // the For choice starts on the tab's person; changing it only decides who a new task is for
   const [f, setF] = useState({ title: '', project_id: '', assignee_id: who === 'all' ? ALL : who === 'me' ? me.id : who, due_date: '' }); const [busy, setBusy] = useState(false);
   const [open, setOpen] = useState<string | null>(null); const [done, setDone] = useState(false); const [importing, setImporting] = useState(false); const [page, setPage] = useState(0);
-  const { data, error, loading, reload } = useLoad(() => api.get<any[]>(`/api/tasks?${who === 'me' ? 'mine=1' : who === 'all' ? '' : `assignee=${who}`}${done ? '&done=1' : ''}`), [who, done]);
+  const { data: raw, error, loading, reload } = useLoad(() => api.get<any[]>(`/api/tasks?${who === 'me' ? 'mine=1' : who === 'all' || who === 'none' ? '' : `assignee=${who}`}${done ? '&done=1' : ''}`), [who, done]);
+  const data = raw && who === 'none' ? raw.filter((t) => !t.assignee_id) : raw;
   useEffect(() => setPage(0), [who, done]);
   const changed = () => { reload(true); onChanged(); countsBus.dispatchEvent(new Event('changed')); };
   // with a project it goes on that board; without one it is a plain to-do
@@ -164,7 +167,7 @@ function MyTasks({ who, onChanged }: { who: string; onChanged: () => void }) {
     } catch (x: any) { toast(x.message, { err: true }); } finally { setBusy(false); }
   };
   const list = data ?? [];
-  const whoName = who === 'all' ? 'Everyone' : who === 'me' ? 'You' : team.find((u) => u.id === who)?.name ?? 'This person';
+  const whoName = who === 'all' ? 'Everyone' : who === 'me' ? 'You' : who === 'none' ? 'Nobody' : team.find((u) => u.id === who)?.name ?? 'This person';
   const n = (s: string) => list.filter((t) => t.status === s).length;
   const PAGE = 100; const shown = list.slice(page * PAGE, page * PAGE + PAGE);
   return (
@@ -178,14 +181,17 @@ function MyTasks({ who, onChanged }: { who: string; onChanged: () => void }) {
         <button className="btn primary" disabled={busy}>{busy ? <Spinner /> : <Icon.plus size={16} />}Add</button>
       </form>
       <div className="row wrap between" style={{ padding: '0 4px' }}>
-        <p className="muted" style={{ fontSize: 'var(--fs-0)' }}>{who === 'all' ? 'Every task in every project, for everyone' : who === 'me' ? 'Your tasks in every project' : `${whoName}'s tasks in every project`}{data ? `: ${list.length}${list.length ? ` (${[['TODO', 'to do'], ['DOING', 'in progress'], ['REVIEW', 'in review'], ['DONE', 'done']].filter(([k]) => n(k!)).map(([k, l]) => `${n(k!)} ${l}`).join(', ')})` : ''}` : ''}.</p>
-        <div className="row" style={{ gap: 14 }}>
+        <p className="muted" style={{ fontSize: 'var(--fs-0)' }}>{who === 'all' ? 'Every task in every project, for everyone' : who === 'me' ? 'Your tasks in every project' : who === 'none' ? 'Tasks nobody is assigned to' : `${whoName}'s tasks in every project`}{data ? `: ${list.length}${list.length ? ` (${[['TODO', 'to do'], ['DOING', 'in progress'], ['REVIEW', 'in review'], ['DONE', 'done']].filter(([k]) => n(k!)).map(([k, l]) => `${n(k!)} ${l}`).join(', ')})` : ''}` : ''}.</p>
+        <div className="row wrap" style={{ gap: 14 }}>
+          <label className="row" style={{ gap: 6, fontSize: 'var(--fs-0)' }}>Show tasks for
+            <select className="input" style={{ height: 30, width: 'auto', fontSize: 'var(--fs-0)' }} value={who} onChange={(e) => setWho(e.target.value)}>
+              <option value="all">Everyone</option>{team.map((u) => <option key={u.id} value={u.id === me.id ? 'me' : u.id}>{u.name}{u.id === me.id ? ' (you)' : ''}</option>)}<option value="none">Nobody (unassigned)</option></select></label>
           <label className="row" style={{ gap: 6, fontSize: 'var(--fs-0)' }}><input type="checkbox" checked={done} onChange={(e) => setDone(e.target.checked)} />Show done tasks</label>
           <button type="button" className="btn tiny" onClick={() => setImporting(true)} title="Turn a PDF, CSV or Markdown file into to-dos or project tasks, with their statuses"><Icon.upload size={14} />Import from a file</button>
         </div>
       </div>
       {loading && !data ? <Skeleton h={200} /> : error ? <Failure error={error} retry={reload} /> : !list.length
-        ? <div className="panel" style={{ padding: 8 }}><Empty title={who === 'me' ? 'Nothing on your plate' : 'No tasks here'}>{who === 'me' ? 'Add a task above. Tasks assigned to you, in any project or none, show up here.' : `${whoName === 'Everyone' ? 'Nobody has' : `${whoName} has`} ${done ? 'no tasks' : 'no open tasks'} in any project.`}</Empty></div>
+        ? <div className="panel" style={{ padding: 8 }}><Empty title={who === 'me' ? 'Nothing on your plate' : 'No tasks here'}>{who === 'me' ? 'Add a task above. Tasks assigned to you, in any project or none, show up here.' : who === 'none' ? `Every ${done ? '' : 'open '}task has someone assigned.` : `${whoName === 'Everyone' ? 'Nobody has' : `${whoName} has`} ${done ? 'no tasks' : 'no open tasks'} in any project.`}</Empty></div>
         : <div className="panel scrollx"><table className="ctable">
           <thead><tr><th>Task</th>{who !== 'me' && <th>Assigned to</th>}<th>Project</th><th>Status</th><th>Priority</th><th>Due</th></tr></thead>
           <tbody>{shown.map((t) => <tr key={t.id} className="click" {...rowOpen(() => (t.project_id ? go(`/projects/${t.project_id}/board?task=${t.id}`) : setOpen(t.id)))}>
