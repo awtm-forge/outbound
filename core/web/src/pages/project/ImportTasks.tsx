@@ -8,7 +8,6 @@ import { useToast } from '../../ui/toast.tsx';
 import { Spinner } from '../../ui/kit.tsx';
 import { STATUS_COLOR, shortDay } from './shared.tsx';
 import { useRouter } from '../../router.tsx';
-import type { WS } from './Workspace.tsx';
 
 type Row = { line: number; title: string; status: Status | null; status_text: string | null; flag: string | null; assignee: string | null; assignee_id: string | null;
   start_date: string | null; due_date: string | null; priority: string | null; section: string | null; notes: string | null; exists: boolean };
@@ -19,8 +18,13 @@ const LABEL: Record<Status, string> = { DONE: 'Done', DOING: 'In progress', REVI
 const PAGE = 100;
 const pct = (n: number, of: number) => (of ? `${Math.round((n / of) * 100)}%` : '0%');
 
-export function ImportTasks({ ws, onClose }: { ws: WS; onClose: () => void }) {
-  const { p } = ws; const toast = useToast(); const { go } = useRouter();
+type Dest = { id: string | null; name: string }; // id null: to-dos, tasks with no project
+const TODOS: Dest = { id: null, name: 'your to-dos' };
+// From a project it imports into that project; from the task tabs, into to-dos or a project chosen first.
+export function ImportTasks({ project, projects, onClose, onDone }: { project?: Dest | null; projects?: Dest[]; onClose: () => void; onDone?: () => void }) {
+  const toast = useToast(); const { go } = useRouter();
+  const [p, setDest] = useState<Dest>(project ?? TODOS);
+  const base = p.id ? `/api/projects/${p.id}/import` : '/api/todos/import';
   const [step, setStep] = useState<'choose' | 'check' | 'done'>('choose');
   const [busy, setBusy] = useState<string | null>(null); const [err, setErr] = useState('');
   const [source, setSource] = useState(''); const [paste, setPaste] = useState('');
@@ -49,13 +53,13 @@ export function ImportTasks({ ws, onClose }: { ws: WS; onClose: () => void }) {
         setBusy('Finding the tasks');
         const asText = lines.map((l) => l.map((c) => c.t).join('\t'));
         const body = JSON.stringify({ lines }).length < 1_800_000 ? { lines } : { text: asText.join('\n') };
-        took(await api.post(`/api/projects/${p.id}/import/parse`, body), f.name, asText);
+        took(await api.post(`${base}/parse`, body), f.name, asText);
       } else if (ext === 'csv' || f.type === 'text/csv') {
         setBusy('Reading the CSV'); const csv = await f.text();
-        took(await api.post(`/api/projects/${p.id}/import/parse`, { csv }), f.name, csv.split('\n'));
+        took(await api.post(`${base}/parse`, { csv }), f.name, csv.split('\n'));
       } else if (ext === 'txt' || ext === 'md' || ext === 'markdown' || f.type.startsWith('text/')) {
         setBusy('Reading the file'); const text = await f.text();
-        took(await api.post(`/api/projects/${p.id}/import/parse`, { text }), f.name, text.split('\n'));
+        took(await api.post(`${base}/parse`, { text }), f.name, text.split('\n'));
       } else if (ext === 'xlsx' || ext === 'xls') {
         setErr('Excel files cannot be read here yet. In Excel, use File, Save As, and choose CSV (or PDF), then import that file.');
       } else setErr('Choose a PDF, a CSV, a Markdown or a text file.');
@@ -64,12 +68,12 @@ export function ImportTasks({ ws, onClose }: { ws: WS; onClose: () => void }) {
   };
   const fromPaste = async () => {
     if (!paste.trim()) return; setErr(''); setBusy('Finding the tasks');
-    try { took(await api.post(`/api/projects/${p.id}/import/parse`, { text: paste }), 'pasted text', paste.split('\n')); } catch (e: any) { setErr(e.message); }
+    try { took(await api.post(`${base}/parse`, { text: paste }), 'pasted text', paste.split('\n')); } catch (e: any) { setErr(e.message); }
     setBusy(null);
   };
   const withAi = async () => {
     setErr(''); setBusy('The AI is reading the document. Long lists take a minute or two.');
-    try { const r = await api.run<Read>(`/api/projects/${p.id}/import/ai`, { lines: plain.map((l) => l.slice(0, 2000)).filter((l) => l.trim()).slice(0, 20_000) }); took(r, source, plain); toast(`The AI found ${r.total} tasks. Check them before creating.`); }
+    try { const r = await api.run<Read>(`${base}/ai`, { lines: plain.map((l) => l.slice(0, 2000)).filter((l) => l.trim()).slice(0, 20_000) }); took(r, source, plain); toast(`The AI found ${r.total} tasks. Check them before creating.`); }
     catch (e: any) { setErr(e.message); }
     setBusy(null);
   };
@@ -92,7 +96,7 @@ export function ImportTasks({ ws, onClose }: { ws: WS; onClose: () => void }) {
     setErr(''); setBusy(`Creating ${final.length} tasks`);
     try {
       const body = { source: source.slice(0, 200), skip_existing: skipExisting, section_labels: labels, rows: final.map((r) => ({ title: r.title, status: statusOf(r)!, flag: r.flag, assignee: r.assignee, start_date: r.start_date, due_date: r.due_date, priority: r.priority, section: r.section, notes: r.notes })) };
-      const out = await api.post(`/api/projects/${p.id}/import`, body); setResult(out); setStep('done'); ws.reload();
+      const out = await api.post(base, body); setResult(out); setStep('done'); onDone?.();
     } catch (e: any) { setErr(e.message); }
     setBusy(null);
   };
@@ -100,6 +104,8 @@ export function ImportTasks({ ws, onClose }: { ws: WS; onClose: () => void }) {
   return <Modal title={step === 'done' ? 'Tasks imported' : `Import tasks into ${p.name}`} onClose={busy ? () => {} : onClose} wide>
     <div className="imp">
       {step === 'choose' && <>
+        {projects && <label className="field" style={{ marginBottom: 12 }}><span>Add the tasks to</span><select className="input" value={p.id ?? ''} disabled={!!busy} onChange={(e) => setDest(projects.find((x) => x.id === e.target.value) ?? TODOS)}>
+          <option value="">To-dos (no project)</option>{projects.map((x) => <option key={x.id!} value={x.id!}>{x.name}</option>)}</select></label>}
         <p className="imp-lead">Upload your task list and every task is created with its status: done, in progress, under review or pending. You check everything before anything is created.</p>
         <button type="button" className="imp-drop" onClick={() => input.current?.click()} disabled={!!busy}
           onDragOver={(e) => { if (e.dataTransfer.types.includes('Files')) e.preventDefault(); }} onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) void choose(f); }}>
@@ -129,7 +135,7 @@ export function ImportTasks({ ws, onClose }: { ws: WS; onClose: () => void }) {
           <label className="chk"><input type="checkbox" checked={skipExisting} onChange={(e) => setSkipExisting(e.target.checked)} />Skip tasks already in this project{existing ? ` (${existing})` : ''}</label>
           {rows.some((r) => r.section || r.flag) && <label className="chk"><input type="checkbox" checked={labels} onChange={(e) => setLabels(e.target.checked)} />Use sections (and On hold, Blocked) as labels</label>}
         </div>
-        {unmatched.length > 0 && <p className="imp-warn"><Icon.info size={14} />{unmatched.length === 1 ? 'One owner is' : `${unmatched.length} owners are`} not on the team: {unmatched.slice(0, 6).join(', ')}{unmatched.length > 6 ? ` and ${unmatched.length - 6} more` : ''}. Their tasks are created unassigned, with the name kept in the task.</p>}
+        {unmatched.length > 0 && <p className="imp-warn"><Icon.info size={14} />{unmatched.length === 1 ? 'One owner is' : `${unmatched.length} owners are`} not on the team: {unmatched.slice(0, 6).join(', ')}{unmatched.length > 6 ? ` and ${unmatched.length - 6} more` : ''}. {p.id ? 'Their tasks are created unassigned' : 'Their to-dos are added to your list'}, with the name kept in the task.</p>}
         <div className="imp-table" role="table" aria-label="Tasks to import">
           <div className="imp-r imp-h" role="row"><span role="columnheader"><input type="checkbox" aria-label="Keep every task shown" checked={visible.length > 0 && visible.every((r) => keep.has(r.line) || (!r.status && noStatus === 'skip') || (r.exists && skipExisting))} onChange={(e) => setAll(e.target.checked)} /></span><span role="columnheader">Task</span><span role="columnheader">Status</span><span role="columnheader">Owner</span><span role="columnheader">Dates</span></div>
           {pageRows.map((r) => <div key={r.line} role="row" className={`imp-r${r.exists && skipExisting ? ' gone' : ''}`}>
@@ -145,7 +151,7 @@ export function ImportTasks({ ws, onClose }: { ws: WS; onClose: () => void }) {
         {visible.length > PAGE && <div className="imp-pager"><button type="button" className="btn tiny" disabled={!page} onClick={() => setPage(page - 1)}>Previous</button><span>{page * PAGE + 1} to {Math.min(visible.length, page * PAGE + PAGE)} of {visible.length}</span><button type="button" className="btn tiny" disabled={(page + 1) * PAGE >= visible.length} onClick={() => setPage(page + 1)}>Next</button></div>}
         {err && <p className="err" role="alert">{err}</p>}
         <div className="imp-foot">
-          <span><b>{final.length}</b> to create: {ORDER.filter((s) => counts[s]).map((s) => `${counts[s]} ${LABEL[s].toLowerCase()}`).join(', ') || 'none'}{final.length ? ` · ${dated ? `${dated} with dates, shown on the Timeline` : 'no dates in the file, so the Timeline lists them as unscheduled'}` : ''}</span>
+          <span><b>{final.length}</b> to create: {ORDER.filter((s) => counts[s]).map((s) => `${counts[s]} ${LABEL[s].toLowerCase()}`).join(', ') || 'none'}{final.length ? ` · ${dated ? (p.id ? `${dated} with dates, shown on the Timeline` : `${dated} with due dates`) : (p.id ? 'no dates in the file, so the Timeline lists them as unscheduled' : 'no dates in the file')}` : ''}</span>
           <button type="button" className="btn ghost" onClick={() => { setStep('choose'); setRead(null); }} disabled={!!busy}>Choose another file</button>
           <button type="button" className="btn primary" onClick={create} disabled={!final.length || !!busy}>{busy ? <><Spinner />{busy}</> : `Create ${final.length} ${final.length === 1 ? 'task' : 'tasks'}`}</button>
         </div>
@@ -157,8 +163,9 @@ export function ImportTasks({ ws, onClose }: { ws: WS; onClose: () => void }) {
         <ul>{ORDER.filter((s) => result.counts[s]).map((s) => <li key={s}><i style={{ background: STATUS_COLOR[s] }} />{result.counts[s]} {LABEL[s].toLowerCase()} <span className="faint">({pct(result.counts[s], result.created)})</span></li>)}</ul>
         {result.skipped_existing > 0 && <p className="faint">{result.skipped_existing} were already in the project and were skipped.</p>}
         {result.unmatched.length > 0 && <p className="faint">Not on the team, kept in each task's description: {result.unmatched.slice(0, 8).join(', ')}{result.unmatched.length > 8 ? ' and more' : ''}.</p>}
-        <div className="row"><button type="button" className="btn" onClick={() => { onClose(); go(`/projects/${p.id}/timeline`); }}><Icon.calendar size={14} />Open the Timeline</button>
+        {p.id ? <div className="row"><button type="button" className="btn" onClick={() => { onClose(); go(`/projects/${p.id}/timeline`); }}><Icon.calendar size={14} />Open the Timeline</button>
           <button type="button" className="btn primary right" onClick={() => { onClose(); go(`/projects/${p.id}/list`); }}><Icon.list size={14} />Open the List</button></div>
+          : <div className="row"><button type="button" className="btn primary right" onClick={onClose}><Icon.check size={14} />Done</button></div>}
       </div>}
       {err && step !== 'check' && <p className="err" role="alert">{err}</p>}
     </div>

@@ -121,7 +121,7 @@ export function Workspace({ id, view = '', sub }: { id: string; view?: string; s
       </div>
       {open && !docked && <TaskDrawer key={open} taskId={open} tab={tabParam} color={color} onClose={() => openTask(null)} onChanged={() => reload(true)} onOpen={(t) => openTask(t)} ctx={{ columns: p.columns, milestones: p.milestones, tasks: p.task_list }} />}
       {adding && <AddTask ws={ws} preset={adding} onClose={() => setAdding(null)} />}
-      {importing && <ImportTasks ws={ws} onClose={() => { setImporting(false); if (search.get('import')) go(location.pathname, true); }} />}
+      {importing && <ImportTasks project={{ id: p.id, name: p.name }} onDone={ws.reload} onClose={() => { setImporting(false); if (search.get('import')) go(location.pathname, true); }} />}
     </div>
   );
 }

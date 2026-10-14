@@ -11,6 +11,7 @@ import { useMe, useTeam } from '../session.tsx';
 import { countsBus } from '../App.tsx';
 import { ColorPicker, ProjectMark, accentVars } from '../ui/color.tsx';
 import { TaskDrawer } from './project/TaskDrawer.tsx';
+import { ImportTasks } from './project/ImportTasks.tsx';
 import { Avatar, PROJECT_STATUS, PROJECT_TONE, describe } from './project/shared.tsx';
 
 export { PROJECT_STATUS };
@@ -136,7 +137,7 @@ function MyTasks({ who, onChanged }: { who: string; onChanged: () => void }) {
   const projects = useLoad(() => api.get<any[]>('/api/projects'));
   // the For choice starts on the tab's person; changing it only decides who a new task is for
   const [f, setF] = useState({ title: '', project_id: '', assignee_id: who === 'all' ? ALL : who === 'me' ? me.id : who, due_date: '' }); const [busy, setBusy] = useState(false);
-  const [open, setOpen] = useState<string | null>(null); const [done, setDone] = useState(false); const [page, setPage] = useState(0);
+  const [open, setOpen] = useState<string | null>(null); const [done, setDone] = useState(false); const [importing, setImporting] = useState(false); const [page, setPage] = useState(0);
   const { data, error, loading, reload } = useLoad(() => api.get<any[]>(`/api/tasks?${who === 'me' ? 'mine=1' : who === 'all' ? '' : `assignee=${who}`}${done ? '&done=1' : ''}`), [who, done]);
   useEffect(() => setPage(0), [who, done]);
   const changed = () => { reload(true); onChanged(); countsBus.dispatchEvent(new Event('changed')); };
@@ -174,7 +175,10 @@ function MyTasks({ who, onChanged }: { who: string; onChanged: () => void }) {
       </form>
       <div className="row wrap between" style={{ padding: '0 4px' }}>
         <p className="muted" style={{ fontSize: 'var(--fs-0)' }}>{who === 'all' ? 'Every task in every project, for everyone' : who === 'me' ? 'Your tasks in every project' : `${whoName}'s tasks in every project`}{data ? `: ${list.length}${list.length ? ` (${[['TODO', 'to do'], ['DOING', 'in progress'], ['REVIEW', 'in review'], ['DONE', 'done']].filter(([k]) => n(k!)).map(([k, l]) => `${n(k!)} ${l}`).join(', ')})` : ''}` : ''}.</p>
-        <label className="row" style={{ gap: 6, fontSize: 'var(--fs-0)' }}><input type="checkbox" checked={done} onChange={(e) => setDone(e.target.checked)} />Show done tasks</label>
+        <div className="row" style={{ gap: 14 }}>
+          <label className="row" style={{ gap: 6, fontSize: 'var(--fs-0)' }}><input type="checkbox" checked={done} onChange={(e) => setDone(e.target.checked)} />Show done tasks</label>
+          <button type="button" className="btn tiny" onClick={() => setImporting(true)} title="Turn a PDF, CSV or Markdown file into to-dos or project tasks, with their statuses"><Icon.upload size={14} />Import from a file</button>
+        </div>
       </div>
       {loading && !data ? <Skeleton h={200} /> : error ? <Failure error={error} retry={reload} /> : !list.length
         ? <div className="panel" style={{ padding: 8 }}><Empty title={who === 'me' ? 'Nothing on your plate' : 'No tasks here'}>{who === 'me' ? 'Add a task above. Tasks assigned to you, in any project or none, show up here.' : `${whoName === 'Everyone' ? 'Nobody has' : `${whoName} has`} ${done ? 'no tasks' : 'no open tasks'} in any project.`}</Empty></div>
@@ -187,6 +191,7 @@ function MyTasks({ who, onChanged }: { who: string; onChanged: () => void }) {
             <td className={isLate(t.due_date) && t.status !== 'DONE' ? 'late' : 'sub'}>{t.due_date ? (isLate(t.due_date) && t.status !== 'DONE' ? `Late, ${dayLabel(t.due_date)}` : dayLabel(t.due_date)) : 'No date'}</td></tr>)}</tbody></table>
           {list.length > PAGE && <div className="row between" style={{ padding: '10px 14px' }}><span className="faint" style={{ fontSize: 'var(--fs-0)' }}>{page * PAGE + 1} to {Math.min(list.length, page * PAGE + PAGE)} of {list.length}</span>
             <div className="row"><button type="button" className="btn tiny" disabled={!page} onClick={() => setPage(page - 1)}>Previous</button><button type="button" className="btn tiny" disabled={(page + 1) * PAGE >= list.length} onClick={() => setPage(page + 1)}>Next</button></div></div>}</div>}
+      {importing && <ImportTasks projects={(projects.data ?? []).filter((x) => x.status === 'ACTIVE' || x.status === 'ON_HOLD').map((x) => ({ id: x.id, name: x.name }))} onDone={changed} onClose={() => setImporting(false)} />}
       {open && <TaskDrawer key={open} taskId={open} onClose={() => setOpen(null)} onChanged={changed} />}
     </>
   );
