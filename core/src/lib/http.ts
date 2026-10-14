@@ -63,9 +63,9 @@ async function authenticate(req: IncomingMessage, kind: Route['auth']): Promise<
   if (kind === 'none') return { actor: 'anonymous', user: null };
   const h = req.headers;
   if (kind === 'webhook') {
-    // header first; a ?token= in the URL for senders that cannot set headers. The query string is never logged.
-    const s = String(h['x-webhook-secret'] ?? '') || (new URL(req.url ?? '/', 'http://x').searchParams.get('token') ?? '');
-    return env.saleshandyWebhookSecret && safeEq(s, env.saleshandyWebhookSecret) ? { actor: 'saleshandy', user: null } : null;
+    // the secret travels only as a header (Saleshandy sends custom headers set when the webhook is registered), never in the URL
+    const s = String(h['x-webhook-secret'] ?? ''); const want = process.env.SALESHANDY_WEBHOOK_SECRET ?? env.saleshandyWebhookSecret;
+    return want && s && safeEq(s, want) ? { actor: 'saleshandy', user: null } : null;
   }
   const key = String(h['x-api-key'] ?? '');
   if (env.apiKey && key && safeEq(key, env.apiKey)) return { actor: String(h['x-actor'] ?? 'n8n'), user: null };

@@ -1,0 +1,848 @@
+{
+ "_note": "Constructed fake data in the shapes Saleshandy's official command line client reads. Not recorded from a real account. Every name, email and message is fake.",
+ "sequences": [
+  {
+   "id": "seqFakeA01",
+   "title": "Fake sequence: D2C electronics, Bengaluru",
+   "active": true,
+   "progress": "active",
+   "stats": {
+    "sent": 412,
+    "open": 201,
+    "replied": 23,
+    "clicked": 17,
+    "bounced": 6,
+    "unsubscribed": 3
+   }
+  },
+  {
+   "id": "seqFakeB02",
+   "title": "Fake sequence: Home decor follow-up",
+   "active": false,
+   "progress": "paused",
+   "stats": {
+    "sent": 188,
+    "open": 90,
+    "replied": 9,
+    "clicked": 4,
+    "bounced": 2,
+    "unsubscribed": 1
+   }
+  },
+  {
+   "id": "seqFakeC03",
+   "title": "Fake sequence: Fashion stores on Shopify",
+   "active": true,
+   "progress": "active",
+   "stats": {
+    "sent": 95,
+    "open": 40,
+    "replied": 4,
+    "clicked": 2,
+    "bounced": 1,
+    "unsubscribed": 0
+   }
+  },
+  {
+   "id": "seqFakeD04",
+   "title": "ops portal test (fake)",
+   "active": false,
+   "progress": "paused",
+   "stats": {
+    "sent": 0,
+    "open": 0,
+    "replied": 0,
+    "clicked": 0,
+    "bounced": 0,
+    "unsubscribed": 0
+   }
+  }
+ ],
+ "steps": {
+  "seqFakeA01": [
+   {
+    "id": "seqFakeA01-st1",
+    "number": 1,
+    "type": 1,
+    "executionType": "automatic",
+    "relativeDays": 1,
+    "status": 1,
+    "variantCount": 1,
+    "subject": "Quick question about your store"
+   },
+   {
+    "id": "seqFakeA01-st2",
+    "number": 2,
+    "type": 1,
+    "executionType": "automatic",
+    "relativeDays": 3,
+    "status": 1,
+    "variantCount": 1,
+    "subject": "Following up on the checkout idea"
+   },
+   {
+    "id": "seqFakeA01-st3",
+    "number": 3,
+    "type": 1,
+    "executionType": "automatic",
+    "relativeDays": 7,
+    "status": 1,
+    "variantCount": 1,
+    "subject": "Closing the loop"
+   }
+  ],
+  "seqFakeB02": [
+   {
+    "id": "seqFakeB02-st1",
+    "number": 1,
+    "type": 1,
+    "executionType": "automatic",
+    "relativeDays": 1,
+    "status": 1,
+    "variantCount": 1,
+    "subject": "Quick question about your store"
+   },
+   {
+    "id": "seqFakeB02-st2",
+    "number": 2,
+    "type": 1,
+    "executionType": "automatic",
+    "relativeDays": 3,
+    "status": 1,
+    "variantCount": 1,
+    "subject": "Following up on the checkout idea"
+   },
+   {
+    "id": "seqFakeB02-st3",
+    "number": 3,
+    "type": 1,
+    "executionType": "automatic",
+    "relativeDays": 7,
+    "status": 1,
+    "variantCount": 1,
+    "subject": "Closing the loop"
+   }
+  ],
+  "seqFakeC03": [
+   {
+    "id": "seqFakeC03-st1",
+    "number": 1,
+    "type": 1,
+    "executionType": "automatic",
+    "relativeDays": 1,
+    "status": 1,
+    "variantCount": 1,
+    "subject": "Quick question about your store"
+   },
+   {
+    "id": "seqFakeC03-st2",
+    "number": 2,
+    "type": 1,
+    "executionType": "automatic",
+    "relativeDays": 3,
+    "status": 1,
+    "variantCount": 1,
+    "subject": "Following up on the checkout idea"
+   },
+   {
+    "id": "seqFakeC03-st3",
+    "number": 3,
+    "type": 1,
+    "executionType": "automatic",
+    "relativeDays": 7,
+    "status": 1,
+    "variantCount": 1,
+    "subject": "Closing the loop"
+   }
+  ],
+  "seqFakeD04": [
+   {
+    "id": "seqFakeD04-st1",
+    "number": 1,
+    "type": 1,
+    "executionType": "automatic",
+    "relativeDays": 1,
+    "status": 1,
+    "variantCount": 1,
+    "subject": "Quick question about your store"
+   },
+   {
+    "id": "seqFakeD04-st2",
+    "number": 2,
+    "type": 1,
+    "executionType": "automatic",
+    "relativeDays": 3,
+    "status": 1,
+    "variantCount": 1,
+    "subject": "Following up on the checkout idea"
+   },
+   {
+    "id": "seqFakeD04-st3",
+    "number": 3,
+    "type": 1,
+    "executionType": "automatic",
+    "relativeDays": 7,
+    "status": 1,
+    "variantCount": 1,
+    "subject": "Closing the loop"
+   }
+  ]
+ },
+ "prospects": [
+  {
+   "id": "prFake001",
+   "email": "test.one@brightlamp.example",
+   "firstName": "Test",
+   "lastName": "Prospect One",
+   "company": "Brightlamp (fake)",
+   "verificationStatus": "valid",
+   "createdAt": "2026-09-01T05:30:00.000Z",
+   "tags": [],
+   "sequences": [
+    {
+     "sequenceId": "seqFakeA01",
+     "status": "active",
+     "stepId": "seqFakeA01-st1"
+    }
+   ]
+  },
+  {
+   "id": "prFake002",
+   "email": "test.two@quietfern.example",
+   "firstName": "Test",
+   "lastName": "Prospect Two",
+   "company": "Quietfern (fake)",
+   "verificationStatus": "valid",
+   "createdAt": "2026-09-02T05:30:00.000Z",
+   "tags": [],
+   "sequences": [
+    {
+     "sequenceId": "seqFakeB02",
+     "status": "active",
+     "stepId": "seqFakeB02-st2"
+    }
+   ]
+  },
+  {
+   "id": "prFake003",
+   "email": "test.three@tinkerbay.example",
+   "firstName": "Test",
+   "lastName": "Prospect Three",
+   "company": "Tinkerbay (fake)",
+   "verificationStatus": "valid",
+   "createdAt": "2026-09-03T05:30:00.000Z",
+   "tags": [
+    "Hot lead"
+   ],
+   "sequences": [
+    {
+     "sequenceId": "seqFakeC03",
+     "status": "replied",
+     "stepId": "seqFakeC03-st3"
+    }
+   ]
+  },
+  {
+   "id": "prFake004",
+   "email": "test.four@northwick.example",
+   "firstName": "Test",
+   "lastName": "Prospect Four",
+   "company": "Northwick (fake)",
+   "verificationStatus": "catch-all",
+   "createdAt": "2026-09-04T05:30:00.000Z",
+   "tags": [],
+   "sequences": [
+    {
+     "sequenceId": "seqFakeA01",
+     "status": "paused",
+     "stepId": "seqFakeA01-st1"
+    }
+   ]
+  },
+  {
+   "id": "prFake005",
+   "email": "test.five@saltandsage.example",
+   "firstName": "Test",
+   "lastName": "Prospect Five",
+   "company": "Saltandsage (fake)",
+   "verificationStatus": "valid",
+   "createdAt": "2026-09-05T05:30:00.000Z",
+   "tags": [],
+   "sequences": [
+    {
+     "sequenceId": "seqFakeB02",
+     "status": "finished",
+     "stepId": "seqFakeB02-st2"
+    }
+   ]
+  },
+  {
+   "id": "prFake006",
+   "email": "test.six@pebblework.example",
+   "firstName": "Test",
+   "lastName": "Prospect Six",
+   "company": "Pebblework (fake)",
+   "verificationStatus": "unverified",
+   "createdAt": "2026-09-06T05:30:00.000Z",
+   "tags": [],
+   "sequences": [
+    {
+     "sequenceId": "seqFakeC03",
+     "status": "active",
+     "stepId": "seqFakeC03-st3"
+    }
+   ]
+  },
+  {
+   "id": "prFake007",
+   "email": "test.seven@brightlamp.example",
+   "firstName": "Test",
+   "lastName": "Prospect Seven",
+   "company": "Brightlamp (fake)",
+   "verificationStatus": "valid",
+   "createdAt": "2026-09-07T05:30:00.000Z",
+   "tags": [],
+   "sequences": [
+    {
+     "sequenceId": "seqFakeA01",
+     "status": "unsubscribed",
+     "stepId": "seqFakeA01-st1"
+    }
+   ]
+  },
+  {
+   "id": "prFake008",
+   "email": "test.eight@quietfern.example",
+   "firstName": "Test",
+   "lastName": "Prospect Eight",
+   "company": "Quietfern (fake)",
+   "verificationStatus": "valid",
+   "createdAt": "2026-09-08T05:30:00.000Z",
+   "tags": [],
+   "sequences": [
+    {
+     "sequenceId": "seqFakeB02",
+     "status": "active",
+     "stepId": "seqFakeB02-st2"
+    }
+   ]
+  },
+  {
+   "id": "prFake009",
+   "email": "test.nine@tinkerbay.example",
+   "firstName": "Test",
+   "lastName": "Prospect Nine",
+   "company": "Tinkerbay (fake)",
+   "verificationStatus": "valid",
+   "createdAt": "2026-09-09T05:30:00.000Z",
+   "tags": [
+    "Hot lead"
+   ],
+   "sequences": [
+    {
+     "sequenceId": "seqFakeC03",
+     "status": "replied",
+     "stepId": "seqFakeC03-st3"
+    }
+   ]
+  },
+  {
+   "id": "prFake010",
+   "email": "test.ten@northwick.example",
+   "firstName": "Test",
+   "lastName": "Prospect Ten",
+   "company": "Northwick (fake)",
+   "verificationStatus": "catch-all",
+   "createdAt": "2026-09-10T05:30:00.000Z",
+   "tags": [],
+   "sequences": [
+    {
+     "sequenceId": "seqFakeA01",
+     "status": "active",
+     "stepId": "seqFakeA01-st1"
+    }
+   ]
+  },
+  {
+   "id": "prFake011",
+   "email": "test.eleven@saltandsage.example",
+   "firstName": "Test",
+   "lastName": "Prospect Eleven",
+   "company": "Saltandsage (fake)",
+   "verificationStatus": "valid",
+   "createdAt": "2026-09-11T05:30:00.000Z",
+   "tags": [],
+   "sequences": [
+    {
+     "sequenceId": "seqFakeB02",
+     "status": "bounced",
+     "stepId": "seqFakeB02-st2"
+    }
+   ]
+  },
+  {
+   "id": "prFake012",
+   "email": "test.twelve@pebblework.example",
+   "firstName": "Test",
+   "lastName": "Prospect Twelve",
+   "company": "Pebblework (fake)",
+   "verificationStatus": "unverified",
+   "createdAt": "2026-09-12T05:30:00.000Z",
+   "tags": [],
+   "sequences": [
+    {
+     "sequenceId": "seqFakeC03",
+     "status": "active",
+     "stepId": "seqFakeC03-st3"
+    }
+   ]
+  }
+ ],
+ "threads": [
+  {
+   "emailThreadId": "thFake001",
+   "emailId": "emFake001",
+   "subject": "Re: Quick question about your store",
+   "from": "test.three@tinkerbay.example",
+   "to": [
+    "sender.one@awtmforge.example"
+   ],
+   "sequenceId": "seqFakeC03",
+   "emailAccountId": "eaFake1",
+   "isRead": 0,
+   "sentiment": "positive",
+   "category": "interested",
+   "receivedAt": "2026-10-13T04:15:00.000Z",
+   "emails": [
+    {
+     "emailId": "emFakeOut001",
+     "from": "sender.one@awtmforge.example",
+     "to": [
+      "test.three@tinkerbay.example"
+     ],
+     "sentAt": "2026-10-10T04:00:00.000Z",
+     "subject": "Quick question about your store",
+     "content": "<p>Fake outbound message for testing. Nothing here is a real email.</p>",
+     "direction": "out"
+    },
+    {
+     "emailId": "emFake001",
+     "from": "test.three@tinkerbay.example",
+     "to": [
+      "sender.one@awtmforge.example"
+     ],
+     "sentAt": "2026-10-13T04:15:00.000Z",
+     "subject": "Re: Quick question about your store",
+     "content": "<p>Fake reply: sounds interesting, send the two findings.</p>",
+     "direction": "in"
+    }
+   ]
+  },
+  {
+   "emailThreadId": "thFake002",
+   "emailId": "emFake002",
+   "subject": "Re: Quick question about your store",
+   "from": "test.nine@tinkerbay.example",
+   "to": [
+    "sender.one@awtmforge.example"
+   ],
+   "sequenceId": "seqFakeC03",
+   "emailAccountId": "eaFake1",
+   "isRead": 0,
+   "sentiment": "positive",
+   "category": "meeting-booked",
+   "receivedAt": "2026-10-12T05:15:00.000Z",
+   "emails": [
+    {
+     "emailId": "emFakeOut002",
+     "from": "sender.one@awtmforge.example",
+     "to": [
+      "test.nine@tinkerbay.example"
+     ],
+     "sentAt": "2026-10-09T04:00:00.000Z",
+     "subject": "Quick question about your store",
+     "content": "<p>Fake outbound message for testing. Nothing here is a real email.</p>",
+     "direction": "out"
+    },
+    {
+     "emailId": "emFake002",
+     "from": "test.nine@tinkerbay.example",
+     "to": [
+      "sender.one@awtmforge.example"
+     ],
+     "sentAt": "2026-10-12T05:15:00.000Z",
+     "subject": "Re: Quick question about your store",
+     "content": "<p>Fake reply: booked a slot for Thursday.</p>",
+     "direction": "in"
+    }
+   ]
+  },
+  {
+   "emailThreadId": "thFake003",
+   "emailId": "emFake003",
+   "subject": "Re: Quick question about your store",
+   "from": "test.one@brightlamp.example",
+   "to": [
+    "sender.one@awtmforge.example"
+   ],
+   "sequenceId": "seqFakeA01",
+   "emailAccountId": "eaFake1",
+   "isRead": 1,
+   "sentiment": "neutral",
+   "category": "not-now",
+   "receivedAt": "2026-10-11T06:15:00.000Z",
+   "emails": [
+    {
+     "emailId": "emFakeOut003",
+     "from": "sender.one@awtmforge.example",
+     "to": [
+      "test.one@brightlamp.example"
+     ],
+     "sentAt": "2026-10-08T04:00:00.000Z",
+     "subject": "Quick question about your store",
+     "content": "<p>Fake outbound message for testing. Nothing here is a real email.</p>",
+     "direction": "out"
+    },
+    {
+     "emailId": "emFake003",
+     "from": "test.one@brightlamp.example",
+     "to": [
+      "sender.one@awtmforge.example"
+     ],
+     "sentAt": "2026-10-11T06:15:00.000Z",
+     "subject": "Re: Quick question about your store",
+     "content": "<p>Fake reply: not this quarter, try again in January.</p>",
+     "direction": "in"
+    }
+   ]
+  },
+  {
+   "emailThreadId": "thFake004",
+   "emailId": "emFake004",
+   "subject": "Re: Quick question about your store",
+   "from": "test.six@pebblework.example",
+   "to": [
+    "sender.one@awtmforge.example"
+   ],
+   "sequenceId": "seqFakeC03",
+   "emailAccountId": "eaFake1",
+   "isRead": 1,
+   "sentiment": "negative",
+   "category": "not-interested",
+   "receivedAt": "2026-10-10T07:15:00.000Z",
+   "emails": [
+    {
+     "emailId": "emFakeOut004",
+     "from": "sender.one@awtmforge.example",
+     "to": [
+      "test.six@pebblework.example"
+     ],
+     "sentAt": "2026-10-07T04:00:00.000Z",
+     "subject": "Quick question about your store",
+     "content": "<p>Fake outbound message for testing. Nothing here is a real email.</p>",
+     "direction": "out"
+    },
+    {
+     "emailId": "emFake004",
+     "from": "test.six@pebblework.example",
+     "to": [
+      "sender.one@awtmforge.example"
+     ],
+     "sentAt": "2026-10-10T07:15:00.000Z",
+     "subject": "Re: Quick question about your store",
+     "content": "<p>Fake reply: please stop emailing.</p>",
+     "direction": "in"
+    }
+   ]
+  },
+  {
+   "emailThreadId": "thFake005",
+   "emailId": "emFake005",
+   "subject": "Re: Quick question about your store",
+   "from": "test.ten@northwick.example",
+   "to": [
+    "sender.one@awtmforge.example"
+   ],
+   "sequenceId": "seqFakeA01",
+   "emailAccountId": "eaFake1",
+   "isRead": 1,
+   "sentiment": "uncategorized",
+   "category": "uncategorized",
+   "receivedAt": "2026-10-09T08:15:00.000Z",
+   "emails": [
+    {
+     "emailId": "emFakeOut005",
+     "from": "sender.one@awtmforge.example",
+     "to": [
+      "test.ten@northwick.example"
+     ],
+     "sentAt": "2026-10-06T04:00:00.000Z",
+     "subject": "Quick question about your store",
+     "content": "<p>Fake outbound message for testing. Nothing here is a real email.</p>",
+     "direction": "out"
+    },
+    {
+     "emailId": "emFake005",
+     "from": "test.ten@northwick.example",
+     "to": [
+      "sender.one@awtmforge.example"
+     ],
+     "sentAt": "2026-10-09T08:15:00.000Z",
+     "subject": "Re: Quick question about your store",
+     "content": "<p>Fake out of office reply.</p>",
+     "direction": "in"
+    }
+   ]
+  }
+ ],
+ "tasks": [
+  {
+   "id": "tkFake001",
+   "type": "call",
+   "status": "dueToday",
+   "priority": 2,
+   "prospectId": "prFake003",
+   "prospectName": "Test Prospect Three",
+   "sequenceId": "seqFakeC03",
+   "sequenceName": "Fake sequence: Fashion stores on Shopify",
+   "dueDate": "2026-10-14",
+   "note": "Fake task: call about the two findings",
+   "assignee": "Team Member One (fake)"
+  },
+  {
+   "id": "tkFake002",
+   "type": "linkedin",
+   "status": "upcoming",
+   "priority": 3,
+   "prospectId": "prFake001",
+   "prospectName": "Test Prospect One",
+   "sequenceId": "seqFakeA01",
+   "sequenceName": "Fake sequence: D2C electronics, Bengaluru",
+   "dueDate": "2026-10-16",
+   "note": "Fake task: connect on LinkedIn",
+   "assignee": "Team Member One (fake)"
+  },
+  {
+   "id": "tkFake003",
+   "type": "custom",
+   "status": "overdue",
+   "priority": 1,
+   "prospectId": "prFake009",
+   "prospectName": "Test Prospect Nine",
+   "sequenceId": "seqFakeC03",
+   "sequenceName": "Fake sequence: Fashion stores on Shopify",
+   "dueDate": "2026-10-11",
+   "note": "Fake task: send the proposal",
+   "assignee": "Team Member One (fake)"
+  },
+  {
+   "id": "tkFake004",
+   "type": "call",
+   "status": "completed",
+   "priority": 3,
+   "prospectId": "prFake006",
+   "prospectName": "Test Prospect Six",
+   "sequenceId": "seqFakeC03",
+   "sequenceName": "Fake sequence: Fashion stores on Shopify",
+   "dueDate": "2026-10-09",
+   "note": "Fake task: intro call",
+   "assignee": "Team Member One (fake)"
+  },
+  {
+   "id": "tkFake005",
+   "type": "whatsapp",
+   "status": "upcoming",
+   "priority": 4,
+   "prospectId": "prFake010",
+   "prospectName": "Test Prospect Ten",
+   "sequenceId": "seqFakeA01",
+   "sequenceName": "Fake sequence: D2C electronics, Bengaluru",
+   "dueDate": "2026-10-18",
+   "note": "Fake task: share the case study",
+   "assignee": "Team Member One (fake)"
+  }
+ ],
+ "notes": {
+  "prFake003": [
+   {
+    "id": "ntFake001",
+    "content": "Fake note: asked for the two findings, send by Friday.",
+    "visibility": "1",
+    "status": "1",
+    "createdAt": "2026-10-12T06:00:00.000Z"
+   }
+  ],
+  "prFake009": [
+   {
+    "id": "ntFake002",
+    "content": "Fake note: meeting booked for Thursday.",
+    "visibility": "1",
+    "status": "1",
+    "createdAt": "2026-10-13T07:00:00.000Z"
+   }
+  ]
+ },
+ "dncLists": [
+  {
+   "id": "dncFake1",
+   "name": "Global Do Not Contact (fake)",
+   "itemCount": 3,
+   "updatedAt": "2026-10-01T05:30:00.000Z"
+  }
+ ],
+ "dncItems": {
+  "dncFake1": [
+   {
+    "id": "dnFake1",
+    "value": "blocked.person@example.com",
+    "type": "email"
+   },
+   {
+    "id": "dnFake2",
+    "value": "competitor.example",
+    "type": "domain"
+   },
+   {
+    "id": "dnFake3",
+    "value": "test.seven@brightlamp.example",
+    "type": "email"
+   }
+  ]
+ },
+ "emailAccounts": [
+  {
+   "id": "eaFake1",
+   "fromEmail": "sender.one@awtmforge.example",
+   "fromName": "Sender One (fake)",
+   "status": 1,
+   "emailServiceProvider": "gsuite",
+   "healthScore": 92,
+   "remainingQuota": 37,
+   "dailySendingLimit": 50
+  },
+  {
+   "id": "eaFake2",
+   "fromEmail": "sender.two@awtmforge.example",
+   "fromName": "Sender Two (fake)",
+   "status": 1,
+   "emailServiceProvider": "microsoft",
+   "healthScore": 71,
+   "remainingQuota": 12,
+   "dailySendingLimit": 40
+  },
+  {
+   "id": "eaFake3",
+   "fromEmail": "sender.three@awtmforge.example",
+   "fromName": "Sender Three (fake)",
+   "status": 2,
+   "emailServiceProvider": "gsuite",
+   "healthScore": 38,
+   "remainingQuota": 0,
+   "dailySendingLimit": 30
+  }
+ ],
+ "schedules": [
+  {
+   "id": "schFake1",
+   "name": "Weekdays 10 to 5, India (fake)",
+   "timezone": "Asia/Kolkata",
+   "isDefault": true
+  },
+  {
+   "id": "schFake2",
+   "name": "Mornings only (fake)",
+   "timezone": "Asia/Kolkata",
+   "isDefault": false
+  }
+ ],
+ "tags": [
+  {
+   "id": "tgFake1",
+   "name": "Hot lead"
+  },
+  {
+   "id": "tgFake2",
+   "name": "Follow up later"
+  }
+ ],
+ "fields": [
+  {
+   "id": "fdFake1",
+   "label": "First Name",
+   "fieldType": "text",
+   "mappingDefaultField": true
+  },
+  {
+   "id": "fdFake2",
+   "label": "Company",
+   "fieldType": "text",
+   "mappingDefaultField": true
+  },
+  {
+   "id": "fdFake3",
+   "label": "Store platform",
+   "fieldType": "text",
+   "mappingDefaultField": false
+  }
+ ],
+ "outcomes": [
+  {
+   "id": "ocFake1",
+   "name": "Interested",
+   "sentiment": "positive",
+   "isDefault": true
+  },
+  {
+   "id": "ocFake2",
+   "name": "Meeting booked",
+   "sentiment": "positive",
+   "isDefault": true
+  },
+  {
+   "id": "ocFake3",
+   "name": "Not now",
+   "sentiment": "neutral",
+   "isDefault": true
+  },
+  {
+   "id": "ocFake4",
+   "name": "Not interested",
+   "sentiment": "negative",
+   "isDefault": true
+  }
+ ],
+ "categories": [
+  {
+   "key": "positive",
+   "name": "Positive",
+   "isDefault": true,
+   "sentiment": "positive"
+  },
+  {
+   "key": "neutral",
+   "name": "Neutral",
+   "isDefault": true,
+   "sentiment": "neutral"
+  },
+  {
+   "key": "negative",
+   "name": "Negative",
+   "isDefault": true,
+   "sentiment": "negative"
+  }
+ ],
+ "team": [
+  {
+   "id": "usFake1",
+   "userName": "Team Member One (fake)",
+   "email": "member.one@awtmforge.example",
+   "teamName": "Sales (fake)"
+  }
+ ],
+ "credits": {
+  "enrichmentCredits": 250
+ },
+ "rateLimits": {
+  "perMinute": 60
+ }
+}

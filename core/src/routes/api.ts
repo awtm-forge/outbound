@@ -1,7 +1,6 @@
 import { route } from '../lib/http.ts';
 import { q, one, pool, audit, TODAY_IST } from '../lib/db.ts';
 import { suppress, isSuppressed } from '../lib/suppression.ts';
-import { saleshandy } from '../adapters/saleshandy.ts';
 import { scoringConfig } from '../lib/config.ts';
 import { env } from '../lib/env.ts';
 import { firstName, emailDomain } from '../lib/normalize.ts';
@@ -162,12 +161,7 @@ ai('POST', '/api/meetings/:id/post-meeting', (c) => `post_meeting:${c.params.id}
 ai('POST', '/api/meetings/:id/proposal', (c) => `proposal:${c.params.id}`, async (c) => P.draftProposal(c.params.id, c.body.business_inputs ?? {}, { workflowRunId: c.body.workflow_run_id }));
 route('POST', '/api/proposals/:id/decision', 'api', async (c) => one(`update proposals set status=$2, approver=$3, approved_at=now() where id=$1 returning id,status`, [c.params.id, c.body.action === 'APPROVE' ? 'APPROVED' : 'DECLINED', c.actor]));
 
-// ---------------- webhook ----------------
-route('POST', '/webhooks/saleshandy', 'webhook', async (c) => {
-  const b = c.body; const events = Array.isArray(b) ? b : Array.isArray(b.events) ? b.events : [b];
-  const out = []; for (const e of events) out.push(await P.ingestWebhook({ event: e.event ?? e.event_type ?? e.type, event_id: e.event_id ?? e.id, email: e.email ?? e.prospect_email ?? e.to, sequence_id: e.sequence_id, prospect_id: e.prospect_id, occurred_at: e.occurred_at ?? e.timestamp, subject: e.subject, body: e.body ?? e.reply_body ?? e.message, reply_from: e.reply_from ?? e.from }));
-  return { processed: out };
-});
+// the Saleshandy webhook receiver lives in routes/outreach.ts
 
 // ---------------- suppression ----------------
 route('POST', '/api/suppression', 'api', async (c) => suppress({ email: c.body.email || null, domain: c.body.domain || null, reason: c.body.reason || 'manual', source: c.body.source ?? c.actor, actor: c.actor, expires_at: c.body.expires_at }));
@@ -184,5 +178,5 @@ route('GET', '/api/campaigns', 'api', async () => {
 ai('POST', '/api/analytics/weekly', () => 'weekly_analysis', async (c) => P.weeklyAnalysis({ workflowRunId: c.body.workflow_run_id }));
 route('POST', '/api/metrics/daily-snapshot', 'api', async () => { const m = await P.campaignMetrics(); await q(`insert into activities(entity_type,entity_id,action,actor,detail) values('metrics','00000000-0000-0000-0000-000000000000','daily_snapshot','system',$1)`, [{ campaigns: m }]); return { campaigns: m.length }; });
 route('GET', '/api/ops/failures', 'api', async () => ({ workflows: await q(`select * from workflow_runs where status='FAILED' order by started_at desc limit 50`), ai_runs: await q(`select id,agent,error,created_at from ai_runs where not valid order by created_at desc limit 50`) }));
-route('GET', '/api/ops/saleshandy', 'api', async () => { const sh = saleshandy(); return { mode: sh.mode, accounts: await sh.listEmailAccounts(), sequences: await sh.listSequences() }; });
+route('GET', '/api/ops/saleshandy', 'api', async () => ({ mode: env.saleshandyMode, accounts: await q('select id, from_email, status from sh_email_accounts order by from_email'), sequences: await q('select id, title, status from sh_sequences order by title') }));
 route('GET', '/api/proof-assets', 'api', async () => q('select * from proof_assets order by label, id'));

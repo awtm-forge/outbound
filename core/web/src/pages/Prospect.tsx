@@ -8,6 +8,7 @@ import { Badge, Failure, Loading, Ring, ScoreBars, Spinner, Status, ProofTag, ag
 import { Crumbs, actorLabel } from '../ui/chrome.tsx';
 import { DIM } from './Review.tsx';
 import { countsBus } from '../App.tsx';
+import { SaleshandyPanel } from './outreach/Prospects.tsx';
 
 export const EVENT: Record<string, string> = { research_failed: 'Research stopped on an AI error; it retries up to 3 times, then waits for Research again', created: 'Added to the pipeline', researched: 'Website and company researched', qualified: 'Scored', suppressed: 'Put on the do-not-contact list', decision_maker_added: 'Decision maker added',
   drafted: 'Email drafted', approve: 'Email approved', edit: 'Email edited and approved', reject: 'Email rejected', research_more: 'Sent back for research', synced: 'Queued in Saleshandy', classified: 'Reply read', handled: 'Reply handled', analysed: 'Meeting notes analysed' };
@@ -67,6 +68,7 @@ export function Prospect({ id }: { id: string }) {
             {(p.proofs as any[]).length ? (p.proofs as any[]).map((x) => <div key={x.id} className="proof"><div className="row between"><b style={{ fontWeight: 600 }}>{x.title}</b><ProofTag label={x.label} /></div><span className="muted" style={{ fontSize: 'var(--fs-0)' }}>{x.text}</span></div>) : <p className="muted">No verified proof matches yet.</p>}
             {prob?.trigger && prob.trigger !== 'UNKNOWN' && <p className="muted" style={{ fontSize: 'var(--fs-0)' }}>Trigger: {prob.trigger}</p>}</div>
           <div className="card col"><h2>History</h2><div className="timeline">{(p.activity as any[]).map((a, i) => <div key={i} className="ev"><span className="dot" aria-hidden="true" /><span>{EVENT[a.action] ?? a.action.replace(/_/g, ' ')}{a.actor !== 'system' ? <span className="faint"> by {actorLabel(a.actor)}</span> : ''}</span><span className="faint" style={{ fontSize: 'var(--fs-0)', whiteSpace: 'nowrap' }}>{ago(a.created_at)}</span></div>)}</div></div>
+          <SaleshandyPanel companyId={p.company.id} />
         </div>
       </div>
     </div>

@@ -21,6 +21,7 @@ import { Chat } from './pages/Chat.tsx';
 import { Crm } from './pages/Crm.tsx';
 import { Company } from './pages/Company.tsx';
 import { People, Person } from './pages/People.tsx';
+import { Outreach } from './pages/outreach/Outreach.tsx';
 import { ChatProvider, useChat } from './chat.tsx';
 import { UnreadProvider, useUnread } from './unread.tsx';
 import { isActive, onActiveChange } from './active.ts';
@@ -67,6 +68,8 @@ function Shell({ me, onSignOut, onMeChanged }: { me: Me; onSignOut: () => void; 
     { to: '/pipeline', label: 'Pipeline', icon: 'funnel', n: counts?.needs_contact, quiet: true, on: (p) => p.startsWith('/pipeline') || p.startsWith('/prospects') },
     { to: '/deals', label: 'Meetings & deals', icon: 'calendar', n: (counts?.meetings ?? 0) + (counts?.proposals ?? 0), quiet: true, on: (p) => p.startsWith('/deals') },
     { to: '/campaigns', label: 'Campaigns', icon: 'campaigns', on: (p) => p.startsWith('/campaigns') },
+    // Saleshandy, only while the integration is switched on
+    ...(me.saleshandy_integration ? [{ to: '/outreach', label: 'Outreach', icon: 'send', on: (p: string) => p.startsWith('/outreach') } as Item] : []),
   ];
   const workspace: Item[] = [
     { to: '/projects', label: 'Projects', icon: 'projects', n: unread.s?.tasks, on: (p) => p.startsWith('/projects') },
@@ -87,6 +90,7 @@ function Shell({ me, onSignOut, onMeChanged }: { me: Me; onSignOut: () => void; 
   else if (path.startsWith('/pipeline')) page = <Pipeline />;
   else if (path.startsWith('/deals')) page = <Deals />;
   else if (path.startsWith('/campaigns')) page = <Campaigns />;
+  else if (path.startsWith('/outreach') && me.saleshandy_integration) page = <Outreach />;
   else if ((m = match('/projects/:id/:view/:sub', path) ?? match('/projects/:id/:view', path) ?? match('/projects/:id', path))) page = <Workspace id={m.id} view={m.view ?? ''} sub={m.sub} key={m.id} />;
   else if (path.startsWith('/projects')) page = <Projects />;
   else if ((m = match('/wiki/:slug', path))) page = <WikiPage slug={m.slug} key={m.slug} />;

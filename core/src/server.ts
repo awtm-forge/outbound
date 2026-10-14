@@ -11,6 +11,7 @@ import './routes/wiki.ts';
 import './routes/pages.ts';
 import './routes/files.ts';
 import './routes/taskimport.ts';
+import './routes/outreach.ts';
 import './routes/notifications.ts';
 import './routes/chat.ts';
 import './routes/crm-views.ts';
