@@ -221,7 +221,7 @@ function LiveChecks({ flags, after }: { flags: any; after: () => void }) {
   const writesOn = flags.writes && flags.low && flags.medium && flags.high;
   return <div className="card col">
     <h2>Live checks</h2>
-    <p className="muted" style={{ fontSize: 'var(--fs-0)' }}>These run on the server, against {flags.live ? 'the real Saleshandy account' : <b>the fake account: this server is not live (set SALESHANDY_MODE=real and SALESHANDY_API_KEY)</b>}.</p>
+    <p className="muted" style={{ fontSize: 'var(--fs-0)' }}>These run on the server, against {flags.live ? 'the real Saleshandy account' : <b>the fake account: this server is not live (set the Saleshandy API key and SALESHANDY_MODE=real in the host)</b>}.</p>
     <div className="split" style={{ gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)' }}>
       <div className="col">
         <p><b style={{ fontWeight: 600 }}>Read checks.</b> <span className="muted">One read of everything the sync uses, the rate limit headers and the credit balance. Reads only; nothing is changed.</span></p>
