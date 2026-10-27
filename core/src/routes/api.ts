@@ -8,6 +8,10 @@ import * as P from '../pipeline.ts';
 import { HttpError } from '../pipeline.ts';
 import { enqueue, getJob } from '../jobs.ts';
 import type { Ctx } from '../lib/http.ts';
+import { parse, z, text, optText } from '../lib/validate.ts';
+import { patchRow } from '../lib/patch.ts';
+import { ProblemEnum, DomainEnum } from '../agents/common.ts';
+import type { Row } from '../lib/db.ts';
 
 // AI work: a signed-in browser (or a caller sending Prefer: respond-async) gets a job id at once and polls /api/jobs/:id,
 // because Hostinger's proxy cuts requests at 60 s. n8n and scripts on the same machine keep the synchronous answer.
@@ -188,6 +192,33 @@ route('GET', '/api/campaigns', 'api', async () => {
   return { analysed_at: latest?.created_at ?? null, campaigns: out };
 });
 ai('POST', '/api/analytics/weekly', () => 'weekly_analysis', async (c) => P.weeklyAnalysis({ workflowRunId: c.body.workflow_run_id }));
+// A campaign added or edited here is marked managed_by='app', so the config seed on boot leaves it alone.
+const CODE = z.string().trim().toUpperCase().regex(/^[A-Z0-9]+(-[A-Z0-9]+)*$/, 'use capital letters, digits and dashes, like IND-WEB-SAAS').max(40);
+const CampaignIn = z.object({
+  code: CODE, name: text(160).min(1), country: z.string().trim().toUpperCase().length(2, 'two letters, like IN'), region: optText(80),
+  service_domain: DomainEnum, vertical: text(120).min(1), problem: ProblemEnum, offer: text(300).min(1),
+  buyer_titles: z.array(text(80).min(1)).max(20).default([]), sender: z.string().trim().email().nullable().optional(),
+  compliance: z.object({ country: z.string().trim().toUpperCase().length(2, 'two letters, like IN'), unsubscribe_text: text(300).min(1) }).passthrough(),
+  config: z.object({ cta: text(200).min(1), max_words: z.number().int().min(30).max(400) }).passthrough(),
+  status: z.enum(['DRAFT', 'ACTIVE', 'PAUSED', 'STOPPED']).default('ACTIVE'),
+});
+const isProgramme = (c: Row | undefined) => c?.config?.kind === 'programme';
+route('POST', '/api/campaigns', 'api', async (c) => {
+  const b = parse(CampaignIn, c.body);
+  if (await one('select 1 from campaigns where code=$1', [b.code])) throw new HttpError(409, `There is already a campaign ${b.code}.`);
+  const r = (await one(`insert into campaigns(code,name,country,region,service_domain,vertical,problem,offer,buyer_titles,sender,compliance,config,status,managed_by) values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,'app') returning *`,
+    [b.code, b.name, b.country, b.region ?? null, b.service_domain, b.vertical, b.problem, b.offer, b.buyer_titles, b.sender ?? null, b.compliance, b.config, b.status]))!;
+  await audit('campaign', r.id, 'created', c.actor, { code: b.code, user_id: c.user?.id ?? null });
+  return { created: true, ...r };
+});
+route('PATCH', '/api/campaigns/:code', 'api', async (c) => {
+  const b = parse(CampaignIn.omit({ code: true }).partial(), c.body);
+  const cur = await one('select id, config from campaigns where code=$1', [c.params.code.toUpperCase()]); if (!cur) throw new HttpError(404, 'campaign not found');
+  if (isProgramme(cur)) throw new HttpError(400, 'A programme is not edited here. It is defined in core/config/campaigns.json.');
+  const r = (await patchRow('campaigns', cur.id, { ...b, managed_by: 'app' }))!;
+  await audit('campaign', r.id, b.status && Object.keys(b).length === 1 ? `status_${b.status.toLowerCase()}` : 'updated', c.actor, { fields: Object.keys(b), status: b.status, user_id: c.user?.id ?? null });
+  return r;
+});
 route('POST', '/api/metrics/daily-snapshot', 'api', async () => { const m = await P.campaignMetrics(); await q(`insert into activities(entity_type,entity_id,action,actor,detail) values('metrics','00000000-0000-0000-0000-000000000000','daily_snapshot','system',$1)`, [{ campaigns: m }]); return { campaigns: m.length }; });
 route('GET', '/api/ops/failures', 'api', async () => ({ workflows: await q(`select * from workflow_runs where status='FAILED' order by started_at desc limit 50`), ai_runs: await q(`select id,agent,error,created_at from ai_runs where not valid order by created_at desc limit 50`) }));
 route('GET', '/api/ops/saleshandy', 'api', async () => ({ mode: env.saleshandyMode, accounts: await q('select id, from_email, status from sh_email_accounts order by from_email'), sequences: await q('select id, title, status from sh_sequences order by title') }));

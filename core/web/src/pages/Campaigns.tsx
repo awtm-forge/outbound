@@ -5,7 +5,8 @@ import { useLoad } from '../ui/hooks.ts';
 import { Icon, Dots } from '../ui/icons.tsx';
 import { Menu, MenuItem } from '../ui/menu.tsx';
 import { useToast } from '../ui/toast.tsx';
-import { Failure, Loading, Spinner, ago, inr, pct, cardOpen } from '../ui/kit.tsx';
+import { Failure, Loading, Spinner, ago, inr, pct, cardOpen, problemLabel, capLabel } from '../ui/kit.tsx';
+import { Modal, useConfirm } from '../ui/overlay.tsx';
 import { actorLabel } from '../ui/chrome.tsx';
 
 const CAMPAIGN_STATUS: Record<string, string> = { ACTIVE: 'Active', DRAFT: 'Draft', PAUSED: 'Paused', STOPPED: 'Stopped' };
@@ -22,7 +23,7 @@ const LAYOUT_KEY = 'awtm-campaigns-layout';
 export function Campaigns() {
   const toast = useToast(); const { go } = useRouter();
   const { data, error, loading, reload } = useLoad(() => api.get('/api/campaigns'));
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState(false); const [adding, setAdding] = useState(false);
   const [show, setShow] = useState('ALL'); const [term, setTerm] = useState(''); const [sort, setSort] = useState<Sort>('name');
   const [layout, setLayoutState] = useState<'grid' | 'list'>(() => { try { return localStorage.getItem(LAYOUT_KEY) === 'list' ? 'list' : 'grid'; } catch { return 'grid'; } });
   const setLayout = (l: 'grid' | 'list') => { setLayoutState(l); try { localStorage.setItem(LAYOUT_KEY, l); } catch { /* private mode */ } };
@@ -50,9 +51,8 @@ export function Campaigns() {
           <div className="qc-body"><span>{active} of {all.length} active</span>
             <span className="qc-bar" role="progressbar" aria-label="Campaigns active" aria-valuemin={0} aria-valuemax={all.length} aria-valuenow={active}><i style={{ width: `${all.length ? (active / all.length) * 100 : 0}%` }} /></span></div>
           <span className="qc-pct">{all.length ? Math.round((active / all.length) * 100) : 0}%</span></div>
-        {/* campaigns live in a configuration file, so this explains how to add one instead of pretending to */}
-        <Menu label="New campaign" className="btn primary glow" place="left" kind="dialog" button={<><Icon.plus size={16} />New campaign</>}>{() =>
-          <div className="howto"><b>How a campaign is added</b><p>Campaigns are defined in <code>core/config/campaigns.json</code>: one market, buyer, problem and offer each. Add one there and restart the core; no code changes.</p></div>}</Menu>
+        <button type="button" className="btn primary glow" onClick={() => setAdding(true)}><Icon.plus size={16} />New campaign</button>
+        {adding && <CampaignForm onClose={() => setAdding(false)} onSaved={() => { setAdding(false); reload(true); }} />}
       </div>
 
       {programmes.map((pr) => <Programme key={pr.code} p={pr} />)}
@@ -72,7 +72,7 @@ export function Campaigns() {
       </div>
 
       {!list.length ? <div className="panel" style={{ padding: 20 }}><p className="muted">{term ? `No campaign matches “${term}”.` : 'No campaigns with this status.'}</p></div>
-        : layout === 'grid' ? <div className="camp-grid">{list.map((c) => <CampaignCard key={c.code} c={c} />)}</div>
+        : layout === 'grid' ? <div className="camp-grid">{list.map((c) => <CampaignCard key={c.code} c={c} reload={() => reload(true)} />)}</div>
         : <section className="panel" aria-label="Campaigns"><div className="scrollx"><table className="ctable">
           <thead><tr><th>Campaign</th><th>Status</th><th className="num">Found</th><th className="num">Sent</th><th className="num">Replies</th><th className="num">Meetings</th><th>Recommendation</th><th><span className="sr">Open</span></th></tr></thead>
           <tbody>{list.map((c) => { const m = c.metrics ?? {}; return <tr key={c.code} className="click" onClick={() => go(`/pipeline?campaign=${c.code}&view=active`)}>
@@ -85,9 +85,13 @@ export function Campaigns() {
   );
 }
 
-function CampaignCard({ c }: { c: any }) {
-  const toast = useToast(); const { go } = useRouter();
-  const m = c.metrics ?? {}; const r = c.recommendation; const [why, setWhy] = useState(false);
+function CampaignCard({ c, reload }: { c: any; reload: () => void }) {
+  const toast = useToast(); const { go } = useRouter(); const confirm = useConfirm();
+  const m = c.metrics ?? {}; const r = c.recommendation; const [why, setWhy] = useState(false); const [editing, setEditing] = useState(false);
+  const setStatus = async (status: string) => {
+    if (status === 'STOPPED' && !(await confirm({ title: `Stop ${c.vertical}?`, body: 'Nothing more is sent for it. It can be made active again later.', confirm: 'Stop campaign', tone: 'danger' }))) return;
+    try { await api.patch(`/api/campaigns/${c.code}`, { status }); toast(`${c.code} is now ${CAMPAIGN_STATUS[status]!.toLowerCase()}.`); reload(); } catch (e: any) { toast(e.message, { err: true }); }
+  };
   const curve = CURVES[c.code.length % CURVES.length]!;
   const copy = async () => { try { await navigator.clipboard.writeText(c.code); toast(`Copied ${c.code}.`); } catch { toast('Could not copy. The browser blocked the clipboard.', { err: true }); } };
   return (
@@ -96,7 +100,11 @@ function CampaignCard({ c }: { c: any }) {
         <Menu label={`Actions for ${c.vertical}`} className="icon-btn" button={<Dots vertical size={16} />}>{(close) => <>
           <MenuItem onSelect={() => { close(); go(`/pipeline?campaign=${c.code}&view=active`); }}><Icon.arrow size={15} />Open companies</MenuItem>
           <MenuItem onSelect={() => { close(); go(`/review`); }}><Icon.mail size={15} />Review emails</MenuItem>
-          <MenuItem onSelect={() => { close(); copy(); }}><Icon.file size={15} />Copy campaign code</MenuItem></>}</Menu></div>
+          <MenuItem onSelect={() => { close(); copy(); }}><Icon.file size={15} />Copy campaign code</MenuItem>
+          <MenuItem onSelect={() => { close(); setEditing(true); }}><Icon.edit size={15} />Edit campaign</MenuItem>
+          {c.status === 'ACTIVE' ? <MenuItem onSelect={() => { close(); setStatus('PAUSED'); }}><Icon.check size={15} />Pause</MenuItem> : c.status !== 'STOPPED' ? <MenuItem onSelect={() => { close(); setStatus('ACTIVE'); }}><Icon.check size={15} />Make active</MenuItem> : null}
+          {c.status !== 'STOPPED' ? <MenuItem onSelect={() => { close(); setStatus('STOPPED'); }}><Icon.shield size={15} />Stop</MenuItem> : <MenuItem onSelect={() => { close(); setStatus('ACTIVE'); }}><Icon.check size={15} />Make active again</MenuItem>}</>}</Menu>
+        {editing && <CampaignForm c={c} onClose={() => setEditing(false)} onSaved={() => { setEditing(false); reload(); }} />}</div>
       <div className="camp-head"><div><h2 id={`camp-${c.code}`}>{c.vertical}</h2><p>{c.offer}</p></div>
         <svg className="camp-curve" viewBox="0 0 80 32" preserveAspectRatio="none" aria-hidden="true"><path d={curve} /><circle cx="80" cy={curve.endsWith('2') ? 2 : curve.endsWith('4') ? 4 : 3} r="2" /></svg></div>
       <dl className="camp-nums">{([['Found', m.accounts_found], ['Sent', m.emails_sent], ['Replies', m.replies], ['Meetings', m.meetings_booked]] as const).map(([k, v]) =>
@@ -136,13 +144,52 @@ function Suppression() {
         <label className="ff"><span className="sr">Email or domain</span><span className="ff-in"><Icon.mail size={16} /><input placeholder="name@company.com or company.com" value={v} onChange={(e) => setV(e.target.value)} required aria-label="Email or domain" /></span></label>
         <label className="ff"><span className="sr">Reason (optional)</span><span className="ff-in"><Icon.edit size={16} /><input placeholder="Reason, for example asked us to stop" value={reason} onChange={(e) => setReason(e.target.value)} aria-label="Reason (optional)" /></span></label>
         <button className="btn primary glow" disabled={busy}>{busy ? <Spinner /> : <Icon.plus size={16} />}Add to the list</button></form>
-      <p className="dnc-note">Campaigns are defined in <code>core/config/campaigns.json</code>. Add one there and restart the core; no code changes.</p>
       {data && (rows.length > 0 ? <><div className="scrollx"><table className="ctable"><thead><tr><th>Email or domain</th><th>Reason</th><th>Added by</th><th>Since</th></tr></thead>
         <tbody>{shown.map((s) => <tr key={s.id}><td className="mono" style={{ fontSize: 12.5, overflowWrap: 'anywhere', color: 'var(--ink)' }}>{s.email ?? s.domain}</td><td>{s.reason === 'manual' ? <span className="sub">No reason given</span> : s.reason}</td><td className="sub">{SUPPRESS_SOURCE[s.source] ?? actorLabel(s.source)}</td><td className="sub" style={{ whiteSpace: 'nowrap' }}>{ago(s.created_at)}</td></tr>)}</tbody></table></div>
         {rows.length > 8 && <button type="button" className="feed-more" onClick={() => setAll(!all)} aria-expanded={all}>{all ? 'Show fewer' : `Show all ${rows.length}`}</button>}</>
         : <p className="dnc-note">Nobody is on the list yet.</p>)}
     </section>
   );
+}
+
+const DOMAINS = ['WEB', 'PRODUCT', 'BRAND'];
+const PROBLEMS = ['WEBSITE', 'CONVERSION', 'UX', 'SEO', 'ANALYTICS', 'PRODUCT', 'MVP', 'ENGINEERING', 'AUTOMATION', 'AI', 'BRAND', 'OTHER'];
+// Add or edit a campaign. Programmes never reach this form: their card has no menu.
+function CampaignForm({ c, onClose, onSaved }: { c?: any; onClose: () => void; onSaved: () => void }) {
+  const toast = useToast();
+  const [f, setF] = useState({ code: c?.code ?? '', name: c?.name ?? '', country: c?.country ?? 'IN', service_domain: c?.service_domain ?? 'WEB', vertical: c?.vertical ?? '', problem: c?.problem ?? 'CONVERSION', offer: c?.offer ?? '',
+    buyer_titles: (c?.buyer_titles ?? []).join(', '), sender: c?.sender ?? '', unsubscribe_text: c?.compliance?.unsubscribe_text ?? "Reply 'no' and I will not write again.", cta: c?.config?.cta ?? 'Worth sending them over?', max_words: String(c?.config?.max_words ?? 110), status: c?.status ?? 'ACTIVE' });
+  const set = (k: string, v: string) => setF({ ...f, [k]: v });
+  const [err, setErr] = useState<string | null>(null); const [busy, setBusy] = useState(false);
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault(); setErr(null); setBusy(true);
+    const body = { name: f.name, country: f.country, service_domain: f.service_domain, vertical: f.vertical, problem: f.problem, offer: f.offer, buyer_titles: f.buyer_titles.split(',').map((t: string) => t.trim()).filter(Boolean), sender: f.sender || null,
+      compliance: { ...(c?.compliance ?? {}), country: f.country, unsubscribe_text: f.unsubscribe_text }, config: { ...(c?.config ?? {}), cta: f.cta, max_words: Number(f.max_words) }, status: f.status };
+    try { if (c) await api.patch(`/api/campaigns/${c.code}`, body); else await api.post('/api/campaigns', { ...body, code: f.code }); toast(c ? 'Campaign saved.' : `Added ${f.code.toUpperCase()}.`); onSaved(); }
+    catch (x: any) { setErr(x.message); setBusy(false); }
+  };
+  const field = (label: string, k: keyof typeof f, props: Record<string, unknown> = {}) => <label className="field"><span>{label}</span><input value={f[k]} onChange={(e) => set(k, e.target.value)} {...props} /></label>;
+  return <Modal title={c ? `Edit ${c.code}` : 'New campaign'} onClose={onClose} wide><form className="col" onSubmit={submit}>
+    {err && <div className="banner err" role="alert">{err}</div>}
+    <div className="grid2">
+      {c ? <label className="field"><span>Code</span><input value={f.code} disabled /></label> : field('Code', 'code', { required: true, autoFocus: true, placeholder: 'IND-WEB-SAAS', pattern: '[A-Za-z0-9]+(-[A-Za-z0-9]+)*', maxLength: 40, style: { textTransform: 'uppercase' } })}
+      {field('Name', 'name', { required: true, maxLength: 160, placeholder: 'India / Web / SaaS' })}
+      {field('Vertical', 'vertical', { required: true, maxLength: 120, placeholder: 'SaaS' })}
+      {field('Country (2 letters)', 'country', { required: true, maxLength: 2, minLength: 2, style: { textTransform: 'uppercase' } })}
+      <label className="field"><span>Service</span><select value={f.service_domain} onChange={(e) => set('service_domain', e.target.value)}>{DOMAINS.map((d) => <option key={d} value={d}>{capLabel(d)}</option>)}</select></label>
+      <label className="field"><span>Problem</span><select value={f.problem} onChange={(e) => set('problem', e.target.value)}>{PROBLEMS.map((d) => <option key={d} value={d}>{problemLabel(d)}</option>)}</select></label>
+      {field('Sender', 'sender', { type: 'email', placeholder: 'ayush@awtmforge.com' })}
+      <label className="field"><span>Status</span><select value={f.status} onChange={(e) => set('status', e.target.value)}>{Object.entries(CAMPAIGN_STATUS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></label>
+    </div>
+    {field('Offer', 'offer', { required: true, maxLength: 300, placeholder: 'Short product and onboarding review' })}
+    {field('Buyer titles, separated by commas', 'buyer_titles', { placeholder: 'Founder, CEO, Head of Product' })}
+    <div className="grid2">
+      {field('Call to action', 'cta', { required: true, maxLength: 200 })}
+      {field('Max words', 'max_words', { type: 'number', min: 30, max: 400, required: true })}
+    </div>
+    {field('Unsubscribe line', 'unsubscribe_text', { required: true, maxLength: 300 })}
+    <div className="row" style={{ justifyContent: 'flex-end' }}><button type="button" className="btn ghost" onClick={onClose}>Cancel</button><button className="btn primary" disabled={busy}>{busy && <Spinner />}{c ? 'Save campaign' : 'Add campaign'}</button></div>
+  </form></Modal>;
 }
 
 // A programme card: what the feeder run is doing and its live numbers. It sends nothing itself.
