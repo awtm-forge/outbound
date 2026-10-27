@@ -7,7 +7,7 @@ import { Resolver } from 'node:dns/promises';
 // there once at start and the connection is made by address, with the hostname kept for TLS (SNI and the certificate
 // check), which Neon's pooler needs to route the connection. Off by default; servers have a normal resolver.
 async function poolConfig(): Promise<pg.PoolConfig> {
-  const base: pg.PoolConfig = { max: env.dbPoolMax, idleTimeoutMillis: 30_000, connectionTimeoutMillis: 15_000 };
+  const base: pg.PoolConfig = { max: env.dbPoolMax, idleTimeoutMillis: 30_000, connectionTimeoutMillis: Number(process.env.DB_CONNECT_TIMEOUT_MS || 15_000) };
   if (!process.env.DB_DNS_SERVER) return { ...base, connectionString: env.databaseUrl };
   const u = new URL(env.databaseUrl); const resolver = new Resolver(); resolver.setServers([process.env.DB_DNS_SERVER]);
   const [ip] = await resolver.resolve4(u.hostname);

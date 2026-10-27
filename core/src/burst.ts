@@ -43,8 +43,8 @@ async function find() {
   const worker = async () => {
     while (!stop && next < units.length) {
       const u = units[next++]; const camp = camps[u.code]; if (!camp) continue;
-      if ((await count()) >= target) { stop = true; break; }
       try {
+        if ((await count()) >= target) { stop = true; break; }
         const region = u.city ? `${u.city}, India` : 'India';
         const done = await one(`select 1 from ai_runs where agent='company_finder' and valid and input->>'segment'=$1 and input->>'region'=$2 and created_at > now() - interval '7 days' limit 1`, [u.segment, region]);
         if (done) { log(`find  ${u.code.padEnd(20)} ${(u.segment + (u.city ? ' / ' + u.city : '')).slice(0, 48).padEnd(48)} already searched this week`); continue; }
@@ -59,7 +59,7 @@ async function find() {
         log(`find  ${u.code.padEnd(20)} ${(u.segment + (u.city ? ' / ' + u.city : '')).slice(0, 48).padEnd(48)} claude ${f.output.companies.length}, serper ${serperIds.length}, new ${n}, total ${await count()}   spent ${usd(await spentMicros())}`);
       } catch (e: any) {
         if (e instanceof SpendCapReached || /spend cap/.test(e.message)) { stop = true; log(`STOP: ${e.message}`); }
-        else log(`find  ${u.code} ${u.segment}: ${String(e.message).slice(0, 160)}`);
+        else { log(`find  ${u.code} ${u.segment}: ${String(e.message).slice(0, 160)}`); if (/timeout|ECONNRESET|ENOTFOUND|terminat/i.test(e.message)) { await new Promise((r) => setTimeout(r, 5000)); next--; } }
       }
     }
   };
@@ -72,7 +72,7 @@ async function screenAll() {
   log(`screen: ${rows.length} companies, ${CONC} at a time`);
   let next = 0, done = 0, stop = false;
   const worker = async () => { while (!stop && next < rows.length) { const r = rows[next++]; try { const s = await P.screenProspect(r.id); done++; if (done % 25 === 0 || s.screen_score >= 6) log(`screen [${done}/${rows.length}] ${r.name.slice(0, 32).padEnd(32)} pay ${s.screen.can_pay} problem ${s.screen.has_problem} -> ${s.screen_score}   spent ${usd(await spentMicros())}`); }
-    catch (e: any) { if (e instanceof SpendCapReached || /spend cap/.test(e.message)) { stop = true; log(`STOP: ${e.message}`); } else { done++; log(`screen ${r.name}: ${String(e.message).slice(0, 140)}`); } } } };
+    catch (e: any) { if (e instanceof SpendCapReached || /spend cap/.test(e.message)) { stop = true; log(`STOP: ${e.message}`); } else if (/timeout|ECONNRESET|ENOTFOUND|terminat/i.test(e.message)) { await new Promise((x) => setTimeout(x, 5000)); next--; } else { done++; log(`screen ${r.name}: ${String(e.message).slice(0, 140)}`); } } } };
   await Promise.all(Array.from({ length: CONC }, worker));
   const d = await q(`select count(*) filter (where screen_score >= 6)::int strong, count(*) filter (where screen_score between 4 and 5)::int fair, count(*) filter (where screen_score < 4)::int weak from prospects where screen_score is not null`);
   log(`screen done: strong ${d[0].strong}, fair ${d[0].fair}, weak ${d[0].weak}`);
@@ -84,7 +84,7 @@ async function contacts() {
   log(`contacts: ${rows.length} companies, ${CONC} at a time`);
   let next = 0, done = 0, stop = false, viaClaude = 0, got = 0;
   const worker = async () => { while (!stop && next < rows.length) { const r = rows[next++]; try { const c = await P.collectContacts(r.id); done++; if (c.via_claude) viaClaude++; if (c.email || c.phone) got++; if (done % 50 === 0) log(`contacts [${done}/${rows.length}] reached ${got}, claude used ${viaClaude}   spent ${usd(await spentMicros())}`); }
-    catch (e: any) { if (e instanceof SpendCapReached || /spend cap/.test(e.message)) { stop = true; log(`STOP: ${e.message}`); } else { done++; log(`contacts ${r.name}: ${String(e.message).slice(0, 140)}`); } } } };
+    catch (e: any) { if (e instanceof SpendCapReached || /spend cap/.test(e.message)) { stop = true; log(`STOP: ${e.message}`); } else if (/timeout|ECONNRESET|ENOTFOUND|terminat/i.test(e.message)) { await new Promise((x) => setTimeout(x, 5000)); next--; } else { done++; log(`contacts ${r.name}: ${String(e.message).slice(0, 140)}`); } } } };
   await Promise.all(Array.from({ length: CONC }, worker));
   const t = (await q(`select count(*) filter (where c.email is not null or c.phone is not null)::int reached, count(*) filter (where c.email is not null)::int with_email, count(*) filter (where c.phone is not null)::int with_phone, count(*)::int total from prospects p join companies c on c.id=p.company_id where p.campaign_id is not null and not p.suppressed`))[0];
   log(`contacts done: ${t.reached} of ${t.total} reachable (email ${t.with_email}, phone ${t.with_phone}); claude used for ${viaClaude}`);
@@ -108,7 +108,7 @@ async function deep() {
   log(`deep: ${rows.length} companies with screen >= ${MIN_SCREEN}, best first, ${CONC} at a time`);
   let next = 0, done = 0, stop = false;
   const worker = async () => { while (!stop && next < rows.length) { const { id, name } = rows[next++]; try { const line = await deepOne(id, name); done++; log(`deep [${done}/${rows.length}] ${line}   spent ${usd(await spentMicros())}`); }
-    catch (e: any) { if (e instanceof SpendCapReached || /spend cap/.test(e.message)) { stop = true; log(`STOP: ${e.message}`); } else { done++; log(`deep [${done}/${rows.length}] ${name.slice(0, 34).padEnd(34)} error: ${String(e.message).slice(0, 140)}`); } } } };
+    catch (e: any) { if (e instanceof SpendCapReached || /spend cap/.test(e.message)) { stop = true; log(`STOP: ${e.message}`); } else if (/timeout exceeded when trying to connect|ECONNRESET|ENOTFOUND|terminat/i.test(e.message)) { await new Promise((x) => setTimeout(x, 5000)); next--; } else { done++; log(`deep [${done}/${rows.length}] ${name.slice(0, 34).padEnd(34)} error: ${String(e.message).slice(0, 140)}`); } } } };
   await Promise.all(Array.from({ length: CONC }, worker));
 }
 
