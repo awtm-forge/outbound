@@ -48,6 +48,8 @@ export const env = {
   serperKey: process.env.SERPER_API_KEY ?? '',
   googleCseKey: process.env.GOOGLE_CSE_KEY ?? '',
   googleCseCx: process.env.GOOGLE_CSE_CX ?? '',
+  discoveryConcurrency: Number(process.env.DISCOVERY_CONCURRENCY || 5),
+  discoveryFetchTimeoutMs: Number(process.env.DISCOVERY_FETCH_TIMEOUT_MS || 10000),
   discoveryMaxPages: Number(process.env.DISCOVERY_MAX_PAGES ?? 3),
   discoveryDailyQuota: Number(process.env.DISCOVERY_DAILY_QUOTA ?? 100),
   sessionSecret: process.env.SESSION_SECRET ?? '',

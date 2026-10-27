@@ -5,3 +5,4 @@ export { meetingIntelligence, postMeeting, proposalDraft, campaignAnalytics } fr
 export { notesAssist } from './notes.ts';
 export { taskImportAi } from './taskimport.ts';
 export { findPeople } from './people.ts';
+export { companyFinder, screen } from './funnel.ts';

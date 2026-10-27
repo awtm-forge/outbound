@@ -354,6 +354,23 @@ export async function weeklyAnalysis(opts: { workflowRunId?: string } = {}) {
   return { ...res.output, runId: res.runId };
 }
 // ---------- convenience: run the pre-approval chain ----------
+// ---------------- screen: the cheap first pass ----------------
+// Scores can_pay and has_problem from the site snapshot discovery already took (fetching it if missing). Writes
+// prospects.screen_score 0..9 (can_pay x has_problem, 0 when the campaign does not fit). No status change.
+export async function screenProspect(prospectId: string, opts: { workflowRunId?: string; force?: boolean } = {}) {
+  const p = await loadProspect(prospectId); guard(p);
+  const campaign = requireCampaign(p);
+  let site: SiteSnapshotT = p.company.metadata?.site_snapshot;
+  if (!site) { site = await fetchSnapshot(p.company.website ?? p.company.domain); await q(`update companies set metadata = metadata || $2 where id=$1`, [p.company.id, { site_snapshot: site }]); }
+  const m = p.company.metadata ?? {};
+  const r = await runAgent(A.screen, { company: companyCtx(p.company), campaign, site: { ...site, text_excerpt: (site.text_excerpt ?? '').slice(0, 600) },
+    has_public_email: (m.public_emails ?? []).length > 0, has_phone: (m.phones ?? []).length > 0, has_gstin: !!m.gstin, size_estimate: p.company.company_size ?? 'UNKNOWN' }, opts);
+  const o = r.output; const score = o.fits_campaign ? o.can_pay * o.has_problem : 0;
+  await q('update prospects set screen=$2, screen_score=$3 where id=$1', [p.id, o, score]);
+  if (!o.fits_campaign || o.can_pay === 0) await setStatus(p.id, 'REJECTED');
+  return { screen: o, screen_score: score, runId: r.runId };
+}
+
 // ---------------- people finder (Claude web search) ----------------
 // Adds the people Claude found with sources; the best match becomes the person we write to if there is none yet.
 // Emails from the web are marked UNKNOWN, which the Saleshandy sync refuses until a verifier says otherwise.

@@ -103,7 +103,7 @@ export async function enrichSite(url: string, fetchImpl: typeof fetch = fetch): 
   const get = async (u: string) => {
     // ponytail: .example hosts are served from the fixture so mock discovery works offline; real hosts are fetched
     if (domain.endsWith('.example')) return readFileSync(new URL('../fixtures/demo-electronics.html', import.meta.url), 'utf8');
-    try { const r = await fetchImpl(u, { redirect: 'follow', signal: AbortSignal.timeout(10000), headers: { 'user-agent': 'Mozilla/5.0 (compatible; awtm-research/1.0; +https://awtmforge.com)' } }); return r.ok ? (await r.text()).slice(0, 600_000) : ''; } catch { return ''; }
+    try { const r = await fetchImpl(u, { redirect: 'follow', signal: AbortSignal.timeout(env.discoveryFetchTimeoutMs), headers: { 'user-agent': 'Mozilla/5.0 (compatible; awtm-research/1.0; +https://awtmforge.com)' } }); return r.ok ? (await r.text()).slice(0, 600_000) : ''; } catch { return ''; }
   };
   const home = await get(/^https?:\/\//.test(url) ? url : `https://${domain}`);
   if (!home) return { platform: null, platform_signals: [], emails: [], phones: [], gstin: null, country_guess: domain.endsWith('.in') ? 'IN' : 'UNKNOWN', size_estimate: 'UNKNOWN', signals: {}, fetched: false };
@@ -149,7 +149,8 @@ export async function runSearch(qry: Query, actor: string, opts: { src?: Discove
     for (let p = 0; p < pages; p++) { const h = await src.search(qry, p); hits.push(...h); if (h.length < 10) break; }
     const seen = new Set<string>(); const unique = hits.map((h) => ({ ...h, domain: normalizeDomain(h.url), kind: classifyHit(h.url, h.title, h.snippet) })).filter((h) => h.domain.includes('.') && !SKIP_HOSTS.test(h.domain) && h.kind !== 'PLATFORM' && !seen.has(h.domain) && seen.add(h.domain));
     // ponytail: 5 concurrent site fetches; raise if searches feel slow, lower if sites start blocking us
-    for (let i = 0; i < unique.length; i += 5) await Promise.all(unique.slice(i, i + 5).map(async (h, j) => {
+    const C = env.discoveryConcurrency;
+    for (let i = 0; i < unique.length; i += C) await Promise.all(unique.slice(i, i + C).map(async (h, j) => {
       const existing = await one('select id, enriched_at from discovery_candidates where domain=$1', [h.domain]);
       let id = existing?.id;
       if (!existing || !existing.enriched_at || opts.force) {
@@ -213,4 +214,21 @@ export function companyName(title: string | null | undefined, domain: string, si
   const hit = parts.find((part) => { const l = letters(part); return l === stem || l.includes(stem) || stem.includes(l) || part.split(/\s+/).some((w) => letters(w).length >= 4 && stem.includes(letters(w))); });
   if (hit) return clean(hit).slice(0, 80);
   return stem.charAt(0).toUpperCase() + stem.slice(1);
+}
+
+// Companies named by the Claude company finder: enriched like search hits, marked found_by 'claude'. Returns candidate ids.
+export async function addFoundCompanies(found: { name: string; domain: string; what_they_sell: string; city: string | null; source_url: string | null }[], fetchImpl?: typeof fetch): Promise<string[]> {
+  const ids: string[] = []; const C = env.discoveryConcurrency;
+  const rows = found.map((f) => ({ ...f, domain: normalizeDomain(f.domain) })).filter((f) => f.domain.includes('.') && !SKIP_HOSTS.test(f.domain) && !PLATFORM_HOSTS.test(f.domain));
+  for (let i = 0; i < rows.length; i += C) await Promise.all(rows.slice(i, i + C).map(async (f) => {
+    const existing = await one('select id, enriched_at from discovery_candidates where domain=$1', [f.domain]);
+    if (existing?.enriched_at) { ids.push(existing.id); return; }
+    const e = await enrichSite(`https://${f.domain}`, fetchImpl);
+    const r = await one(`insert into discovery_candidates(domain,url,title,snippet,platform,platform_signals,emails,phones,gstin,linkedin_url,instagram_url,facebook_url,country_guess,size_estimate,signals,enriched_at,found_by)
+      values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,case when $16 then now() else null end,'claude')
+      on conflict (domain) do update set title=coalesce(discovery_candidates.title, excluded.title), platform=coalesce(excluded.platform,discovery_candidates.platform), platform_signals=excluded.platform_signals, emails=excluded.emails, phones=excluded.phones, gstin=coalesce(excluded.gstin,discovery_candidates.gstin), country_guess=excluded.country_guess, size_estimate=excluded.size_estimate, signals=excluded.signals, enriched_at=excluded.enriched_at returning id`,
+      [f.domain, `https://${f.domain}`, f.name, f.what_they_sell, e.platform, e.platform_signals, e.emails, e.phones, e.gstin, e.linkedin_url ?? null, e.instagram_url ?? null, e.facebook_url ?? null, e.country_guess === 'UNKNOWN' ? 'IN' : e.country_guess, e.size_estimate, JSON.stringify({ ...e.signals, kind: 'COMPANY', claude_city: f.city, claude_source: f.source_url }), e.fetched]);
+    if (r) ids.push(r.id);
+  }));
+  return ids;
 }

@@ -86,7 +86,8 @@ async function requestClaude(model: string, system: string, user: string, opts: 
     let r: any;
     try {
       r = await claude().beta.messages.create({
-        model, max_tokens: 16000, system, messages, output_config: { effort: opts.effort ?? 'medium' },
+        // the agent's instructions are identical across calls, so they are cached; only the company varies
+        model, max_tokens: 16000, system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }], messages, output_config: { effort: opts.effort ?? 'medium' },
         // a policy decline on Opus or Sonnet is retried on a fallback model inside the same call
         ...(/opus|sonnet/.test(model) ? { betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' } : {}),
         ...(tools ? { tools } : {}),
