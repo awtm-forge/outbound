@@ -38,7 +38,7 @@ async function find() {
   const units: { code: string; segment: string; city?: string }[] = [];
   for (const [code, segs] of Object.entries(SEGMENTS)) for (const segment of segs) units.push({ code, segment });
   // second pass by city for the big verticals, used only if the first pass falls short
-  for (const code of ['IND-WEB-ELECTRONICS', 'IND-WEB-B2B', 'IND-AI-SME', 'IND-WEB-BATHROOM']) for (const city of CITIES) for (const segment of SEGMENTS[code].slice(0, 4)) units.push({ code, segment, city });
+  for (const city of CITIES) for (const [code, segs] of Object.entries(SEGMENTS)) for (const segment of segs) units.push({ code, segment, city });
   let next = 0, stop = false;
   const worker = async () => {
     while (!stop && next < units.length) {
