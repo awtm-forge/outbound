@@ -54,7 +54,7 @@ async function find() {
         let serperIds: string[] = [];
         try { const r = await D.runSearch({ industry: u.segment.replace(/ brands?$/, ''), location: u.city ?? 'India', pages: 1 }, 'burst'); serperIds = (r.candidates as any[]).filter((c) => c.status === 'NEW' && c.enriched_at && (c.signals?.kind ?? 'COMPANY') === 'COMPANY').map((c) => c.id); } catch (e: any) { if (!/used up/.test(e.message)) log(`  serper: ${e.message}`); }
         const all = [...new Set([...ids, ...serperIds])];
-        const a = all.length ? await D.addCandidates(all, u.code, 'burst', { run_chain: false }) : { added: [] };
+        const a = all.length ? await D.addCandidates(all, u.code, 'burst', { run_chain: false, source: 'mass-prospecting' }) : { added: [] };
         const n = (a.added as any[]).filter((x) => x.created).length; added += n;
         log(`find  ${u.code.padEnd(20)} ${(u.segment + (u.city ? ' / ' + u.city : '')).slice(0, 48).padEnd(48)} claude ${f.output.companies.length}, serper ${serperIds.length}, new ${n}, total ${await count()}   spent ${usd(await spentMicros())}`);
       } catch (e: any) {

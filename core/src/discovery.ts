@@ -189,7 +189,7 @@ export async function getSearch(id: string, cached = false): Promise<Record<stri
 export const listSearches = () => q('select id, query, source, status, result_count, actor, created_at from discovery_searches order by created_at desc limit 50');
 
 // ---------- hand-off to the pipeline ----------
-export async function addCandidates(ids: string[], campaign_code: string, actor: string, opts: { run_chain?: boolean; html?: string; background?: boolean } = {}) {
+export async function addCandidates(ids: string[], campaign_code: string, actor: string, opts: { run_chain?: boolean; html?: string; background?: boolean; source?: string } = {}) {
   if (!ids.length) throw new HttpError(400, 'no candidates selected');
   const campaign = await one('select vertical from campaigns where code=$1', [campaign_code]); if (!campaign) throw new HttpError(400, `unknown campaign ${campaign_code}`);
   const out = [];
@@ -198,7 +198,7 @@ export async function addCandidates(ids: string[], campaign_code: string, actor:
     const email = c.emails.find((e: string) => !/^(noreply|no-reply|unsubscribe)/.test(e)) ?? null;
     try {
       const r = await ingest({ company: { name: c.company_name ?? companyName(c.title, c.domain, c.signals?.site_snapshot?.site_name), website: c.url, domain: c.domain, country: c.country_guess === 'IN' ? 'IN' : undefined, platform: c.platform ?? undefined, vertical: campaign.vertical, company_size: c.size_estimate === 'UNKNOWN' ? undefined : c.size_estimate, metadata: { discovery_candidate_id: c.id, site_snapshot: c.signals?.site_snapshot ?? undefined, public_emails: c.emails, phones: c.phones, gstin: c.gstin, linkedin_url: c.linkedin_url, instagram_url: c.instagram_url } },
-        contact: email ? { email, job_title: null as any } : undefined, campaign_code, source: 'discovery', owner: actor }, actor);
+        contact: email ? { email, job_title: null as any } : undefined, campaign_code, source: opts.source ?? 'discovery', owner: actor }, actor);
       await q(`update discovery_candidates set status='ADDED', company_id=$2 where id=$1`, [c.id, r.company.id]);
       let chain: any = null;
       if (opts.run_chain && opts.background && !r.prospect.suppressed) {

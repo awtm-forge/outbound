@@ -173,7 +173,19 @@ route('GET', '/api/metrics/campaigns', 'api', async () => P.campaignMetrics());
 route('GET', '/api/campaigns', 'api', async () => {
   const [campaigns, metrics, latest] = await Promise.all([q('select * from campaigns order by code'), P.campaignMetrics(), one(`select detail, created_at from activities where action='weekly_analysis' order by created_at desc limit 1`)]);
   const recs = new Map(((latest?.detail?.recommendations ?? []) as any[]).map((r) => [r.campaign_code, r]));
-  return { analysed_at: latest?.created_at ?? null, campaigns: campaigns.map((c) => ({ ...c, metrics: (metrics as any[]).find((m) => m.code === c.code), recommendation: recs.get(c.code) ?? null })) };
+  // a programme is not a sending campaign: its numbers are every company it fed into the vertical campaigns, by source tag
+  const programme = async (src: string) => (await one(`select count(*)::int companies, count(*) filter (where p.screen_score is not null)::int screened, count(*) filter (where p.screen_score >= 6)::int strong,
+      count(*) filter (where c.email is not null or c.phone is not null)::int reachable, count(*) filter (where c.email is not null)::int with_email, count(*) filter (where c.phone is not null)::int with_phone,
+      count(*) filter (where p.account_score is not null)::int researched, count(*) filter (where p.status='QUALIFIED')::int qualified,
+      count(*) filter (where exists (select 1 from email_drafts d where d.prospect_id=p.id))::int drafted,
+      count(distinct ct.company_id) filter (where ct.full_name is not null)::int with_person,
+      (select count(distinct campaign_id) from prospects where source=$1)::int campaigns_fed,
+      (select coalesce(sum(cost_micros),0)::bigint from ai_runs where provider='anthropic' and created_at >= (select min(created_at) from prospects where source=$1)) spend_micros,
+      min(p.created_at) started_at, max(p.updated_at) last_activity
+    from prospects p join companies c on c.id=p.company_id left join contacts ct on ct.id=p.contact_id and ct.source='claude_web_search' where p.source=$1`, [src]))!;
+  const out = [];
+  for (const c of campaigns) out.push({ ...c, metrics: (metrics as any[]).find((m) => m.code === c.code), recommendation: recs.get(c.code) ?? null, programme: c.config?.kind === 'programme' ? await programme(c.config.source) : undefined });
+  return { analysed_at: latest?.created_at ?? null, campaigns: out };
 });
 ai('POST', '/api/analytics/weekly', () => 'weekly_analysis', async (c) => P.weeklyAnalysis({ workflowRunId: c.body.workflow_run_id }));
 route('POST', '/api/metrics/daily-snapshot', 'api', async () => { const m = await P.campaignMetrics(); await q(`insert into activities(entity_type,entity_id,action,actor,detail) values('metrics','00000000-0000-0000-0000-000000000000','daily_snapshot','system',$1)`, [{ campaigns: m }]); return { campaigns: m.length }; });

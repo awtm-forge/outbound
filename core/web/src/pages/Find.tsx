@@ -168,7 +168,7 @@ function Results({ id }: { id: string }) {
   useEffect(() => { // pre-select what is probably a real company in India we have not added yet
     setSel(new Set(rows.filter((r) => r.status === 'NEW' && r.enriched_at && (r.signals?.kind ?? 'COMPANY') === 'COMPANY' && r.country_guess === 'IN').map((r) => r.id)));
   }, [data]); // eslint-disable-line react-hooks/exhaustive-deps
-  const active = (camps.data?.campaigns ?? []).filter((c: any) => c.status === 'ACTIVE');
+  const active = (camps.data?.campaigns ?? []).filter((c: any) => c.status === 'ACTIVE' && c.config?.kind !== 'programme'); // a programme feeds campaigns; companies are not added to it directly
   useEffect(() => { if (!campaign && active.length && data) { /* wait for both, or the default ignores the search */ const w = String(data?.query?.industry ?? '').toLowerCase().split(/\W+/).filter((x) => x.length > 3); setCampaign((active.find((c: any) => w.some((x) => c.vertical.toLowerCase().includes(x))) ?? active[0]).code); } }, [active.length, data]); // eslint-disable-line
   const visible = useMemo(() => rows.filter((r) => show === 'all' || (show === 'new' ? r.status === 'NEW' : r.emails.length > 0 || r.phones.length > 0)), [rows, show]);
   const toggle = (rid: string) => setSel((s) => { const n = new Set(s); n.has(rid) ? n.delete(rid) : n.add(rid); return n; });

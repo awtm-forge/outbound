@@ -27,7 +27,8 @@ export function Campaigns() {
   const [layout, setLayoutState] = useState<'grid' | 'list'>(() => { try { return localStorage.getItem(LAYOUT_KEY) === 'list' ? 'list' : 'grid'; } catch { return 'grid'; } });
   const setLayout = (l: 'grid' | 'list') => { setLayoutState(l); try { localStorage.setItem(LAYOUT_KEY, l); } catch { /* private mode */ } };
   const analyse = async () => { setBusy(true); try { await api.run('/api/analytics/weekly'); toast('Read the numbers again. Recommendations are updated.'); reload(true); } catch (e: any) { toast(e.message, { err: true }); } finally { setBusy(false); } };
-  const all: any[] = data?.campaigns ?? [];
+  const programmes: any[] = (data?.campaigns ?? []).filter((c: any) => c.config?.kind === 'programme');
+  const all: any[] = (data?.campaigns ?? []).filter((c: any) => c.config?.kind !== 'programme');
   const list = useMemo(() => {
     const t = term.trim().toLowerCase();
     const l = all.map((c, i) => ({ ...c, tone: TONES[i % TONES.length] })).filter((c) => (show === 'ALL' || c.status === show) && (!t || `${c.code} ${c.vertical} ${c.offer} ${c.name}`.toLowerCase().includes(t)));
@@ -54,6 +55,7 @@ export function Campaigns() {
           <div className="howto"><b>How a campaign is added</b><p>Campaigns are defined in <code>core/config/campaigns.json</code>: one market, buyer, problem and offer each. Add one there and restart the core; no code changes.</p></div>}</Menu>
       </div>
 
+      {programmes.map((pr) => <Programme key={pr.code} p={pr} />)}
       <div className="panel toolbar camp-bar">
         <div className="chip-row" role="group" aria-label="Show">
           {['ALL', 'ACTIVE', 'PAUSED', 'DRAFT', 'STOPPED'].map((s) => { const n = s === 'ALL' ? all.length : all.filter((c) => c.status === s).length; return (s === 'ALL' || n > 0) &&
@@ -140,5 +142,25 @@ function Suppression() {
         {rows.length > 8 && <button type="button" className="feed-more" onClick={() => setAll(!all)} aria-expanded={all}>{all ? 'Show fewer' : `Show all ${rows.length}`}</button>}</>
         : <p className="dnc-note">Nobody is on the list yet.</p>)}
     </section>
+  );
+}
+
+// A programme card: what the feeder run is doing and its live numbers. It sends nothing itself.
+function Programme({ p }: { p: any }) {
+  const s = p.programme ?? {}; const cfg = p.config ?? {};
+  const n = (k: string) => Number(s[k] ?? 0); const pctOf = (a: number, b: number) => (b ? `${Math.round((a / b) * 100)}%` : '');
+  const stat = (label: string, v: number, sub?: string) => <div key={label}><div className="kick">{label}</div><div className="num" style={{ fontSize: 'var(--fs-4)', fontWeight: 700 }}>{v}</div>{sub && <div className="sub">{sub}</div>}</div>;
+  return (
+    <div className="panel col" style={{ gap: 'var(--s-4)', padding: 20, borderColor: 'var(--accent-line)', background: 'linear-gradient(180deg, #24180f 0%, var(--surface) 60%)' }}>
+      <div className="row between wrap"><div><div className="kick ember">{p.code} · programme</div><div style={{ fontWeight: 700, fontSize: 'var(--fs-3)', marginTop: 6 }}>{p.name}</div></div>
+        <div className="row"><span className="tag ember">feeds {n('campaigns_fed')} campaigns</span><span className="tag">target {cfg.target ?? '?'}{cfg.next_target ? `, then ${cfg.next_target}` : ''}</span>{s.started_at && <span className="faint mono" style={{ fontSize: 11 }}>since {ago(s.started_at)}</span>}</div></div>
+      <p className="muted">{p.offer}</p>
+      {Array.isArray(cfg.stages) && <ol style={{ margin: 0, paddingLeft: 18, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 6, fontSize: 'var(--fs-0)' }} className="muted">{cfg.stages.map((x: string) => <li key={x}>{x}</li>)}</ol>}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 'var(--s-3)' }}>
+        {stat('Found', n('companies'))}{stat('Screened', n('screened'), pctOf(n('screened'), n('companies')))}{stat('Strong fit', n('strong'), pctOf(n('strong'), n('screened')))}
+        {stat('Reachable', n('reachable'), `email ${n('with_email')}, phone ${n('with_phone')}`)}{stat('Researched', n('researched'))}{stat('Qualified', n('qualified'))}{stat('Person found', n('with_person'))}{stat('Drafts', n('drafted'))}
+      </div>
+      <div className="row wrap faint" style={{ fontSize: 'var(--fs-0)' }}><span>Claude spend so far: ${(Number(s.spend_micros ?? 0) / 1e6).toFixed(2)}</span>{s.last_activity && <span>· last activity {ago(s.last_activity)}</span>}<Link className="btn sm ghost right" to="/pipeline?view=active">Open pipeline <Icon.arrow size={14} /></Link></div>
+    </div>
   );
 }

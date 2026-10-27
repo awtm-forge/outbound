@@ -147,5 +147,33 @@
       ],
       "note": "Founder-signed from LinkedIn or WhatsApp per the 2 Oct 2026 outreach guide. Approved drafts are copied by hand, never synced to Saleshandy."
     }
+  },
+  {
+    "code": "MASS-PROSPECTING",
+    "name": "Mass prospecting",
+    "country": "IN",
+    "service_domain": "ALL",
+    "vertical": "All six verticals, found by Claude",
+    "problem": "OTHER",
+    "offer": "Feeds the six campaigns: Claude and Serper find Indian companies by segment, our own site check reads each one, a cheap screen scores whether they can pay and have a problem we solve, every company gets an email and a phone where one is public, and the best get full research, the decision maker and a draft.",
+    "buyer_titles": [],
+    "sender": null,
+    "compliance": {
+      "country": "IN",
+      "note": "Nothing here sends. Companies are routed to a vertical campaign, whose rules apply."
+    },
+    "config": {
+      "kind": "programme",
+      "source": "mass-prospecting",
+      "started": "2026-10-27",
+      "stages": [
+        "Find: Claude with web search plus Serper, by segment and city",
+        "Screen: can they pay (0 to 3) times has a problem we solve (0 to 3)",
+        "Contacts: email and phone from the site, structured data, WhatsApp links, public records",
+        "Deep: research, score, the person to write to, the draft; best screen first"
+      ],
+      "target": 1000,
+      "next_target": 5000
+    }
   }
 ]
