@@ -5,6 +5,7 @@ import { score } from './lib/scoring.ts';
 import { scoringConfig, capabilities, capabilityForProblem } from './lib/config.ts';
 import { normalizeDomain, emailDomain, firstName } from './lib/normalize.ts';
 import { fetchSnapshot, snapshotFromHtml } from './lib/website.ts';
+import { enrichSite, normPhone, isRealEmail } from './discovery.ts';
 import { isSuppressed, suppress } from './lib/suppression.ts';
 import { saleshandy } from './adapters/saleshandy.ts';
 import { env } from './lib/env.ts';
@@ -371,6 +372,41 @@ export async function screenProspect(prospectId: string, opts: { workflowRunId?:
   return { screen: o, screen_score: score, runId: r.runId };
 }
 
+// ---------------- contact channels: an email and a phone for every company ----------------
+// Free first: our own deep read of the site (contact, about and policy pages, structured data, WhatsApp links).
+// Then, only if that found neither an email nor a phone, one cheap Claude pass over public records and directories.
+// Writes companies.phone / companies.email (the best channel) and contact_sources (every value with its page).
+export async function collectContacts(prospectId: string, opts: { workflowRunId?: string; force?: boolean; allowClaude?: boolean } = {}) {
+  const p = await loadProspect(prospectId); guard(p);
+  const c = p.company;
+  if (c.contacts_checked_at && !opts.force) return { email: c.email, phone: c.phone, skipped: 'already checked' };
+  const e = await enrichSite(c.website ?? c.domain, undefined, { deep: true });
+  const sources: any = { ...(c.contact_sources ?? {}), site: e.sources ?? {}, site_checked_at: new Date().toISOString() };
+  let emails = [...e.emails]; let phones = [...e.phones]; let claude: any = null;
+  if (!emails.length && !phones.length && opts.allowClaude !== false && env.aiProvider === 'anthropic') {
+    const r = await runAgent(A.contactFinder, { company: companyCtx(c), known_emails: c.metadata?.public_emails ?? [], known_phones: c.metadata?.phones ?? [] }, opts);
+    claude = r.output; sources.claude = { emails: r.output.emails, phones: r.output.phones, registered_entity: r.output.registered_entity, run_id: r.runId };
+    for (const x of r.output.emails) { const v = x.value.toLowerCase().trim(); if (isRealEmail(v) && !emails.includes(v)) emails.push(v); }
+    for (const x of r.output.phones) { const v = normPhone(x.value); if (v && !phones.includes(v)) phones.push(v); }
+    // a channel the page tied to a named person becomes that person, with the channel attached
+    for (const x of [...r.output.emails, ...r.output.phones]) if (x.belongs_to && x.belongs_to !== 'company' && x.belongs_to.trim().split(/\s+/).length >= 2) {
+      const isEmail = x.value.includes('@'); const email = isEmail ? x.value.toLowerCase().trim() : null; const phone = isEmail ? null : normPhone(x.value);
+      if ((email && !isRealEmail(email)) || (!email && !phone)) continue;
+      const parts = x.belongs_to.trim().split(/\s+/);
+      await q(`insert into contacts(company_id,first_name,last_name,full_name,email,email_verification_status,email_source_url,phone,phone_source_url,source) values($1,$2,$3,$4,$5,$6,$7,$8,$9,'claude_web_search')
+        on conflict do nothing`, [c.id, parts[0], parts.slice(1).join(' '), x.belongs_to.trim(), email, email ? 'UNKNOWN' : 'UNVERIFIED', email ? x.source_url : null, phone, phone ? x.source_url : null]);
+    }
+  }
+  // prefer a human-looking inbox over a bot one, and a mobile or toll-free line over a landline
+  const rankE = (x: string) => /^(noreply|no-reply|donotreply|unsubscribe|abuse)/.test(x) ? 9 : /^(info|hello|contact|care|support|sales|enquiry|enquiries|help|team|orders?)@/.test(x) ? 1 : 0;
+  const rankP = (x: string) => x.startsWith('1800') ? 1 : /^\+91[6-9]/.test(x) ? 0 : 2;
+  emails = emails.filter((x) => rankE(x) < 9).sort((a, b) => rankE(a) - rankE(b)); phones.sort((a, b) => rankP(a) - rankP(b));
+  await q(`update companies set email=coalesce($2, email), phone=coalesce($3, phone), contact_sources=$4, contacts_checked_at=now(), metadata = metadata || $5 where id=$1`,
+    [c.id, emails[0] ?? null, phones[0] ?? null, JSON.stringify(sources), { public_emails: emails, phones }]);
+  await audit('prospect', p.id, 'contacts_collected', 'system', { emails: emails.length, phones: phones.length, via_claude: !!claude });
+  return { email: emails[0] ?? null, phone: phones[0] ?? null, emails, phones, via_claude: !!claude };
+}
+
 // ---------------- people finder (Claude web search) ----------------
 // Adds the people Claude found with sources; the best match becomes the person we write to if there is none yet.
 // Emails from the web are marked UNKNOWN, which the Saleshandy sync refuses until a verifier says otherwise.
@@ -387,9 +423,10 @@ export async function findPeopleOnWeb(prospectId: string, opts: { workflowRunId?
     const exists = await one(`select id from contacts where company_id=$1 and (lower(full_name)=lower($2) or ($3::citext is not null and email=$3))`, [p.company.id, person.full_name, email]);
     if (exists) { added.push(exists.id); continue; }
     const parts = person.full_name.trim().split(/\s+/);
-    const ct = await one(`insert into contacts(company_id,first_name,last_name,full_name,job_title,email,email_verification_status,linkedin_url,is_decision_maker,source)
-      values($1,$2,$3,$4,$5,$6,$7,$8,$9,'claude_web_search') on conflict do nothing returning id`,
-      [p.company.id, parts[0], parts.slice(1).join(' ') || null, person.full_name.trim(), cleanTitle(person.job_title), email, email ? 'UNKNOWN' : 'UNVERIFIED', person.linkedin_url, added.length === 0]);
+    const phone = person.phone && person.phone_source_url ? normPhone(person.phone) : null;
+    const ct = await one(`insert into contacts(company_id,first_name,last_name,full_name,job_title,email,email_verification_status,email_source_url,phone,phone_source_url,linkedin_url,is_decision_maker,source)
+      values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'claude_web_search') on conflict do nothing returning id`,
+      [p.company.id, parts[0], parts.slice(1).join(' ') || null, person.full_name.trim(), cleanTitle(person.job_title), email, email ? 'UNKNOWN' : 'UNVERIFIED', email ? person.email_source_url : null, phone, phone ? person.phone_source_url : null, person.linkedin_url, added.length === 0]);
     if (ct) added.push(ct.id);
   }
   const named = p.contact && (p.contact.full_name || p.contact.first_name);

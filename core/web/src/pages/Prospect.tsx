@@ -81,7 +81,6 @@ function People({ p, dm, reload }: { p: any; dm: any; reload: () => void }) {
   const toast = useToast(); const [open, setOpen] = useState(false); const [busy, setBusy] = useState(false);
   const [f, setF] = useState({ full_name: '', job_title: '', email: '', linkedin_url: '' });
   const named = (p.contacts as any[]).filter((c) => c.full_name);
-  const generic = (p.contacts as any[]).filter((c) => !c.full_name && c.email);
   const company = p.company.name.split(/[|:–-]/)[0].trim();
   const save = async (e: React.FormEvent) => {
     e.preventDefault(); setBusy(true);
@@ -91,7 +90,8 @@ function People({ p, dm, reload }: { p: any; dm: any; reload: () => void }) {
   return (
     <div className="card col">
       <div className="row between"><h2>Who we write to</h2>{!open && named.length > 0 && <button className="btn sm" onClick={() => setOpen(true)}>Add another</button>}</div>
-      {named.map((c) => <div key={c.id} className="person"><div className="avatar">{initials(c.full_name)}</div><div className="grow"><div style={{ fontWeight: 600 }}>{c.full_name}{p.contact_id === c.id && <span style={{ marginLeft: 8 }}><Badge tone="success">Writing to</Badge></span>}</div><div className="muted" style={{ fontSize: 'var(--fs-0)' }}>{c.job_title ?? 'Title unknown'}</div><div className="mono faint" style={{ fontSize: 12 }}>{c.email ?? 'No email yet'}</div></div>{c.linkedin_url && <a href={c.linkedin_url} target="_blank" rel="noreferrer" className="btn sm ghost" aria-label={`${c.full_name} on LinkedIn`}><Icon.out size={14} /></a>}</div>)}
+      {named.map((c) => <div key={c.id} className="person"><div className="avatar">{initials(c.full_name)}</div><div className="grow"><div style={{ fontWeight: 600 }}>{c.full_name}{p.contact_id === c.id && <span style={{ marginLeft: 8 }}><Badge tone="success">Writing to</Badge></span>}</div><div className="muted" style={{ fontSize: 'var(--fs-0)' }}>{c.job_title ?? 'Title unknown'}</div><div className="mono faint" style={{ fontSize: 12 }}>{c.email ?? 'No email yet'}{c.email_source_url && <a href={c.email_source_url} target="_blank" rel="noreferrer" title="Where this email was published" style={{ marginLeft: 6 }}>source</a>}</div>
+        {c.phone && <div className="mono faint" style={{ fontSize: 12 }}>{c.phone}{c.phone_source_url && <a href={c.phone_source_url} target="_blank" rel="noreferrer" title="Where this number was published" style={{ marginLeft: 6 }}>source</a>}</div>}</div>{c.linkedin_url && <a href={c.linkedin_url} target="_blank" rel="noreferrer" className="btn sm ghost" aria-label={`${c.full_name} on LinkedIn`}><Icon.out size={14} /></a>}</div>)}
       {!named.length && !open && <div className="callout"><b style={{ fontWeight: 600 }}>No named person yet</b><span className="muted" style={{ fontSize: 'var(--fs-0)' }}>We only write to a person, never to a shared inbox. Find the founder or whoever owns the website, then add them here.</span>
         {dm?.recommended_titles?.length > 0 && <span className="faint" style={{ fontSize: 'var(--fs-0)' }}>Look for: {dm.recommended_titles.join(', ')}</span>}
         <div className="row wrap"><a className="btn sm" href={`https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(company + ' founder')}`} target="_blank" rel="noreferrer"><Icon.find size={14} />Search LinkedIn</a><button className="btn sm primary" onClick={() => setOpen(true)}><Icon.user size={14} />Add a person</button></div></div>}
@@ -101,8 +101,14 @@ function People({ p, dm, reload }: { p: any; dm: any; reload: () => void }) {
         <label className="field"><span>Work email</span><input type="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} placeholder={`name@${p.company.domain}`} /></label>
         <label className="field"><span>LinkedIn</span><input value={f.linkedin_url} onChange={(e) => setF({ ...f, linkedin_url: e.target.value })} placeholder="https://www.linkedin.com/in/..." /></label>
         <div className="row"><button className="btn primary" disabled={busy}>{busy && <Spinner />}Save person</button><button type="button" className="btn ghost" onClick={() => setOpen(false)}>Cancel</button></div></form>}
-      {generic.length > 0 && <div className="faint" style={{ fontSize: 'var(--fs-0)' }}>Shared inboxes on their site: {generic.map((c) => c.email).join(', ')}</div>}
-      {p.company.metadata?.phones?.length > 0 && <div className="faint mono" style={{ fontSize: 12 }}>{p.company.metadata.phones.join(' · ')}</div>}
+      <div className="proof" style={{ gap: 8 }}>
+        <div className="row between"><b style={{ fontWeight: 600 }}>Reach the company</b>{p.company.contacts_checked_at ? <span className="faint mono" style={{ fontSize: 11 }}>checked {ago(p.company.contacts_checked_at)}</span> : <span className="tag dim">not checked yet</span>}</div>
+        {p.company.email ? <a href={`mailto:${p.company.email}`} className="mono" style={{ fontSize: 13 }}>{p.company.email}</a> : <span className="faint" style={{ fontSize: 'var(--fs-0)' }}>No email found on the site or in public records</span>}
+        {p.company.phone ? <a href={`tel:${p.company.phone}`} className="mono" style={{ fontSize: 13 }}>{p.company.phone}</a> : <span className="faint" style={{ fontSize: 'var(--fs-0)' }}>No phone found</span>}
+        {(p.company.metadata?.public_emails ?? []).filter((e: string) => e !== p.company.email).length > 0 && <div className="faint" style={{ fontSize: 'var(--fs-0)' }}>Also: {(p.company.metadata.public_emails as string[]).filter((e) => e !== p.company.email).join(', ')}</div>}
+        {(p.company.metadata?.phones ?? []).filter((x: string) => x !== p.company.phone).length > 0 && <div className="faint mono" style={{ fontSize: 12 }}>Also: {(p.company.metadata.phones as string[]).filter((x) => x !== p.company.phone).join(' · ')}</div>}
+        {p.company.contact_sources?.claude?.registered_entity && <div className="faint" style={{ fontSize: 'var(--fs-0)' }}>Registered as {p.company.contact_sources.claude.registered_entity}</div>}
+      </div>
     </div>
   );
 }

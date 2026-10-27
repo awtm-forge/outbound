@@ -89,7 +89,7 @@ route('POST', '/api/prospects', 'api', async (c) => { const r = await P.ingest(c
 route('POST', '/api/prospects/bulk', 'api', async (c) => { const out = []; for (const i of c.body.prospects ?? []) { try { const r = await P.ingest(i, c.actor); out.push({ ok: true, prospect_id: r.prospect.id, created: r.created }); } catch (e: any) { out.push({ ok: false, error: e.message, input: i.company?.domain ?? i.company?.website }); } } return { results: out }; });
 route('GET', '/api/prospects', 'api', async (c) => {
   const sp = c.url.searchParams; const view = sp.get('view');
-  return q(`select p.id, p.status, p.account_score, p.primary_problem, p.suppressed, p.updated_at, p.specific_observation, c.name, c.domain, c.platform, c.city, ca.code campaign, ct.email, ct.full_name contact_name, ct.job_title contact_title,
+  return q(`select p.id, p.status, p.account_score, p.primary_problem, p.suppressed, p.updated_at, p.specific_observation, p.screen_score, c.name, c.domain, c.platform, c.city, c.email company_email, c.phone company_phone, ca.code campaign, ct.email, ct.phone contact_phone, ct.full_name contact_name, ct.job_title contact_title,
       (${NEEDS_CONTACT}) needs_contact
     from prospects p join companies c on c.id=p.company_id left join campaigns ca on ca.id=p.campaign_id left join contacts ct on ct.id=p.contact_id
     where ($1::text is null or p.status = any(string_to_array($1, ','))) and ($2::text is null or ca.code=$2) and ($3::text is null or c.name ilike '%'||$3||'%' or c.domain ilike '%'||$3||'%' or ct.email ilike '%'||$3||'%')
@@ -105,7 +105,7 @@ route('GET', '/api/prospects/:id', 'api', async (c) => {
     q('select * from teardowns where prospect_id=$1 order by created_at desc', [p.id]),
     one(`select o.*, (select json_agg(m order by m.created_at desc) from meetings m where m.opportunity_id=o.id) meetings, (select json_agg(pr order by pr.created_at desc) from proposals pr where pr.opportunity_id=o.id) proposals from opportunities o where o.prospect_id=$1`, [p.id]),
     q(`select action, actor, detail, created_at, entity_type from activities where entity_id=$1 or entity_id in (select id from email_drafts where prospect_id=$1) or entity_id in (select id from teardowns where prospect_id=$1) order by created_at desc limit 60`, [p.id]),
-    q('select id, full_name, job_title, email, linkedin_url, is_decision_maker, email_verification_status from contacts where company_id=$1 order by is_decision_maker desc, created_at', [p.company.id]),
+    q('select id, full_name, job_title, email, email_source_url, phone, phone_source_url, linkedin_url, is_decision_maker, email_verification_status, source from contacts where company_id=$1 order by is_decision_maker desc, created_at', [p.company.id]),
   ]);
   const proofs = (await q('select id,title,label,text from proof_assets where id = any($1)', [p.relevant_proof_ids ?? []]));
   return { ...p, criteria: scoringConfig().criteria, thresholds: scoringConfig().thresholds, research, drafts, replies, teardowns, opportunity: opp ?? null, activity, contacts, proofs };
@@ -130,7 +130,7 @@ route('POST', '/api/prospects/:id/contact', 'api', async (c) => {
   return { contact_id: ct!.id };
 });
 const stage = (name: string, fn: (id: string, o: any) => Promise<unknown>) => ai('POST', `/api/prospects/:id/${name}`, (c) => `${name}:${c.params.id}`, async (c) => fn(c.params.id, { workflowRunId: c.body.workflow_run_id, force: !!c.body.force, html: c.body.html }));
-stage('screen', P.screenProspect); stage('find-people', P.findPeopleOnWeb); stage('research', P.research); stage('analyze-website', P.analyzeWebsite); stage('decision-maker', P.identifyDecisionMaker); stage('identify-problem', P.identifyProblem); stage('qualify', P.qualify); stage('generate-email', P.generateEmail); stage('run-chain', P.runChain);
+stage('screen', P.screenProspect); stage('collect-contacts', P.collectContacts); stage('find-people', P.findPeopleOnWeb); stage('research', P.research); stage('analyze-website', P.analyzeWebsite); stage('decision-maker', P.identifyDecisionMaker); stage('identify-problem', P.identifyProblem); stage('qualify', P.qualify); stage('generate-email', P.generateEmail); stage('run-chain', P.runChain);
 route('POST', '/api/prospects/:id/meeting', 'api', async (c) => P.createMeeting(c.params.id, c.body.scheduled_at));
 route('POST', '/api/contacts/:id/verification', 'api', async (c) => one(`update contacts set email_verification_status=$2 where id=$1 returning id,email_verification_status`, [c.params.id, c.body.status]));
 

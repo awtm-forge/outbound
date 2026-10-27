@@ -1,6 +1,7 @@
 // The Claude funnel, run from this Mac against the live database. Three stages, each restartable:
 //   --find    Claude (web search) and Serper name companies per segment; our own site check follows, free
 //   --screen  one cheap Claude call per company: can they pay, is there a problem we solve -> screen_score 0..9
+//   --contacts an email and a phone for every company: free deep site read, Claude only where that finds nothing
 //   --deep    full research, the person to write to, the draft; best screen_score first, until AI_SPEND_CAP_USD
 //   node src/burst.ts --find --screen --deep --target 1000 --concurrency 8
 import { q, one, pool } from './lib/db.ts';
@@ -44,8 +45,11 @@ async function find() {
       const u = units[next++]; const camp = camps[u.code]; if (!camp) continue;
       if ((await count()) >= target) { stop = true; break; }
       try {
+        const region = u.city ? `${u.city}, India` : 'India';
+        const done = await one(`select 1 from ai_runs where agent='company_finder' and valid and input->>'segment'=$1 and input->>'region'=$2 and created_at > now() - interval '7 days' limit 1`, [u.segment, region]);
+        if (done) { log(`find  ${u.code.padEnd(20)} ${(u.segment + (u.city ? ' / ' + u.city : '')).slice(0, 48).padEnd(48)} already searched this week`); continue; }
         const known = (await q(`select domain from companies order by created_at desc limit 300`)).map((r) => r.domain);
-        const f = await runAgent(A.companyFinder, { campaign: campaignCtx(camp), segment: u.segment, region: u.city ? `${u.city}, India` : 'India', known_domains: known, want: 40 });
+        const f = await runAgent(A.companyFinder, { campaign: campaignCtx(camp), segment: u.segment, region, known_domains: known, want: 40 });
         const ids = await D.addFoundCompanies(f.output.companies);
         let serperIds: string[] = [];
         try { const r = await D.runSearch({ industry: u.segment.replace(/ brands?$/, ''), location: u.city ?? 'India', pages: 1 }, 'burst'); serperIds = (r.candidates as any[]).filter((c) => c.status === 'NEW' && c.enriched_at && (c.signals?.kind ?? 'COMPANY') === 'COMPANY').map((c) => c.id); } catch (e: any) { if (!/used up/.test(e.message)) log(`  serper: ${e.message}`); }
@@ -72,6 +76,18 @@ async function screenAll() {
   await Promise.all(Array.from({ length: CONC }, worker));
   const d = await q(`select count(*) filter (where screen_score >= 6)::int strong, count(*) filter (where screen_score between 4 and 5)::int fair, count(*) filter (where screen_score < 4)::int weak from prospects where screen_score is not null`);
   log(`screen done: strong ${d[0].strong}, fair ${d[0].fair}, weak ${d[0].weak}`);
+}
+
+// An email and a phone for every company: the free deep site read for all, Claude only where that found nothing.
+async function contacts() {
+  const rows = await q(`select p.id, c.name from prospects p join companies c on c.id=p.company_id where p.campaign_id is not null and not p.suppressed and c.contacts_checked_at is null and p.status <> 'REJECTED' order by p.screen_score desc nulls last, p.created_at`);
+  log(`contacts: ${rows.length} companies, ${CONC} at a time`);
+  let next = 0, done = 0, stop = false, viaClaude = 0, got = 0;
+  const worker = async () => { while (!stop && next < rows.length) { const r = rows[next++]; try { const c = await P.collectContacts(r.id); done++; if (c.via_claude) viaClaude++; if (c.email || c.phone) got++; if (done % 50 === 0) log(`contacts [${done}/${rows.length}] reached ${got}, claude used ${viaClaude}   spent ${usd(await spentMicros())}`); }
+    catch (e: any) { if (e instanceof SpendCapReached || /spend cap/.test(e.message)) { stop = true; log(`STOP: ${e.message}`); } else { done++; log(`contacts ${r.name}: ${String(e.message).slice(0, 140)}`); } } } };
+  await Promise.all(Array.from({ length: CONC }, worker));
+  const t = (await q(`select count(*) filter (where c.email is not null or c.phone is not null)::int reached, count(*) filter (where c.email is not null)::int with_email, count(*) filter (where c.phone is not null)::int with_phone, count(*)::int total from prospects p join companies c on c.id=p.company_id where p.campaign_id is not null and not p.suppressed`))[0];
+  log(`contacts done: ${t.reached} of ${t.total} reachable (email ${t.with_email}, phone ${t.with_phone}); claude used for ${viaClaude}`);
 }
 
 async function deepOne(id: string, name: string) {
@@ -101,9 +117,11 @@ async function main() {
   log(`Claude funnel. Model ${env.aiModel}. Cap ${env.aiSpendCapUsd ? '$' + env.aiSpendCapUsd : 'none'}. Spent so far ${usd(await spentMicros())}.`);
   if (on('find')) await find();
   if (on('screen')) await screenAll();
+  if (on('contacts')) await contacts();
   if (on('deep')) await deep();
-  const t = (await q(`select count(*)::int total, count(*) filter (where screen_score >= 6)::int strong, count(*) filter (where status='QUALIFIED')::int qualified, count(*) filter (where status='PENDING_APPROVAL')::int drafts,
-    (select count(*) from contacts where source='claude_web_search')::int people from prospects where campaign_id is not null`))[0];
-  log(`done. spent ${usd(await spentMicros())}. companies ${t.total}, strong screen ${t.strong}, qualified ${t.qualified}, drafts to review ${t.drafts}, people found ${t.people}`);
+  const t = (await q(`select count(*)::int total, count(*) filter (where p.screen_score >= 6)::int strong, count(*) filter (where p.status='QUALIFIED')::int qualified, count(*) filter (where p.status='PENDING_APPROVAL')::int drafts,
+    (select count(*) from contacts where source='claude_web_search' and full_name is not null)::int people, count(*) filter (where c.email is not null or c.phone is not null)::int reachable
+    from prospects p join companies c on c.id=p.company_id where p.campaign_id is not null`))[0];
+  log(`done. spent ${usd(await spentMicros())}. companies ${t.total}, reachable ${t.reachable}, strong screen ${t.strong}, qualified ${t.qualified}, drafts to review ${t.drafts}, people found ${t.people}`);
 }
 main().then(() => pool.end()).catch(async (e) => { console.error(e); await pool.end(); process.exit(1); });

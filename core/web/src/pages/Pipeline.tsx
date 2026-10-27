@@ -141,7 +141,8 @@ export function Pipeline() {
               <td><Status s={p.status} /></td>
               {has('score') && <td>{p.account_score == null ? <span className="sub">Not scored</span> : <Ring n={p.account_score} />}</td>}
               {has('problem') && <td style={{ maxWidth: 300 }}><div style={{ color: 'var(--ink)' }}>{problemLabel(p.primary_problem)}</div>{p.specific_observation && p.specific_observation !== 'UNKNOWN' && <div className="sub ellipsis" style={{ maxWidth: 280 }}>{p.specific_observation}</div>}</td>}
-              {has('person') && <td>{p.contact_name ? <div className="c-name"><span className="av xs" aria-hidden="true">{initials(p.contact_name)}</span><div><b style={{ fontWeight: 500 }}>{p.contact_name}</b><span>{p.contact_title ?? p.email}</span></div></div> : p.needs_contact ? <Badge tone="warning">Needs a person</Badge> : <span className="sub">{p.email ?? 'None'}</span>}</td>}
+              {has('person') && <td>{p.contact_name ? <div className="c-name"><span className="av xs" aria-hidden="true">{initials(p.contact_name)}</span><div><b style={{ fontWeight: 500 }}>{p.contact_name}</b><span>{p.contact_title ?? p.email}</span></div></div> : p.needs_contact ? <Badge tone="warning">Needs a person</Badge> : <span className="sub">{p.email ?? 'None'}</span>}
+                <div className="sub mono" style={{ fontSize: 11, marginTop: 4 }}>{[p.contact_phone ?? p.company_phone, p.email ?? p.company_email].filter(Boolean).join(' · ') || 'no contact details yet'}</div></td>}
               {has('campaign') && <td>{p.campaign ? <span className="camp-tag" title={vertical(p.campaign) ?? undefined}>{p.campaign}</span> : <span className="sub">None</span>}</td>}
               {has('updated') && <td className="sub" style={{ whiteSpace: 'nowrap' }}>{ago(p.updated_at)}</td>}
               <td onClick={(e) => e.stopPropagation()}><div className="row-acts">

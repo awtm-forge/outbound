@@ -52,3 +52,14 @@ test('a failed research job is written to the company history; the retry sweep d
   const a = J.enqueue(`batch:chain:${prospect.id}`, async () => { runs++; await gate; }, 'batch'); const b = J.enqueue(`batch:chain:${prospect.id}`, async () => { runs++; }, 'batch');
   assert.equal(a.id, b.id); await J.idle(); assert.equal(runs, 1);
 });
+
+test('collectContacts: the free deep read fills company email and phone; Claude is not called when it found something', async () => {
+  const P = await import('../src/pipeline.ts'); const { one } = await import('../src/lib/db.ts');
+  const { prospect } = await P.ingest({ company: { name: 'Reachable Co', website: 'https://reachable.example', vertical: 'DTC ecommerce: electronics' }, campaign_code: 'IND-WEB-ELECTRONICS' });
+  const r = await P.collectContacts(prospect.id);
+  // the .example fixture carries a GSTIN footer and a shipping link but no email; phone is absent too, and mock mode never calls Claude
+  assert.equal(r.via_claude, false);
+  const co = await one('select email, phone, contacts_checked_at, contact_sources from companies where id=$1', [prospect.company_id]);
+  assert.ok(co!.contacts_checked_at); assert.ok(co!.contact_sources.site);
+  assert.deepEqual(await P.collectContacts(prospect.id), { email: co!.email, phone: co!.phone, skipped: 'already checked' });
+});

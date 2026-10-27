@@ -92,13 +92,13 @@ export function rankEmails(emails: string[], domain: string) {
 export function normPhone(raw: string): string | null {
   let d = raw.replace(/[^\d+]/g, '');
   if (d.startsWith('+91')) d = d.slice(3); else if (d.startsWith('0091')) d = d.slice(4); else if (d.length === 12 && d.startsWith('91')) d = d.slice(2); else if (d.length === 11 && d.startsWith('0')) d = d.slice(1);
-  if (!/^[6-9]\d{9}$/.test(d) && !/^(1800\d{6,7})$/.test(d)) return null;
+  if (!/^[6-9]\d{9}$/.test(d) && !/^(1800\d{6,7})$/.test(d) && !/^(11|20|22|33|40|44|79|80)\d{8}$/.test(d)) return null; // mobiles, toll free, metro landlines
   if (/^(\d)\1{5,}/.test(d) || /(\d)\1{6,}/.test(d) || /0123456|1234567|9876543/.test(d)) return null;
-  return d.startsWith('1800') ? d : '+91' + d;
+  return d.startsWith('1800') ? d : '+91' + d; // landlines come back as +91 followed by STD code and number
 }
 const linkOf = (html: string, host: string) => html.match(new RegExp(`https?://(?:www\\.)?${host}/[A-Za-z0-9_./-]+`, 'i'))?.[0];
-export type Enriched = { platform: string | null; platform_signals: string[]; emails: string[]; phones: string[]; gstin: string | null; linkedin_url?: string; instagram_url?: string; facebook_url?: string; country_guess: string; size_estimate: string; signals: Record<string, unknown>; fetched: boolean };
-export async function enrichSite(url: string, fetchImpl: typeof fetch = fetch): Promise<Enriched> {
+export type Enriched = { sources?: Record<string, unknown>; platform: string | null; platform_signals: string[]; emails: string[]; phones: string[]; gstin: string | null; linkedin_url?: string; instagram_url?: string; facebook_url?: string; country_guess: string; size_estimate: string; signals: Record<string, unknown>; fetched: boolean };
+export async function enrichSite(url: string, fetchImpl: typeof fetch = fetch, opts: { deep?: boolean } = {}): Promise<Enriched> {
   const domain = normalizeDomain(url);
   const get = async (u: string) => {
     // ponytail: .example hosts are served from the fixture so mock discovery works offline; real hosts are fetched
@@ -108,18 +108,27 @@ export async function enrichSite(url: string, fetchImpl: typeof fetch = fetch): 
   const home = await get(/^https?:\/\//.test(url) ? url : `https://${domain}`);
   if (!home) return { platform: null, platform_signals: [], emails: [], phones: [], gstin: null, country_guess: domain.endsWith('.in') ? 'IN' : 'UNKNOWN', size_estimate: 'UNKNOWN', signals: {}, fetched: false };
   const snap = snapshotFromHtml(url, home);
-  const contactPaths = [...new Set([...home.matchAll(/href=["']([^"']*(?:contact|about|reach-us|support)[^"']*)["']/gi)].map((m) => m[1]).filter((h) => !/^(mailto|tel|#|javascript)/i.test(h)).slice(0, 2))];
-  const extra = (await Promise.all(contactPaths.map((p) => { try { return get(new URL(p, `https://${domain}/`).href); } catch { return ''; } }))).join('\n');
+  // pages that carry contact details: contact and about first, then the policy pages Indian stores must publish (phone and email live there)
+  const linked = [...home.matchAll(/href=["']([^"']*(?:contact|about|reach-us|support|privacy|terms|shipping|refund|return|policies|legal|impressum)[^"']*)["']/gi)].map((m) => m[1]).filter((h) => !/^(mailto|tel|#|javascript)/i.test(h));
+  const contactPaths = [...new Set([...linked, '/pages/contact', '/contact', '/contact-us', '/pages/contact-us', '/policies/contact-information', '/policies/privacy-policy', '/pages/about-us'].map((p) => { try { return new URL(p, `https://${domain}/`).href; } catch { return ''; } }).filter(Boolean))].slice(0, opts.deep ? 7 : 2);
+  const pages = await Promise.all(contactPaths.map((u) => get(u).then((h) => [u, h] as const)));
+  const extra = pages.map(([, h]) => h).join('\n');
   const all = (home + '\n' + extra).replace(/\\u003[ce]/gi, ' ').replace(/\\\//g, '/');
   // visible text only: script and style bodies are full of ids and json that look like phones and emails
   const text = all.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>|<noscript[\s\S]*?<\/noscript>/gi, ' ').replace(/<[^>]+>/g, ' ').replace(/&nbsp;|&#160;/g, ' ');
-  const mailtos = [...all.matchAll(/mailto:([^"'?\s>]+)/gi)].map((m) => decodeURIComponent(m[1]));
+  // structured data (schema.org Organization/LocalBusiness) and WhatsApp links are the most reliable sources on a store
+  const ld = [...all.matchAll(/<script[^>]+application\/ld\+json[^>]*>([\s\S]*?)<\/script>/gi)].map((m) => m[1]).join('\n');
+  const ldPhones = [...ld.matchAll(/"telephone"\s*:\s*"([^"]+)"/g)].map((m) => m[1]); const ldEmails = [...ld.matchAll(/"email"\s*:\s*"([^"]+)"/g)].map((m) => m[1].replace(/^mailto:/i, ''));
+  const wa = [...all.matchAll(/(?:wa\.me\/|api\.whatsapp\.com\/send\?[^"']*phone=|whatsapp:\/\/send\?[^"']*phone=)\+?(\d{10,13})/gi)].map((m) => m[1]);
+  const mailtos = [...all.matchAll(/mailto:([^"'?\s>]+)/gi)].map((m) => decodeURIComponent(m[1])).concat(ldEmails);
   const emails = rankEmails([...new Set([...mailtos, ...(text.match(EMAIL_RE) ?? [])].map((e) => e.toLowerCase().replace(/^[^a-z0-9]+/, '')))].filter(isRealEmail), domain).slice(0, 6);
-  const tels = [...all.matchAll(/href=["']tel:([^"']+)["']/gi)].map((m) => m[1]);
+  const tels = [...all.matchAll(/href=["']tel:([^"']+)["']/gi)].map((m) => m[1]).concat(ldPhones, wa.map((w) => '+' + w));
   const phones = [...new Set([...tels, ...(text.match(PHONE_RE) ?? [])].map(normPhone).filter((p): p is string => !!p))].slice(0, 4);
   const country_guess = domain.endsWith('.in') || /\+91|india|gstin|pvt\.? ltd/i.test(text) ? 'IN' : 'UNKNOWN';
   const size_estimate = snap.word_count > 2500 && snap.image_count > 40 ? 'LARGE_CATALOGUE' : snap.word_count > 800 ? 'MID' : 'SMALL';
-  return { platform: snap.platform_signals.find((s) => !/Google Tag|Meta Pixel|Razorpay|Shiprocket/.test(s)) ?? null, platform_signals: snap.platform_signals, emails, phones, gstin: text.match(GSTIN_RE)?.[0] ?? null,
+  const where = (needle: string) => (pages.find(([, h]) => h.includes(needle)) ?? [home.includes(needle) ? (/^https?:/.test(url) ? url : `https://${domain}`) : null])[0] ?? null;
+  const sources = { emails: Object.fromEntries(emails.map((e) => [e, where(e) ?? where(e.split('@')[0])])), phones: Object.fromEntries(phones.map((p) => [p, where(p.replace(/^\+91/, '').slice(-10)) ?? null])), whatsapp: wa.length > 0, structured_data: ldPhones.length + ldEmails.length > 0, pages_checked: contactPaths.length + 1 };
+  return { sources, platform: snap.platform_signals.find((s) => !/Google Tag|Meta Pixel|Razorpay|Shiprocket/.test(s)) ?? null, platform_signals: snap.platform_signals, emails, phones, gstin: text.match(GSTIN_RE)?.[0] ?? null,
     linkedin_url: linkOf(all, 'linkedin\\.com'), instagram_url: linkOf(all, 'instagram\\.com'), facebook_url: linkOf(all, 'facebook\\.com'), country_guess, size_estimate,
     signals: { title: snap.title, h1: snap.h1, description: !!snap.description, forms: snap.forms, has_viewport_meta: snap.has_viewport_meta, trust_signals: snap.trust_signals, word_count: snap.word_count, image_count: snap.image_count, cta_texts: snap.cta_texts, site_snapshot: snap }, fetched: true };
 }
