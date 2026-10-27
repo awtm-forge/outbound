@@ -33,7 +33,10 @@ if (!process.env.NODE_TEST_CONTEXT) {
     await migrate(); await seed();
     server.listen(env.port, () => log.info('core listening', { port: env.port, ai: env.aiProvider, saleshandy: env.saleshandyMode, scheduler: env.scheduler }));
     if (env.scheduler) startScheduler();
-    const n = await requeueStale((id) => runChain(id)); if (n) log.info('requeued research left unfinished by a restart', { prospects: n });
+    // Research left mid-flight by a restart is picked up again, but never by the mock provider (it would overwrite real
+    // research with placeholders) and never when REQUEUE_ON_BOOT=off (a second process, say a burst, owns the work).
+    if (env.aiProvider !== 'mock' && process.env.REQUEUE_ON_BOOT !== 'off') { const n = await requeueStale((id) => runChain(id)); if (n) log.info('requeued research left unfinished by a restart', { prospects: n }); }
+    else log.info('boot requeue skipped', { provider: env.aiProvider, flag: process.env.REQUEUE_ON_BOOT ?? 'unset' });
   })().catch((e) => { log.error('boot failed', { err: e.message }); process.exit(1); });
   process.on('SIGTERM', () => { releaseAll(); server.close(() => process.exit(0)); });
 }
