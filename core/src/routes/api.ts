@@ -130,7 +130,7 @@ route('POST', '/api/prospects/:id/contact', 'api', async (c) => {
   return { contact_id: ct!.id };
 });
 const stage = (name: string, fn: (id: string, o: any) => Promise<unknown>) => ai('POST', `/api/prospects/:id/${name}`, (c) => `${name}:${c.params.id}`, async (c) => fn(c.params.id, { workflowRunId: c.body.workflow_run_id, force: !!c.body.force, html: c.body.html }));
-stage('research', P.research); stage('analyze-website', P.analyzeWebsite); stage('decision-maker', P.identifyDecisionMaker); stage('identify-problem', P.identifyProblem); stage('qualify', P.qualify); stage('generate-email', P.generateEmail); stage('run-chain', P.runChain);
+stage('find-people', P.findPeopleOnWeb); stage('research', P.research); stage('analyze-website', P.analyzeWebsite); stage('decision-maker', P.identifyDecisionMaker); stage('identify-problem', P.identifyProblem); stage('qualify', P.qualify); stage('generate-email', P.generateEmail); stage('run-chain', P.runChain);
 route('POST', '/api/prospects/:id/meeting', 'api', async (c) => P.createMeeting(c.params.id, c.body.scheduled_at));
 route('POST', '/api/contacts/:id/verification', 'api', async (c) => one(`update contacts set email_verification_status=$2 where id=$1 returning id,email_verification_status`, [c.params.id, c.body.status]));
 

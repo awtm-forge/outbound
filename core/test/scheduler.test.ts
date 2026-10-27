@@ -46,7 +46,7 @@ test('the 15-minute sync waits for someone to have used the app, so the database
 test('stalled research is retried three times a week at most, then waits for a person', async () => {
   const J = await import('../src/jobs.ts'); const P = await import('../src/pipeline.ts'); const { q, tx } = await import('../src/lib/db.ts');
   // the updated_at trigger would stamp now(); skip triggers for this one back-dating write
-  const stale = (id: string) => tx(async (c) => { await c.query(`set local session_replication_role = replica`); await c.query(`update prospects set status='RESEARCHING', updated_at=now() - interval '10 minutes' where id=$1`, [id]); });
+  const stale = (id: string) => tx(async (c) => { await c.query(`set local session_replication_role = replica`); await c.query(`update prospects set status='RESEARCHING', updated_at=now() - interval '30 minutes' where id=$1`, [id]); });
   const { prospect } = await P.ingest({ company: { name: 'Broken Site', website: 'broken.example' }, campaign_code: 'IND-WEB-ELECTRONICS' });
   await stale(prospect.id);
   const ran: string[] = []; const fake = async (id: string) => { ran.push(id); };

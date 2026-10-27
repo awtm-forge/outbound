@@ -51,7 +51,7 @@ export async function idle() { while (busy || queue.length) await new Promise((r
 export async function requeueStale(runChain: (id: string) => Promise<unknown>) {
   // Three automatic tries a week, then it waits for a person (Research again on the company's page). Without the cap one
   // broken site was retried every 15 minutes for good: hundreds of failed AI calls, and a database that never slept.
-  const rows = await q(`select p.id from prospects p where p.status in ('RESEARCHING','QUALIFYING') and p.updated_at < now() - interval '2 minutes' and not p.suppressed
+  const rows = await q(`select p.id from prospects p where p.status in ('RESEARCHING','QUALIFYING') and p.updated_at < now() - interval '20 minutes' and not p.suppressed
     and (select count(*) from activities a where a.entity_type='prospect' and a.entity_id=p.id and a.action='research_failed' and a.created_at > now() - interval '7 days') < ${MAX_AUTO_RETRIES}
     order by p.updated_at limit 200`);
   for (const r of rows) enqueue(`batch:chain:${r.id}`, () => runChain(r.id), 'batch');

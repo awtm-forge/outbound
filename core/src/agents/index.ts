@@ -4,3 +4,4 @@ export { emailGeneration, replyClassification, teardown } from './outreach.ts';
 export { meetingIntelligence, postMeeting, proposalDraft, campaignAnalytics } from './deal.ts';
 export { notesAssist } from './notes.ts';
 export { taskImportAi } from './taskimport.ts';
+export { findPeople } from './people.ts';

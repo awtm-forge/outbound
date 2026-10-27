@@ -7,7 +7,9 @@ let t: Awaited<ReturnType<typeof bootstrap>>;
 before(async () => { t = await bootstrap(); }); after(async () => { await t.teardown(); });
 test('anthropic call retries 5xx then succeeds; invalid first answer is re-prompted', async () => {
   const { runAgent } = await import('../src/lib/ai.ts'); const { z } = await import('zod');
-  const answers = [new Response('overloaded', { status: 529 }), new Response(JSON.stringify({ content: [{ type: 'text', text: '{"b": 7}' }], usage: { input_tokens: 10, output_tokens: 2 } })), new Response(JSON.stringify({ content: [{ type: 'text', text: '```json\n{"b":"seven"}\n```' }], usage: { input_tokens: 12, output_tokens: 3 } }))];
+  // full Messages API shapes with a JSON content type, as the official SDK expects them
+  const msg = (text: string, usage: any) => new Response(JSON.stringify({ id: 'msg', type: 'message', role: 'assistant', model: 'claude-opus-5-5', content: [{ type: 'text', text }], stop_reason: 'end_turn', usage }), { headers: { 'content-type': 'application/json' } });
+  const answers = [new Response(JSON.stringify({ type: 'error', error: { type: 'overloaded_error', message: 'overloaded' } }), { status: 529, headers: { 'content-type': 'application/json' } }), msg('{"b": 7}', { input_tokens: 10, output_tokens: 2 }), msg('```json\n{"b":"seven"}\n```', { input_tokens: 12, output_tokens: 3 })];
   const calls: any[] = []; const realFetch = globalThis.fetch;
   globalThis.fetch = (async (url: any, init: any) => { calls.push(JSON.parse(init.body)); return answers.shift()!; }) as any;
   try {

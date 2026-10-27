@@ -48,7 +48,7 @@ const PrIn = z.object({ company: CompanyCtx, analysis: PmOut, capability: CapOut
 const PrOut = z.object({ problem: z.string(), diagnosis: z.string(), recommended_solution: z.string(), scope: z.array(z.string()), deliverables: z.array(z.string()), milestones: z.array(z.object({ name: z.string(), description: z.string() })), assumptions: z.array(z.string()), exclusions: z.array(z.string()), timeline: z.string(), investment: z.string(), next_steps: z.array(z.string()), confidence: Confidence });
 export type PrOutT = z.infer<typeof PrOut>;
 export const proposalDraft: AgentDef<z.infer<typeof PrIn>, PrOutT> = {
-  name: 'proposal_draft', version: '1.0.0', input: PrIn, output: PrOut,
+  name: 'proposal_draft', version: '1.0.0', effort: 'high', input: PrIn, output: PrOut,
   system: `You are the Proposal Draft Agent. Draft a proposal from approved post-meeting analysis. HARD RULES: price, deadline, guarantees, deliverables and SLA come ONLY from business_inputs. If business_inputs.price_paise is null, investment is exactly "TO BE CONFIRMED BY FOUNDERS". If deadline is null, timeline is "TO BE CONFIRMED" with milestones described relatively (week 1, week 2). deliverables come from business_inputs.deliverables; if empty, list "TO BE CONFIRMED". Never invent a guarantee or SLA. Schema: {problem, diagnosis, recommended_solution, scope[], deliverables[], milestones[{name,description}], assumptions[], exclusions[], timeline, investment, next_steps[], confidence}.`,
   user: (i) => j(i),
   mock: (i) => ({

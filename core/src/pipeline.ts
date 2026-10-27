@@ -352,6 +352,33 @@ export async function weeklyAnalysis(opts: { workflowRunId?: string } = {}) {
   return { ...res.output, runId: res.runId };
 }
 // ---------- convenience: run the pre-approval chain ----------
+// ---------------- people finder (Claude web search) ----------------
+// Adds the people Claude found with sources; the best match becomes the person we write to if there is none yet.
+// Emails from the web are marked UNKNOWN, which the Saleshandy sync refuses until a verifier says otherwise.
+export async function findPeopleOnWeb(prospectId: string, opts: { workflowRunId?: string; force?: boolean } = {}) {
+  const p = await loadProspect(prospectId); guard(p);
+  if (env.aiProvider !== 'anthropic') throw new HttpError(409, 'Finding people on the web needs Claude (AI_PROVIDER=anthropic).');
+  const campaign = requireCampaign(p);
+  const r = await runAgent(A.findPeople, { company: companyCtx(p.company), campaign, buyer_titles: p.campaign?.buyer_titles ?? [], public_emails: p.company.metadata?.public_emails ?? [] }, opts);
+  await saveResearch(p.company.id, p.id, 'PEOPLE', r.output, r.runId, r.output.people[0]?.confidence ?? 0);
+  const added: string[] = [];
+  for (const person of r.output.people) {
+    const email = person.email && person.email_source_url ? person.email.toLowerCase() : null;
+    if (email && (await isSuppressed(email, p.company.domain)).suppressed) continue;
+    const exists = await one(`select id from contacts where company_id=$1 and (lower(full_name)=lower($2) or ($3::citext is not null and email=$3))`, [p.company.id, person.full_name, email]);
+    if (exists) { added.push(exists.id); continue; }
+    const parts = person.full_name.trim().split(/\s+/);
+    const ct = await one(`insert into contacts(company_id,first_name,last_name,full_name,job_title,email,email_verification_status,linkedin_url,is_decision_maker,source)
+      values($1,$2,$3,$4,$5,$6,$7,$8,$9,'claude_web_search') on conflict do nothing returning id`,
+      [p.company.id, parts[0], parts.slice(1).join(' ') || null, person.full_name.trim(), person.job_title, email, email ? 'UNKNOWN' : 'UNVERIFIED', person.linkedin_url, added.length === 0]);
+    if (ct) added.push(ct.id);
+  }
+  const named = p.contact && (p.contact.full_name || p.contact.first_name);
+  if (!named && added[0]) await q('update prospects set contact_id=$2 where id=$1', [p.id, added[0]]);
+  await audit('prospect', p.id, 'people_found', 'system', { found: r.output.people.length, added: added.length, runId: r.runId });
+  return { found: r.output.people.length, contact_ids: added, notes: r.output.notes, runId: r.runId };
+}
+
 export async function runChain(prospectId: string, opts: { html?: string; workflowRunId?: string } = {}) {
   const out: any = {};
   out.research = await research(prospectId, opts); out.website = await analyzeWebsite(prospectId, opts);

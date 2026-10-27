@@ -26,8 +26,11 @@ export const env = {
   aiProvider: aiProvider(process.env.AI_PROVIDER),
   geminiKey: process.env.GEMINI_API_KEY ?? '',
   anthropicKey: process.env.ANTHROPIC_API_KEY ?? '',
-  aiModel: pickModel(process.env.AI_MODEL, 'gemini-3.5-flash', 'claude-sonnet-5-5'),
-  aiModelCheap: pickModel(process.env.AI_MODEL_CHEAP, 'gemini-3.5-flash-lite', 'claude-haiku-4-5-20251001'),
+  // Claude defaults to Opus 5.5 for both tiers; the cheap tier runs it at low effort instead of on a smaller model
+  aiModel: pickModel(process.env.AI_MODEL, 'gemini-3.5-flash', 'claude-opus-5-5'),
+  aiModelCheap: pickModel(process.env.AI_MODEL_CHEAP, 'gemini-3.5-flash-lite', 'claude-opus-5-5'),
+  aiSpendCapUsd: Number(process.env.AI_SPEND_CAP_USD || 0),
+  aiSpendSince: process.env.AI_SPEND_SINCE || '',
   // room for thinking models: Gemini 3.x spends a share of this reasoning before it writes the answer
   aiMaxTokens: Number(process.env.AI_MAX_TOKENS || 8192),
   aiTemperature: Number(process.env.AI_TEMPERATURE ?? 0.2),

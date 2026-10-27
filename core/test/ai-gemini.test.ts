@@ -35,7 +35,7 @@ test('gemini: a 400 is not retried and the failure is recorded', async () => {
 
 test('an unrecognised AI_PROVIDER runs as mock instead of calling a provider with no key', async () => {
   const out = await import('node:child_process').then((cp) => cp.execFileSync(process.execPath, ['-e', "import('./src/lib/env.ts').then((m) => console.log(m.env.aiProvider + ' ' + m.env.aiModel))"], { env: { ...process.env, AI_PROVIDER: 'mock  (change to gemini once GEMINI_API_KEY is set)', AI_MODEL: '' }, cwd: new URL('..', import.meta.url).pathname, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }));
-  assert.equal(out.trim(), 'mock claude-sonnet-5-5');
+  assert.equal(out.trim(), 'mock claude-opus-5-5');
   const g = await import('node:child_process').then((cp) => cp.execFileSync(process.execPath, ['-e', "import('./src/lib/env.ts').then((m) => console.log(m.env.aiProvider))"], { env: { ...process.env, AI_PROVIDER: ' Gemini ' }, cwd: new URL('..', import.meta.url).pathname, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }));
   assert.equal(g.trim(), 'gemini');
 });

@@ -9,7 +9,7 @@ const EmailIn = z.object({ company: CompanyCtx, contact: z.object({ full_name: z
 const EmailOut = z.object({ subject: z.string().max(80), body: z.string(), word_count: z.number().int(), claims_used: z.array(z.string()), proof_ids_used: z.array(z.string()), confidence: Confidence });
 export type EmailOutT = z.infer<typeof EmailOut>;
 export const emailGeneration: AgentDef<z.infer<typeof EmailIn>, EmailOutT> = {
-  name: 'email_generation', version: '1.0.0', input: EmailIn, output: EmailOut,
+  name: 'email_generation', version: '1.0.0', effort: 'high', input: EmailIn, output: EmailOut,
   system: `You are the Email Generation Agent for awtm forge. Write ONE plain-text cold email: short (under the campaign max_words), one specific observation (from problem.specific_observation, OBSERVED only), one commercial implication, one line on why awtm forge is relevant (capability.one_line, plus proof text ONLY from the supplied proof_assets, verbatim or shorter, never stronger), one low-friction reply CTA (campaign.config.cta). No attachment, no links, no generic agency intro, no compliment, no invented personalization, no exclamation marks, no em dashes. End with the campaign's unsubscribe_text on its own line if provided, then the sender signature "{sender_name}\\n{sender_title}, awtm forge". Schema: {subject (<=80 chars, lowercase conversational, no clickbait), body, word_count, claims_used[], proof_ids_used[], confidence}.`,
   user: (i) => j(i),
   mock: (i) => {
@@ -65,7 +65,7 @@ const TdFinding = z.object({ observation: z.string(), evidence: z.string(), why_
 const TdOut = z.object({ findings: z.array(TdFinding).length(2), capability: z.string(), proof_ids: z.array(z.string()), body: z.string(), confidence: Confidence });
 export type TdOutT = z.infer<typeof TdOut>;
 export const teardown: AgentDef<z.infer<typeof TdIn>, TdOutT> = {
-  name: 'teardown', version: '1.0.0', input: TdIn, output: TdOut,
+  name: 'teardown', version: '1.0.0', effort: 'high', input: TdIn, output: TdOut,
   system: `You are the Teardown Agent. The prospect asked to see the two things. Produce exactly two findings, each with observation (OBSERVED from website findings only), evidence, why_it_matters, what_we_would_test. Then a plain-text reply body under 220 words that presents both findings, names the one relevant awtm forge capability, and includes proof ONLY from the supplied VERIFIED proof_assets, verbatim. No pricing, no guarantees, no links. End with a one-line offer of a 25-minute call. Schema: {findings[2], capability, proof_ids[], body, confidence}.`,
   user: (i) => j(i),
   mock: (i) => {

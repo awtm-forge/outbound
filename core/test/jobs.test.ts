@@ -37,8 +37,8 @@ test('adding from discovery in the browser queues research and marks the company
   assert.equal((await P.loadProspect(a.prospect_id)).status, 'RESEARCHING');
   await J.idle(); assert.notEqual((await P.loadProspect(a.prospect_id)).status, 'RESEARCHING');
   // a prospect left mid-research by a restart goes back on the queue
-  await q(`update prospects set status='RESEARCHING', updated_at=now() - interval '10 minutes' where id=$1`, [a.prospect_id]);
-  await q(`alter table prospects disable trigger prospects_updated`); await q(`update prospects set updated_at=now() - interval '10 minutes' where id=$1`, [a.prospect_id]); await q(`alter table prospects enable trigger prospects_updated`);
+  await q(`update prospects set status='RESEARCHING', updated_at=now() - interval '30 minutes' where id=$1`, [a.prospect_id]);
+  await q(`alter table prospects disable trigger prospects_updated`); await q(`update prospects set updated_at=now() - interval '30 minutes' where id=$1`, [a.prospect_id]); await q(`alter table prospects enable trigger prospects_updated`);
   const n = await J.requeueStale((id) => P.runChain(id, { html })); assert.equal(n, 1); await J.idle();
   assert.notEqual((await P.loadProspect(a.prospect_id)).status, 'RESEARCHING');
 });
