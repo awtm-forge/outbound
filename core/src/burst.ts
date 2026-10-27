@@ -104,8 +104,9 @@ async function deep() {
   const rows = only && only !== 'true' ? await q(`select p.id, c.name from prospects p join companies c on c.id=p.company_id where p.id=$1`, [only])
     : await q(`select p.id, c.name from prospects p join companies c on c.id=p.company_id where not p.suppressed and p.campaign_id is not null and coalesce(p.screen_score, 0) >= $2
         and p.status in ('NEW','QUALIFIED','RESEARCH_FURTHER') and not exists (select 1 from email_drafts d where d.prospect_id=p.id and d.status in ('PENDING_APPROVAL','APPROVED','SENT_TO_SEQUENCER'))
-        and not (p.status='RESEARCH_FURTHER' and p.account_score is not null) order by p.screen_score desc nulls last, p.created_at limit $1`, [DEEP_MAX, MIN_SCREEN]);
-  log(`deep: ${rows.length} companies with screen >= ${MIN_SCREEN}, best first, ${CONC} at a time`);
+        and not (p.status='RESEARCH_FURTHER' and p.account_score is not null)
+        order by (c.email is not null and c.phone is not null) desc, (c.email is not null or c.phone is not null) desc, p.screen_score desc nulls last, p.created_at limit $1`, [DEEP_MAX, MIN_SCREEN]); // reachable companies first (27 Oct)
+  log(`deep: ${rows.length} companies with screen >= ${MIN_SCREEN}, those with both phone and email first, ${CONC} at a time`);
   let next = 0, done = 0, stop = false;
   const worker = async () => { while (!stop && next < rows.length) { const { id, name } = rows[next++]; try { const line = await deepOne(id, name); done++; log(`deep [${done}/${rows.length}] ${line}   spent ${usd(await spentMicros())}`); }
     catch (e: any) { if (e instanceof SpendCapReached || /spend cap/.test(e.message)) { stop = true; log(`STOP: ${e.message}`); } else if (/timeout exceeded when trying to connect|EPROTO|ECONNRESET|ENOTFOUND|terminat/i.test(e.message)) { await new Promise((x) => setTimeout(x, 5000)); next--; } else { done++; log(`deep [${done}/${rows.length}] ${name.slice(0, 34).padEnd(34)} error: ${String(e.message).slice(0, 140)}`); } } } };
