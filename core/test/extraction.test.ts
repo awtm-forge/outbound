@@ -53,3 +53,10 @@ test('evidence tags never reach the email sentence', async () => {
   assert.equal(P.untag('UNKNOWN'), 'UNKNOWN');
   assert.equal(P.untag('Observed traffic dips are common.'), 'Observed traffic dips are common.');
 });
+
+test('a job title keeps the title and drops evidence notes the model appended', async () => {
+  const P = await import('../src/pipeline.ts');
+  assert.equal(P.cleanTitle('Co-Founder and Director (OBSERVED: the LinkedIn company page calls him Co-Founder)'), 'Co-Founder and Director');
+  assert.equal(P.cleanTitle('Director (UNKNOWN: role not confirmed'), 'Director');
+  assert.equal(P.cleanTitle('Head of E-commerce (Digital)'), 'Head of E-commerce (Digital)');
+});

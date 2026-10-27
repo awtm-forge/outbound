@@ -12,6 +12,8 @@ import * as A from './agents/index.ts';
 import type { SiteSnapshotT } from './agents/research.ts';
 
 export const untag = (t: string) => t.replace(/^\s*(OBSERVED|INFERRED)\s*[:\-–]\s*/i, '').trim() || t;
+// a job title is the title; evidence notes the model appends in brackets are dropped
+export const cleanTitle = (t: string) => t.replace(/\s*[([](?:OBSERVED|INFERRED|UNKNOWN)\b[\s\S]*$/i, '').replace(/\s*\((?:per|source|according to)\b[\s\S]*\)\s*$/i, '').trim() || t;
 export class HttpError extends Error { status: number; constructor(status: number, msg: string) { super(msg); this.status = status; } }
 const SENDER = { name: 'Ayush', title: 'Co-founder' };
 
@@ -370,7 +372,7 @@ export async function findPeopleOnWeb(prospectId: string, opts: { workflowRunId?
     const parts = person.full_name.trim().split(/\s+/);
     const ct = await one(`insert into contacts(company_id,first_name,last_name,full_name,job_title,email,email_verification_status,linkedin_url,is_decision_maker,source)
       values($1,$2,$3,$4,$5,$6,$7,$8,$9,'claude_web_search') on conflict do nothing returning id`,
-      [p.company.id, parts[0], parts.slice(1).join(' ') || null, person.full_name.trim(), person.job_title, email, email ? 'UNKNOWN' : 'UNVERIFIED', person.linkedin_url, added.length === 0]);
+      [p.company.id, parts[0], parts.slice(1).join(' ') || null, person.full_name.trim(), cleanTitle(person.job_title), email, email ? 'UNKNOWN' : 'UNVERIFIED', person.linkedin_url, added.length === 0]);
     if (ct) added.push(ct.id);
   }
   const named = p.contact && (p.contact.full_name || p.contact.first_name);

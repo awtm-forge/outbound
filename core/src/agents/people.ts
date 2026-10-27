@@ -15,12 +15,13 @@ const Person = z.object({
 const PeopleOut = z.object({ people: z.array(Person).max(5), searched_for: z.array(z.string()), notes: z.string() });
 export type PeopleOutT = z.infer<typeof PeopleOut>;
 export const findPeople: AgentDef<z.infer<typeof PeopleIn>, PeopleOutT> = {
-  name: 'people_finder', version: '1.0.0', effort: 'medium', webSearch: { maxUses: 6 }, input: PeopleIn, output: PeopleOut,
+  name: 'people_finder', version: '1.1.0', effort: 'medium', webSearch: { maxUses: 5 }, input: PeopleIn, output: PeopleOut,
   system: `You are the People Finder for awtm forge, a Bengaluru design and engineering studio. Use web search to find who at this company owns the problem the campaign is about: usually the founder, CEO, or head of ecommerce, marketing or digital. Search the company site (About, Team, Contact), press coverage, funding news, MCA or startup databases, and LinkedIn as it appears in search results. Do not try to log in anywhere.
 Hard rules:
 - Include a person only when at least one source URL names them together with this company. Put those URLs in source_urls.
 - Include an email only when you saw that exact address published on a public page; give that page as email_source_url. Never build an email from a name pattern. Otherwise email is null.
 - Prefer current roles; skip people who have clearly left.
+- job_title is the bare title, for example "Co-Founder". Put evidence in notes, never in job_title or full_name.
 - If you find nobody, return an empty people list and say what you searched. An empty answer is better than a guess.
 Schema: {people[{full_name, job_title, linkedin_url|null, email|null, email_source_url|null, source_urls[], confidence 0..1}], searched_for[], notes}. Best match first.`,
   user: (i) => `COMPANY:\n${j(i.company)}\nCAMPAIGN:\n${j(i.campaign)}\nTITLES THAT OWN THIS PROBLEM: ${i.buyer_titles.join(', ') || 'Founder, CEO'}\nEMAILS ALREADY ON THEIR SITE: ${i.public_emails.join(', ') || 'none'}`,
