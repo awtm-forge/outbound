@@ -8,7 +8,7 @@ import { CompanyCtx, Confidence, j } from './common.ts';
 const In = z.object({
   company: CompanyCtx, person: z.object({ full_name: z.string().nullable(), job_title: z.string().nullable() }),
   observation: z.string(), consequence: z.string().nullable(),
-  sender: z.object({ name: z.string(), role: z.string(), city: z.string() }), target_kind: z.enum(['PERSON', 'COMPANY_PAGE', 'SEARCH']),
+  sender: z.object({ name: z.string(), role: z.string(), city: z.string() }), target_kind: z.enum(['PERSON', 'PERSON_SEARCH', 'COMPANY_PAGE', 'SEARCH']),
 });
 const Out = z.object({ note: z.string(), follow_up: z.string(), why_this_angle: z.string(), confidence: Confidence });
 export type LinkedInNoteT = z.infer<typeof Out>;
