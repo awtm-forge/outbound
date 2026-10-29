@@ -7,6 +7,7 @@ import { firstName, emailDomain } from '../lib/normalize.ts';
 import * as P from '../pipeline.ts';
 import { HttpError } from '../pipeline.ts';
 import { enqueue, getJob } from '../jobs.ts';
+import * as L from '../linkedin.ts';
 import type { Ctx } from '../lib/http.ts';
 import { parse, z, text, optText } from '../lib/validate.ts';
 import { patchRow } from '../lib/patch.ts';
@@ -223,3 +224,10 @@ route('POST', '/api/metrics/daily-snapshot', 'api', async () => { const m = awai
 route('GET', '/api/ops/failures', 'api', async () => ({ workflows: await q(`select * from workflow_runs where status='FAILED' order by started_at desc limit 50`), ai_runs: await q(`select id,agent,error,created_at from ai_runs where not valid order by created_at desc limit 50`) }));
 route('GET', '/api/ops/saleshandy', 'api', async () => ({ mode: env.saleshandyMode, accounts: await q('select id, from_email, status from sh_email_accounts order by from_email'), sequences: await q('select id, title, status from sh_sequences order by title') }));
 route('GET', '/api/proof-assets', 'api', async () => q('select * from proof_assets order by label, id'));
+
+// ---------------- LinkedIn queue (a founder sends by hand) ----------------
+route('GET', '/api/linkedin/today', 'api', async (c) => L.today(c.url.searchParams.get('sender') ?? 'ayush', c.url.searchParams.get('day') ?? undefined));
+ai('POST', '/api/linkedin/build', (c) => `linkedin_build:${c.body.sender}`, async (c) => L.build(c.body.sender, c.body.count ?? L.DAILY_CAP, c.body.day));
+ai('POST', '/api/linkedin/queue/:prospectId', (c) => `linkedin_queue:${c.params.prospectId}`, async (c) => L.queueOne(c.params.prospectId, c.body.sender, c.body.day));
+route('POST', '/api/linkedin/:id/status', 'api', async (c) => L.setStatus(c.params.id, c.body.status, c.actor, { reason: c.body.reason, follow_up_sent: !!c.body.follow_up_sent }));
+route('POST', '/api/linkedin/:id/text', 'api', async (c) => L.editText(c.params.id, c.body.note, c.body.follow_up, c.actor));

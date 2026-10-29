@@ -11,6 +11,7 @@ import { Inbox } from './pages/Inbox.tsx';
 import { Pipeline } from './pages/Pipeline.tsx';
 import { Prospect } from './pages/Prospect.tsx';
 import { Deals } from './pages/Deals.tsx';
+import { LinkedIn } from './pages/LinkedIn.tsx';
 import { Campaigns } from './pages/Campaigns.tsx';
 import { Account } from './pages/Account.tsx';
 import { Team } from './pages/Team.tsx';
@@ -67,6 +68,7 @@ function Shell({ me, onSignOut, onMeChanged }: { me: Me; onSignOut: () => void; 
     { to: '/inbox', label: 'Inbox', icon: 'inbox', n: (counts?.replies ?? 0) + (counts?.teardowns ?? 0), on: (p) => p.startsWith('/inbox') },
     { to: '/pipeline', label: 'Pipeline', icon: 'funnel', n: counts?.needs_contact, quiet: true, on: (p) => p.startsWith('/pipeline') || p.startsWith('/prospects') },
     { to: '/deals', label: 'Meetings & deals', icon: 'calendar', n: (counts?.meetings ?? 0) + (counts?.proposals ?? 0), quiet: true, on: (p) => p.startsWith('/deals') },
+    { to: '/linkedin', label: 'LinkedIn', icon: 'handshake', on: (p) => p.startsWith('/linkedin') },
     { to: '/campaigns', label: 'Campaigns', icon: 'campaigns', on: (p) => p.startsWith('/campaigns') },
     // Saleshandy, only while the integration is switched on
     ...(me.saleshandy_integration ? [{ to: '/outreach', label: 'Outreach', icon: 'send', on: (p: string) => p.startsWith('/outreach') } as Item] : []),
@@ -89,6 +91,7 @@ function Shell({ me, onSignOut, onMeChanged }: { me: Me; onSignOut: () => void; 
   else if ((m = match('/prospects/:id', path))) page = <Prospect id={m.id} key={m.id} />;
   else if (path.startsWith('/pipeline')) page = <Pipeline />;
   else if (path.startsWith('/deals')) page = <Deals />;
+  else if (path.startsWith('/linkedin')) page = <LinkedIn />;
   else if (path.startsWith('/campaigns')) page = <Campaigns />;
   else if (path.startsWith('/outreach') && me.saleshandy_integration) page = <Outreach />;
   else if ((m = match('/projects/:id/:view/:sub', path) ?? match('/projects/:id/:view', path) ?? match('/projects/:id', path))) page = <Workspace id={m.id} view={m.view ?? ''} sub={m.sub} key={m.id} />;

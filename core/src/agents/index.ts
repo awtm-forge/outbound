@@ -6,3 +6,4 @@ export { notesAssist } from './notes.ts';
 export { taskImportAi } from './taskimport.ts';
 export { findPeople, contactFinder } from './people.ts';
 export { companyFinder, screen } from './funnel.ts';
+export { linkedinNote } from './linkedin.ts';
