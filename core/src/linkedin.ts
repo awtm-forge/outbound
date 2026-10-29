@@ -11,7 +11,7 @@ export const SENDERS: Record<string, { name: string; role: string; city: string 
 };
 export const DAILY_CAP = Number(process.env.LINKEDIN_DAILY_CAP || 25);
 // words that push; the agent is told not to use them and the server refuses a note that does anyway
-const PUSHY = /!|urgent|limited|guarantee|free audit|quick call|hop on|circle back|touch base|synergy|leverage|game.changer|revolutionary|i'?d love to|just checking in|—|\p{Extended_Pictographic}/iu;
+const PUSHY = /!|we (help|build|rework|design|offer|specialise|specialize)|our (team|studio|clients|work)|urgent|limited|guarantee|free audit|quick call|hop on|circle back|touch base|synergy|leverage|game.changer|revolutionary|i'?d love to|just checking in|—|\p{Extended_Pictographic}/iu;
 const sender = (s: string) => { const v = SENDERS[s]; if (!v) throw new HttpError(400, `sender must be one of ${Object.keys(SENDERS).join(', ')}`); return v; };
 
 // Writes the note for one prospect and queues it. The target is the named person's profile when we have one,
@@ -27,9 +27,8 @@ export async function queueOne(prospectId: string, senderKey: string, day?: stri
   const target_url = person?.linkedin_url ?? companyPage ?? `https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(p.company.name.split(/[|:–-]/)[0].trim() + ' founder')}`;
   const observation = untag(p.specific_observation ?? '');
   if (!observation || observation === 'UNKNOWN') throw new HttpError(409, 'no specific observation yet; research first');
-  const cap = await one(`select data from research where company_id=$1 and kind='CAPABILITY' order by created_at desc limit 1`, [p.company.id]);
   const r = await runAgent(A.linkedinNote, { company: { name: p.company.name, domain: p.company.domain, website: p.company.website ?? undefined, city: p.company.city ?? undefined, vertical: p.company.vertical ?? undefined, platform: p.company.platform ?? undefined },
-    person: { full_name: person?.full_name ?? null, job_title: person?.job_title ?? null }, observation, consequence: untag(p.business_consequence ?? '') || null, capability_line: cap?.data?.one_line ?? null, sender: s, target_kind }, opts);
+    person: { full_name: person?.full_name ?? null, job_title: person?.job_title ?? null }, observation, consequence: untag(p.business_consequence ?? '') || null, sender: s, target_kind }, opts);
   let { note, follow_up } = r.output;
   note = note.replace(/\s+/g, ' ').trim(); follow_up = follow_up.trim();
   if (note.length > 300) throw new HttpError(422, `note is ${note.length} characters; LinkedIn allows 300`);
