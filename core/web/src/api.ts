@@ -42,5 +42,5 @@ export const api = {
   },
 };
 export type Role = 'admin' | 'member';
-export type Me = { user: string; id: string; name: string; role: Role; email: string | null; must_change_password: boolean; ai_provider: string; saleshandy: string; discovery_source: string; saleshandy_integration?: boolean; queue?: { waiting: number; running: string | null } };
+export type Me = { user: string; id: string; name: string; role: Role; email: string | null; must_change_password: boolean; ai_provider: string; saleshandy: string; discovery_source: string; saleshandy_integration?: boolean; portal?: boolean; queue?: { waiting: number; running: string | null } };
 export type TeamMember = { id: string; username: string; name: string; role: Role };

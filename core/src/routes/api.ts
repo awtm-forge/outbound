@@ -8,6 +8,7 @@ import * as P from '../pipeline.ts';
 import { HttpError } from '../pipeline.ts';
 import { enqueue, getJob } from '../jobs.ts';
 import * as L from '../linkedin.ts';
+import * as Portal from '../portal.ts';
 import type { Ctx } from '../lib/http.ts';
 import { parse, z, text, optText } from '../lib/validate.ts';
 import { patchRow } from '../lib/patch.ts';
@@ -231,3 +232,8 @@ ai('POST', '/api/linkedin/build', (c) => `linkedin_build:${c.body.sender}`, asyn
 ai('POST', '/api/linkedin/queue/:prospectId', (c) => `linkedin_queue:${c.params.prospectId}`, async (c) => L.queueOne(c.params.prospectId, c.body.sender, c.body.day));
 route('POST', '/api/linkedin/:id/status', 'api', async (c) => L.setStatus(c.params.id, c.body.status, c.actor, { reason: c.body.reason, follow_up_sent: !!c.body.follow_up_sent }));
 route('POST', '/api/linkedin/:id/text', 'api', async (c) => L.editText(c.params.id, c.body.note, c.body.follow_up, c.actor));
+
+// ---------------- the client portal, read-only ----------------
+route('GET', '/api/clients', 'api', async () => Portal.clients());
+route('GET', '/api/clients/:id', 'api', async (c) => Portal.client(c.params.id));
+route('POST', '/api/clients/refresh', 'api', async () => { Portal.forget(); return { ok: true }; });

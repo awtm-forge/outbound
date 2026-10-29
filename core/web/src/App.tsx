@@ -12,6 +12,7 @@ import { Pipeline } from './pages/Pipeline.tsx';
 import { Prospect } from './pages/Prospect.tsx';
 import { Deals } from './pages/Deals.tsx';
 import { LinkedIn } from './pages/LinkedIn.tsx';
+import { Clients } from './pages/Clients.tsx';
 import { Campaigns } from './pages/Campaigns.tsx';
 import { Account } from './pages/Account.tsx';
 import { Team } from './pages/Team.tsx';
@@ -75,6 +76,7 @@ function Shell({ me, onSignOut, onMeChanged }: { me: Me; onSignOut: () => void; 
   ];
   const workspace: Item[] = [
     { to: '/projects', label: 'Projects', icon: 'projects', n: unread.s?.tasks, on: (p) => p.startsWith('/projects') },
+    ...(me.portal ? [{ to: '/clients', label: 'Clients', icon: 'folder', on: (p: string) => p.startsWith('/clients') } as Item] : []),
     { to: '/wiki', label: 'Wiki', icon: 'wiki', on: (p) => p.startsWith('/wiki') },
     { to: '/chat', label: 'Chat', icon: 'chat', n: chat.unread, on: (p) => p.startsWith('/chat') },
     { to: '/crm', label: 'CRM', icon: 'crm', on: (p) => p.startsWith('/crm') },
@@ -93,6 +95,7 @@ function Shell({ me, onSignOut, onMeChanged }: { me: Me; onSignOut: () => void; 
   else if (path.startsWith('/deals')) page = <Deals />;
   else if (path.startsWith('/linkedin')) page = <LinkedIn />;
   else if (path.startsWith('/campaigns')) page = <Campaigns />;
+  else if (path.startsWith('/clients')) page = <Clients />;
   else if (path.startsWith('/outreach') && me.saleshandy_integration) page = <Outreach />;
   else if ((m = match('/projects/:id/:view/:sub', path) ?? match('/projects/:id/:view', path) ?? match('/projects/:id', path))) page = <Workspace id={m.id} view={m.view ?? ''} sub={m.sub} key={m.id} />;
   else if (path.startsWith('/projects')) page = <Projects />;

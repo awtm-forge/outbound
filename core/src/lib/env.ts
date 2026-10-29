@@ -57,5 +57,7 @@ export const env = {
   webDist: process.env.WEB_DIST ?? new URL('../../web/dist', import.meta.url).pathname,
   scheduler: (process.env.SCHEDULER ?? 'on') !== 'off',
   dbPoolMax: Number(process.env.DB_POOL_MAX ?? 5),
+  portalApiUrl: process.env.PORTAL_API_URL ?? '',
+  portalApiKey: process.env.PORTAL_API_KEY ?? '',
   nodeEnv: process.env.NODE_ENV ?? 'development',
 };
