@@ -16,7 +16,7 @@ test('build fills the day up to the cap, best first, a person with a profile bef
   assert.equal(r.queued, 2); assert.equal(r.cap, L.DAILY_CAP);
   const today = await L.today('ayush'); const chosen = today.items.map((i: any) => i.company).sort();
   assert.deepEqual(chosen, ['Linked 1', 'Linked 4']); // the one with a profile link, then the best score; 2 and 3 wait
-  assert.equal(today.items.find((i: any) => i.company === 'Linked 1')!.target_kind, 'PERSON'); assert.equal(today.items.find((i: any) => i.company === 'Linked 4')!.target_kind, 'SEARCH');
+  assert.equal(today.items.find((i: any) => i.company === 'Linked 1')!.target_kind, 'PERSON'); assert.equal(today.items.find((i: any) => i.company === 'Linked 4')!.target_kind, 'PERSON_SEARCH'); // named, no profile link: a people search for the name at the company
   assert.ok(today.items.every((i: any) => i.note.length <= 300));
   const again = await L.build('ayush', 2); assert.equal(again.queued, 0); assert.equal(again.already_today, 2);
   await assert.rejects(L.queueOne(ids[0], 'nobody'), /sender must be/);
@@ -47,4 +47,12 @@ test('API: today, build and status through a session; nothing without auth', asy
   const b = await s.call('POST', '/api/linkedin/build', { sender: 'rahul', count: 1 }); assert.ok(b.body.job_id); const J = await import('../src/jobs.ts'); await J.idle();
   const today = await s.call('GET', '/api/linkedin/today?sender=rahul'); assert.equal(today.status, 200); assert.equal(today.body.items.length, 1); assert.equal(today.body.sender.name, 'Rahul');
   const st = await s.call('POST', `/api/linkedin/${today.body.items[0].id}/status`, { status: 'SENT' }); assert.equal(st.body.status, 'SENT');
+});
+
+test('target: profile, then a search for the named person, then the company page, then a founder search', async () => {
+  const L = await import('../src/linkedin.ts');
+  assert.equal(L.targetFor({ full_name: 'Asha Rao', linkedin_url: 'https://www.linkedin.com/in/asha' }, 'https://www.linkedin.com/company/acme', 'Acme | Store').target_kind, 'PERSON');
+  const ps = L.targetFor({ full_name: 'Asha Rao' }, 'https://www.linkedin.com/company/acme', 'Acme | Store'); assert.equal(ps.target_kind, 'PERSON_SEARCH'); assert.match(ps.target_url, /keywords=Asha%20Rao%20Acme$/);
+  assert.equal(L.targetFor(null, 'https://www.linkedin.com/company/acme', 'Acme').target_kind, 'COMPANY_PAGE');
+  assert.match(L.targetFor(null, null, 'Acme').target_url, /Acme%20founder/);
 });

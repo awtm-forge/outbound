@@ -9,7 +9,8 @@ import { Badge, Empty, Failure, Loading, Spinner, ago, copy, initials, problemLa
 // The LinkedIn queue. The system wrote the words and keeps the book; the founder opens the profile, pastes, clicks.
 // Nothing on this screen talks to LinkedIn, by design: it is the founders' own profiles and LinkedIn's rules.
 const SENDERS = [['ayush', 'Ayush'], ['rahul', 'Rahul']] as const;
-const KIND: Record<string, string> = { PERSON: 'Their profile', COMPANY_PAGE: 'Company page', SEARCH: 'Find the founder' };
+const KIND: Record<string, string> = { PERSON: 'Open profile', PERSON_SEARCH: 'Find them', COMPANY_PAGE: 'Company page', SEARCH: 'Find the founder' };
+const HOW: Record<string, string> = { PERSON: 'Connect, then Add a note, then paste.', PERSON_SEARCH: 'Their result should be first. Connect is in the row; Add a note; paste.', COMPANY_PAGE: 'Open People on the company page, find the founder or head, Connect, Add a note, paste.', SEARCH: 'Pick the founder from the results, Connect, Add a note, paste.' };
 const date = () => new Date().toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', weekday: 'long', day: 'numeric', month: 'long' });
 
 export function LinkedIn() {
@@ -65,7 +66,8 @@ function Card({ i, sender, reload }: { i: any; sender: string; reload: () => voi
     <div className="panel" style={{ padding: 18, display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1.2fr)', gap: 18 }}>
       <div className="col" style={{ gap: 10 }}>
         <div className="row"><span className="avatar">{initials(i.person ?? i.company)}</span><div className="grow"><div style={{ fontWeight: 650 }}>{i.person ?? i.company}</div><div className="muted" style={{ fontSize: 'var(--fs-0)' }}>{i.person ? `${i.person_title ?? 'Role unknown'} · ${i.company}` : 'No named person yet'}</div></div><Badge tone={i.status === 'ACCEPTED' ? 'success' : i.status === 'SENT' ? 'info' : 'neutral'}>{i.status === 'ACCEPTED' ? 'Accepted' : i.status === 'SENT' ? 'Sent' : 'To send'}</Badge></div>
-        <div className="row wrap" style={{ gap: 6 }}><a className="btn sm primary" href={i.target_url} target="_blank" rel="noreferrer"><Icon.out size={14} />{KIND[i.target_kind]}</a><Link className="btn sm ghost" to={`/prospects/${i.prospect_id}`}>Profile in app</Link>{i.account_score != null && <Badge tone="neutral">score {i.account_score}</Badge>}{i.primary_problem && <Badge tone="neutral">{problemLabel(i.primary_problem)}</Badge>}</div>
+        <div className="row wrap" style={{ gap: 6 }}><a className="btn sm primary" href={i.target_url} target="_blank" rel="noreferrer" onClick={() => { copy(i.status === 'ACCEPTED' ? fu : note).then((ok) => ok && toast('Note copied. On LinkedIn: Connect, Add a note, paste.')); }}><Icon.out size={14} />{KIND[i.target_kind]} and copy</a><Link className="btn sm ghost" to={`/prospects/${i.prospect_id}`}>Profile in app</Link>{i.account_score != null && <Badge tone="neutral">score {i.account_score}</Badge>}{i.primary_problem && <Badge tone="neutral">{problemLabel(i.primary_problem)}</Badge>}</div>
+        <p className="faint" style={{ fontSize: 'var(--fs-0)' }}>{HOW[i.target_kind]}</p>
         <div className="notice" style={{ padding: 12 }}><p className="kick ember" style={{ marginBottom: 6 }}>What we noticed</p><p style={{ fontSize: 'var(--fs-0)' }}>{i.specific_observation}</p></div>
         {(i.person_email || i.person_phone) && <p className="faint mono" style={{ fontSize: 12 }}>{[i.person_email, i.person_phone].filter(Boolean).join(' · ')}</p>}
         {i.sent_at && <p className="faint" style={{ fontSize: 'var(--fs-0)' }}>Sent {ago(i.sent_at)}{i.accepted_at ? ` · accepted ${ago(i.accepted_at)}` : ''}</p>}

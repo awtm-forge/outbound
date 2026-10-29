@@ -14,6 +14,16 @@ export const DAILY_CAP = Number(process.env.LINKEDIN_DAILY_CAP || 25);
 const PUSHY = /!|we (help|build|rework|design|offer|specialise|specialize)|our (team|studio|clients|work)|urgent|limited|guarantee|free audit|quick call|hop on|circle back|touch base|synergy|leverage|game.changer|revolutionary|i'?d love to|just checking in|—|\p{Extended_Pictographic}/iu;
 const sender = (s: string) => { const v = SENDERS[s]; if (!v) throw new HttpError(400, `sender must be one of ${Object.keys(SENDERS).join(', ')}`); return v; };
 
+// Where the card sends the founder: the person's profile when we have it; else a people search for the named person at
+// the company, where LinkedIn shows Connect right in the result; else the company page; else a search for the founder.
+export function targetFor(person: { full_name?: string | null; linkedin_url?: string | null } | null, companyPage: string | null, companyName: string) {
+  const short = companyName.split(/[|:–-]/)[0].trim();
+  const search = (kw: string) => `https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(kw)}`;
+  if (person?.linkedin_url) return { target_kind: 'PERSON' as const, target_url: person.linkedin_url };
+  if (person?.full_name) return { target_kind: 'PERSON_SEARCH' as const, target_url: search(`${person.full_name} ${short}`) };
+  if (companyPage) return { target_kind: 'COMPANY_PAGE' as const, target_url: companyPage };
+  return { target_kind: 'SEARCH' as const, target_url: search(`${short} founder`) };
+}
 // Writes the note for one prospect and queues it. The target is the named person's profile when we have one,
 // else the company's LinkedIn page, else a people search for the company's founder.
 export async function queueOne(prospectId: string, senderKey: string, day?: string, opts: { workflowRunId?: string } = {}) {
@@ -23,8 +33,7 @@ export async function queueOne(prospectId: string, senderKey: string, day?: stri
   const other = await one(`select sender from linkedin_outreach where prospect_id=$1 and status in ('SENT','ACCEPTED','REPLIED')`, [p.id]); if (other) throw new HttpError(409, `${other.sender} has already written to this company`);
   const person = p.contact && (p.contact.full_name || p.contact.first_name) ? p.contact : (await one(`select * from contacts where company_id=$1 and full_name is not null order by is_decision_maker desc, (linkedin_url is not null) desc, created_at limit 1`, [p.company.id]));
   const companyPage = p.company.metadata?.linkedin_url ?? (await one('select linkedin_url from discovery_candidates where domain=$1', [p.company.domain]))?.linkedin_url ?? null;
-  const target_kind = person?.linkedin_url ? 'PERSON' : companyPage ? 'COMPANY_PAGE' : 'SEARCH';
-  const target_url = person?.linkedin_url ?? companyPage ?? `https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(p.company.name.split(/[|:–-]/)[0].trim() + ' founder')}`;
+  const { target_kind, target_url } = targetFor(person, companyPage, p.company.name);
   const observation = untag(p.specific_observation ?? '');
   if (!observation || observation === 'UNKNOWN') throw new HttpError(409, 'no specific observation yet; research first');
   const r = await runAgent(A.linkedinNote, { company: { name: p.company.name, domain: p.company.domain, website: p.company.website ?? undefined, city: p.company.city ?? undefined, vertical: p.company.vertical ?? undefined, platform: p.company.platform ?? undefined },
