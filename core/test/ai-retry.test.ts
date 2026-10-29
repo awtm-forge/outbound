@@ -15,7 +15,7 @@ test('anthropic call retries 5xx then succeeds; invalid first answer is re-promp
   try {
     const def = { name: 'retry_agent', version: '1', input: z.object({ a: z.number() }), output: z.object({ b: z.string() }), system: 'sys', user: (i: any) => `in ${i.a}`, mock: () => ({ b: '' }) };
     const r = await runAgent(def, { a: 1 }); assert.deepEqual(r.output, { b: 'seven' }); assert.equal(r.provider, 'anthropic');
-    assert.equal(calls.length, 3); assert.match(calls[2].messages[0].content, /failed validation/); assert.match(calls[0].system, /Never invent facts/);
+    assert.equal(calls.length, 3); assert.match(calls[2].messages[0].content, /failed validation/); assert.match(calls[0].system[0].text, /Never invent facts/); assert.equal(calls[0].system[0].cache_control.type, 'ephemeral'); // the instructions are one cached block
     const { one } = await import('../src/lib/db.ts'); const row = await one(`select tokens_in, tokens_out, valid from ai_runs where agent='retry_agent'`); assert.equal(row!.tokens_in, 22); assert.equal(row!.valid, true);
   } finally { globalThis.fetch = realFetch; }
 });
