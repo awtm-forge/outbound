@@ -17,8 +17,8 @@ const PRIO: Record<string, string> = { URGENT: 'Urgent', HIGH: 'High', MEDIUM: '
 // Today's tasks: quick to-dos that need no project, and your project tasks, in one list. Filters run in the browser.
 export function Todos({ me }: { me: Me }) {
   const team = useTeam(); const toast = useToast(); const ask = useConfirm();
-  const [who, setWho] = useState<'me' | 'all'>('me'); const [filter, setFilter] = useState<Filter>('all');
-  const { data, error, loading, reload, setData } = useLoad(() => api.get<any[]>(`/api/todos${who === 'all' ? '?who=all' : ''}`), [who]);
+  const [who, setWho] = useState<string>('me'); const [filter, setFilter] = useState<Filter>('all');
+  const { data, error, loading, reload, setData } = useLoad(() => api.get<any[]>(`/api/todos?who=${who}`), [who]);
   const [open, setOpen] = useState<string | null>(null); const [adding, setAdding] = useState(false);
   const changed = () => { reload(true); countsBus.dispatchEvent(new Event('changed')); };
   // ticks at once; snaps back if the server says no
@@ -41,8 +41,8 @@ export function Todos({ me }: { me: Me }) {
       <div className="panel-head">
         <h2 id="tasks-h"><span className="ic"><Icon.file size={20} /></span>Today’s tasks</h2>
         <span className="meta"><Icon.sparkle size={12} />{count.all} open</span>
-        <div className="seg compact" role="radiogroup" aria-label="Whose tasks">{(['me', 'all'] as const).map((k) =>
-          <button key={k} type="button" role="radio" aria-checked={who === k} className={who === k ? 'on' : ''} onClick={() => setWho(k)}>{k === 'me' ? 'Mine' : 'Everyone'}</button>)}</div>
+        <div className="seg compact" role="radiogroup" aria-label="Whose tasks">{['me', ...team.filter((u) => u.id !== me.id).map((u) => u.id)].map((k) =>
+          <button key={k} type="button" role="radio" aria-checked={who === k} className={who === k ? 'on' : ''} onClick={() => setWho(k)}>{k === 'me' ? 'Mine' : (team.find((u) => u.id === k)?.name ?? '').split(' ')[0]}</button>)}</div>
         <div className="right">
           <div className="row" role="group" aria-label="Filter tasks" style={{ gap: 6 }}>{filters.map(([k, l]) => <button key={k} type="button" className="filter-chip" aria-pressed={filter === k} onClick={() => setFilter(k)}>{l}</button>)}</div>
           <button type="button" className="btn primary tiny glow" onClick={() => setAdding(true)}><Icon.plus size={14} />Add task</button>
@@ -50,7 +50,7 @@ export function Todos({ me }: { me: Me }) {
       </div>
       {error ? <div style={{ padding: '0 16px 16px' }}><Failure error={error} retry={reload} /></div>
         : loading && !data ? <div className="col" style={{ padding: '4px 16px 16px', gap: 8 }}>{[0, 1, 2].map((i) => <Skeleton key={i} h={34} />)}</div>
-        : !shown.length ? <p className="task-empty">{filter === 'done' ? 'Nothing completed today yet.' : filter !== 'all' ? `No ${PRIO[filter]!.toLowerCase()} priority tasks open.` : who === 'me' ? 'Nothing on your list. Add the next thing with Add task.' : 'Nothing on anyone’s list.'}</p>
+        : !shown.length ? <p className="task-empty">{filter === 'done' ? 'Nothing completed today yet.' : filter !== 'all' ? `No ${PRIO[filter]!.toLowerCase()} priority tasks open.` : who === 'me' ? 'Nothing on your list. Add the next thing with Add task.' : `Nothing on ${(team.find((u) => u.id === who)?.name ?? 'their').split(' ')[0]}’s list.`}</p>
         : <ul className="task-list">{shown.map((t) => {
           const done = t.status === 'DONE'; const late = !done && isLate(t.due_date); const dueToday = !done && t.due_date === today;
           const mine = t.assignee_id === me.id;

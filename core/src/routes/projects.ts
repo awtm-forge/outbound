@@ -431,14 +431,16 @@ route('GET', '/api/projects/:id/search', 'user', async (c) => {
 // The list on Today: open to-dos and open project tasks, for you or for everyone, soonest and most urgent first, plus
 // what was ticked off today so it does not vanish the moment it is done.
 route('GET', '/api/todos', 'user', async (c) => {
-  const mine = c.url.searchParams.get('who') !== 'all';
+  // who: me (default), all, or a teammate's id
+  const who = c.url.searchParams.get('who') ?? 'me';
+  const assignee = who === 'all' ? null : who === 'me' ? c.user!.id : parse(uuid, who);
   return q(`select t.id, t.project_id, t.title, t.description, t.status, t.priority, t.assignee_id, t.due_date, t.completed_at, t.created_at, t.created_by,
       p.name project_name, p.color project_color, u.name assignee_name, (select count(*)::int from task_comments k where k.task_id=t.id) comments
     from tasks t left join projects p on p.id=t.project_id left join users u on u.id=t.assignee_id
     where (p.id is null or p.status in ('ACTIVE','ON_HOLD')) and t.archived_at is null and ($1::uuid is null or t.assignee_id=$1)
       and (t.status <> 'DONE' or (t.completed_at at time zone 'Asia/Kolkata')::date = ${TODAY_IST})
       and (t.project_id is null or t.assignee_id is not null)
-    order by t.status = 'DONE', t.due_date nulls last, case t.priority when 'URGENT' then 0 when 'HIGH' then 1 when 'MEDIUM' then 2 when 'LOW' then 3 else 4 end, t.created_at limit 300`, [mine ? c.user!.id : null]);
+    order by t.status = 'DONE', t.due_date nulls last, case t.priority when 'URGENT' then 0 when 'HIGH' then 1 when 'MEDIUM' then 2 when 'LOW' then 3 else 4 end, t.created_at limit 300`, [assignee]);
 });
 route('POST', '/api/todos', 'user', async (c) => {
   const b = parse(TaskIn.pick({ title: true, priority: true, due_date: true, assignee_id: true }), c.body);
